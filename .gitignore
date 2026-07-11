@@ -1,0 +1,47 @@
+# ---- macOS ----
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# ---- Xcode / Swift ----
+# 用户个人的 IDE 状态（每台机器不同，不该进仓库）
+xcuserdata/
+*.xcuserstate
+*.xcuserdatad
+
+# 构建产物
+build/
+DerivedData/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+Packages/
+Package.resolved
+
+# CocoaPods（暂未使用，留着以防将来引入）
+Pods/
+
+# Carthage（暂未使用）
+Carthage/Build/
+
+# Fastlane（暂未使用）
+fastlane/report.xml
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# 敏感 / 签名相关（切勿提交）
+*.mobileprovision
+*.p12
+*.cer
+
+# 系统临时
+*.swp
+*~

@@ -1,0 +1,169 @@
+{
+  "version": "1.1.0",
+  "created_at": "2026-07-12 02:48:34",
+  "updated_at": "2026-07-12 03:00:20",
+  "current_step": "S0",
+  "next_step": "用户自行完成 S0.1–S0.5（装 Xcode → 登录 Apple ID → 建 SwiftUI 工程 → 真机+模拟器跑通 → 纳入 git），完成后回来继续 S1",
+  "overall_status": "in_progress",
+  "completion_rate": "0%",
+  "all_steps": [
+    {
+      "id": "S0",
+      "name": "开发环境搭建",
+      "status": "in_progress",
+      "start_at": "2026-07-12 02:52:10",
+      "notes": [
+        "2026-07-12 02:52 用户选择带教方式=给清单自己搞。S0 主要为本机 GUI 操作，由用户手动完成，遇报错回来问。"
+      ],
+      "sub_steps": [
+        { "id": "S0.1", "name": "安装 Xcode（含 iOS 26 SDK）+ 命令行组件", "status": "pending" },
+        { "id": "S0.2", "name": "Xcode 登录个人 Apple ID", "status": "pending" },
+        { "id": "S0.3", "name": "新建 SwiftUI iOS 工程 MarkdownApp", "status": "pending" },
+        { "id": "S0.4", "name": "模拟器 + iOS 26 真机各跑通模板（真机开启 Developer Mode）", "status": "pending" },
+        { "id": "S0.5", "name": "Xcode 工程纳入 git + 补 .gitignore", "status": "pending" }
+      ],
+      "verify": "模拟器与 iOS 26 真机都能看到默认 Hello World 界面"
+    },
+    {
+      "id": "S1",
+      "name": "工程骨架与设计基座",
+      "status": "pending",
+      "notes": [],
+      "sub_steps": [
+        { "id": "S1.1", "name": "最低部署版本设为 iOS 17.0", "status": "pending" },
+        { "id": "S1.2", "name": "NavigationStack 主界面 + 文件浏览器占位页", "status": "pending" },
+        { "id": "S1.3", "name": "Theme：light/dark 颜色与等宽字体", "status": "pending" },
+        { "id": "S1.4", "name": "GlassBackground 液态玻璃/材质降级封装", "status": "pending" },
+        { "id": "S1.5", "name": "右上角 preview/edit 模式切换 button group 占位", "status": "pending" }
+      ],
+      "verify": "有导航壳，深浅色自动适配，液态玻璃层在 26 真机与 17 模拟器都不崩"
+    },
+    {
+      "id": "S2",
+      "name": "文件存储层与目录管理",
+      "status": "pending",
+      "notes": [],
+      "sub_steps": [
+        { "id": "S2.1", "name": "FileStore：FileManager CRUD + 移动", "status": "pending" },
+        { "id": "S2.2", "name": "DocumentNode 模型 + 目录映射成树", "status": "pending" },
+        { "id": "S2.3", "name": "文件浏览器 UI：进入/返回/层级/新建入口", "status": "pending" },
+        { "id": "S2.4", "name": "Info.plist 暴露给系统「文件」App", "status": "pending" },
+        { "id": "S2.5", "name": "删除/重命名确认与重名边界", "status": "pending" }
+      ],
+      "verify": "新建多级目录+文档，重启仍在；「文件」App 里结构一致"
+    },
+    {
+      "id": "S3",
+      "name": "Markdown 预览（WebView + GitHub 主题）",
+      "status": "pending",
+      "notes": [],
+      "sub_steps": [
+        { "id": "S3.1", "name": "本地 web 资源：template.html + marked + github-markdown.css", "status": "pending" },
+        { "id": "S3.2", "name": "WebPreviewView 包 WKWebView，本地 baseURL 加载", "status": "pending" },
+        { "id": "S3.3", "name": "渲染管线：Markdown → JS → .markdown-body", "status": "pending" },
+        { "id": "S3.4", "name": "深浅色主题切换", "status": "pending" },
+        { "id": "S3.5", "name": "GFM 验证：表格/代码/任务列表/引用/图片", "status": "pending" }
+      ],
+      "verify": "含表格/代码/任务列表的 md 渲染正确，深浅色都好看，全程离线"
+    },
+    {
+      "id": "S4",
+      "name": "原生编辑器与模式切换",
+      "status": "pending",
+      "notes": [],
+      "sub_steps": [
+        { "id": "S4.1", "name": "EditorView：TextEditor + 等宽字体，加载内容", "status": "pending" },
+        { "id": "S4.2", "name": "button group 驱动 preview/edit 切换", "status": "pending" },
+        { "id": "S4.3", "name": "保存写回 FileStore，预览重渲染", "status": "pending" },
+        { "id": "S4.4", "name": "评估是否需切到 UITextView 桥接", "status": "pending" }
+      ],
+      "verify": "改一篇 md → 预览见变化 → 重启内容仍是新的"
+    },
+    {
+      "id": "S5",
+      "name": "本地文件导入预览",
+      "status": "pending",
+      "notes": [],
+      "sub_steps": [
+        { "id": "S5.1", "name": ".fileImporter 选 md/text 文件", "status": "pending" },
+        { "id": "S5.2", "name": "security-scoped resource 读取内容", "status": "pending" },
+        { "id": "S5.3", "name": "读到内容进入预览（可只读）", "status": "pending" }
+      ],
+      "verify": "从「文件」App 任选一个 md 能正确预览"
+    },
+    {
+      "id": "S6",
+      "name": "外部分享 / 打开方式导入",
+      "status": "pending",
+      "notes": [],
+      "sub_steps": [
+        { "id": "S6.1", "name": "Info.plist 注册文档类型(UTI)，出现在分享/打开方式", "status": "pending" },
+        { "id": "S6.2", "name": ".onOpenURL 接收传入文件", "status": "pending" },
+        { "id": "S6.3", "name": "中间页选目标目录（默认根），拷入 FileStore", "status": "pending" },
+        { "id": "S6.4", "name": "导入完成默认进入预览模式", "status": "pending" },
+        { "id": "S6.5", "name": "边界：重名/非 md/取消", "status": "pending" }
+      ],
+      "verify": "分享一个 md → 出现选目录中间页 → 确认 → 进目录并预览"
+    },
+    {
+      "id": "S7",
+      "name": "液态玻璃视觉打磨 & 主题适配",
+      "status": "pending",
+      "notes": [],
+      "sub_steps": [
+        { "id": "S7.1", "name": "导航栏/工具栏/卡片/切换器统一应用 GlassBackground", "status": "pending" },
+        { "id": "S7.2", "name": "26 真机原生玻璃 + 17 模拟器降级走查", "status": "pending" },
+        { "id": "S7.3", "name": "Light/Dark 全流程走查", "status": "pending" },
+        { "id": "S7.4", "name": "App 图标 / 启动屏 / 显示名", "status": "pending" }
+      ],
+      "verify": "26 真机玻璃到位，17 降级可接受，深浅色一致，图标/名称就绪"
+    },
+    {
+      "id": "S8",
+      "name": "App Store 上架准备",
+      "status": "pending",
+      "notes": [
+        "2026-07-12 03:00 开发者账号区决策：账号所在国须匹配真实居住地/税务/收款主体，不能随意选。用户为大陆个人开发者 → 建议注册中国区个人开发者账号（照样能全球发布，发布范围逐 App 勾选，与账号区无关）。",
+        "2026-07-12 03:00 中国大陆 App Store 上架自 2023 起需 ICP 备案（监管要求，个人较难）。建议 MVP 发布范围勾全球但排除中国大陆以规避 ICP 备案；日后需进大陆市场再单独办备案。此决定 S8 注册时才落地，不阻塞 S0–S7 开发（免费 Apple ID 即可开发+真机调试）。"
+      ],
+      "sub_steps": [
+        { "id": "S8.1", "name": "注册付费 Apple Developer Program", "status": "pending" },
+        { "id": "S8.2", "name": "Bundle ID / 证书 / provisioning（自动签名）", "status": "pending" },
+        { "id": "S8.3", "name": "隐私清单 PrivacyInfo.xcprivacy（不联网/不收集）", "status": "pending" },
+        { "id": "S8.4", "name": "App Store Connect 条目 + 截图", "status": "pending" },
+        { "id": "S8.5", "name": "Archive → 上传 → TestFlight", "status": "pending" },
+        { "id": "S8.6", "name": "提交审核", "status": "pending" }
+      ],
+      "verify": "TestFlight 能装到真机（里程碑）；提交审核成功"
+    },
+    {
+      "id": "S9",
+      "name": "（后续）iCloud 同步",
+      "status": "pending",
+      "notes": [],
+      "sub_steps": [
+        { "id": "S9.1", "name": "开启 iCloud Documents entitlement + ubiquity container", "status": "pending" },
+        { "id": "S9.2", "name": "FileStore 迁移到 iCloud 容器，处理下载/冲突", "status": "pending" },
+        { "id": "S9.3", "name": "本地已有文档迁移策略", "status": "pending" }
+      ],
+      "verify": "两台设备同一 iCloud，改动能同步"
+    }
+  ],
+  "failures": [],
+  "decisions": {
+    "platform": "仅 iPhone/iPad（iOS/iPadOS），暂不做 macOS",
+    "min_deployment": "iOS 17.0；Liquid Glass 用 if #available(iOS 26,*) 渐进增强，低版本材质降级",
+    "ui_framework": "SwiftUI 为主，WKWebView/UITextView 用 UIViewRepresentable 桥接",
+    "preview": "WKWebView + 本地打包 marked + github-markdown-css，离线，标准 GFM",
+    "editor": "原生纯文本 + 等宽字体，无语法高亮（增强阶段再考虑）",
+    "storage": "MVP 用 App 本地 Documents 目录（Files 可见）；iCloud 延后到 S9",
+    "import": "注册文档类型(UTI) + .onOpenURL，非 Share Extension",
+    "distribution": "上架 App Store，需付费开发者账号",
+    "rendering_scope": "标准 GFM；数学公式/mermaid 不在 MVP",
+    "test_device": "真机为 iOS 26，可验证原生液态玻璃"
+  },
+  "notes": [
+    "2026-07-12 02:48 计划初始化。用户为资深 Web 前端、零 iOS 经验，机器上尚未安装 Xcode，S0 是最大门槛。",
+    "里程碑：M1=S0-S1 环境+骨架；M2=S2-S4 核心闭环；M3=S5-S6 导入；M4=S7-S8 打磨+上架；M5=S9 iCloud。"
+  ]
+}
