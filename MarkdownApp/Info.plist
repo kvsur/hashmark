@@ -2,6 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- 桌面显示名（不要求 App Store 唯一；商店上架主名 S8 再定）。 -->
+	<key>CFBundleDisplayName</key>
+	<string>Hashmark</string>
 	<!--
 	  仅声明「本 App 能打开哪些文档类型」，让我们出现在其它 App 的分享/「打开方式」里。
 	  其余 Info.plist 键仍由 Xcode 生成（GENERATE_INFOPLIST_FILE=YES）并合并进本文件。
