@@ -14,7 +14,7 @@
   - WebView 预览，GitHub Markdown 主题，标准 GFM
   - 原生编辑器（纯文本 + 等宽字体），预览/编辑模式切换（右上角 button group）
   - Light/Dark 主题适配
-  - 液态玻璃：iOS 26+ 用系统原生 Liquid Glass，iOS 17–25 降级为材质模糊
+  - 液态玻璃：iOS 26+ 用系统原生 Liquid Glass，iOS 18–25 降级为材质模糊
   - App Store 上架（签名、证书、隐私清单、审核提交）
 - Out（本期不做，已规划为后续阶段）：
   - iCloud 多设备同步（S9，MVP 后再加）
@@ -24,7 +24,7 @@
 
 ## Constraints / Coexistence
 - 平台：仅 iPhone/iPad（iOS/iPadOS），暂不做 macOS。
-- 最低部署版本：**iOS 17.0**。液态玻璃通过 `if #available(iOS 26, *)` 分支，低版本优雅降级，不因新 API 崩溃。
+- 最低部署版本：**iOS 18.0**。液态玻璃通过 `if #available(iOS 26, *)` 分支，低版本优雅降级，不因新 API 崩溃。
 - 技术栈：原生 Swift + **SwiftUI**（非 UIKit 主体，必要处用 `UIViewRepresentable` 桥接 WKWebView / UITextView）。
 - 预览渲染：WebView 内 **本地打包** 的 JS（marked/markdown-it）+ github-markdown-css，**不联网**（离线可用、便于 App Store 审核、无隐私风险）。
 - 存储：MVP 用 App 本地 Documents 目录，通过 Info.plist 暴露给系统「文件」App；iCloud 容器留到 S9。
@@ -38,14 +38,14 @@
 4. 其他 App 分享 `.md` → 出现选择目标目录的中间页 → 确认后导入并进入预览。
 5. 任一文档可在右上角切换到编辑模式，改动能保存并在预览端反映。
 6. Light/Dark 切换下预览与界面均正确适配。
-7. iOS 26 上呈现液态玻璃；模拟器降级到 iOS 17 不崩溃、观感可接受。
+7. iOS 26 上呈现液态玻璃；模拟器降级到 iOS 18 不崩溃、观感可接受。
 8. 成功提交 App Store 审核（TestFlight 可安装即视为里程碑达成）。
 
 ## Key Decisions (locked)
 | Decision | Choice | Why |
 |---|---|---|
 | UI 框架 | SwiftUI 为主 | 现代、代码少、对 Liquid Glass 支持最好；WebView/编辑器处用 Representable 桥接 |
-| 最低系统 | iOS 17.0 | 兼顾旧设备；Liquid Glass 用可用性分支渐进增强 |
+| 最低系统 | iOS 18.0 | 兼顾旧设备；Liquid Glass 用可用性分支渐进增强 |
 | 预览方案 | WKWebView + 本地 marked + github-markdown-css | 满足「GitHub 主题 + WebView」诉求，离线、审核友好 |
 | Markdown 范围 | 标准 GFM | 覆盖日常笔记；数学/图表列为后续 |
 | 编辑器 | 原生纯文本 + 等宽字体 | 先跑通、可靠；语法高亮作为增强阶段 |

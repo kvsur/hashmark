@@ -7,7 +7,7 @@
 
 ### 技术选型总览
 - **语言/框架**：Swift + SwiftUI（声明式 UI，类似 React 的心智模型：`View` ≈ 组件，`@State`/`@Observable` ≈ 状态）。
-- **最低部署**：iOS 17.0。液态玻璃走 `if #available(iOS 26, *)` 分支。
+- **最低部署**：iOS 18.0。液态玻璃走 `if #available(iOS 26, *)` 分支。
 - **预览**：`WKWebView`（通过 `UIViewRepresentable` 包成 SwiftUI View）。加载本地 HTML 模板，注入 `marked`（或 `markdown-it`）+ `github-markdown-css`，把原始 Markdown 交给 JS 渲染。全部资源打包进 App bundle，**不联网**。
 - **编辑器**：MVP 用 SwiftUI `TextEditor`（等宽字体）；若换行/光标体验不足，退回 `UITextView` 桥接。纯文本，无语法高亮。
 - **存储**：`FileManager` 管理 App 沙盒内 `Documents/` 目录。文件树即真实目录结构（无限级 = 真实嵌套文件夹）。通过 Info.plist 的 `UIFileSharingEnabled` + `LSSupportsOpeningDocumentsInPlace` 暴露给系统「文件」App。
@@ -64,12 +64,12 @@ MarkdownApp/
 ### S1 — 工程骨架与设计基座
 - Goal：搭好导航结构、主题与液态玻璃降级层，作为后续所有功能的地基。
 - Sub-steps：
-  - S1.1 设置最低部署版本为 iOS 17.0（Project → Deployment Target）。
+  - S1.1 设置最低部署版本为 iOS 18.0（Project → Deployment Target）。
   - S1.2 建 `NavigationStack` 主界面骨架 + 空的「文件浏览器」占位页。
   - S1.3 `DesignSystem/Theme.swift`：定义 light/dark 颜色与等宽字体；确认系统深浅色自动切换生效。
   - S1.4 `GlassBackground` 封装（iOS 26 原生 / 低版本材质降级），先在一个 toolbar/卡片上验证。
   - S1.5 右上角放一个占位的 preview/edit 模式切换 button group（`Picker`/segmented）。
-- Verify：App 有基本导航壳，深浅色自动适配，液态玻璃层在 26 真机与 17 模拟器都不崩。
+- Verify：App 有基本导航壳，深浅色自动适配，液态玻璃层在 26 真机与 18 模拟器都不崩。
 
 ### S2 — 文件存储层与目录管理（无限级目录）
 - Goal：能在 App 内新建/管理多级目录与文档，落盘持久化，系统「文件」App 可见。
@@ -122,10 +122,10 @@ MarkdownApp/
 - Goal：把 Liquid Glass 与深浅色打磨到可交付观感，补齐图标/启动。
 - Sub-steps：
   - S7.1 在导航栏、工具栏、卡片、模式切换器上统一应用 `GlassBackground`。
-  - S7.2 iOS 26 真机走查原生液态玻璃；iOS 17 模拟器走查材质降级不违和。
+  - S7.2 iOS 26 真机走查原生液态玻璃；iOS 18 模拟器走查材质降级不违和。
   - S7.3 Light/Dark 全流程走查（浏览器/预览/编辑/导入页）。
   - S7.4 App 图标（Assets.xcassets）、启动屏、App 显示名。
-- Verify：26 真机液态玻璃到位，17 降级可接受，深浅色一致，图标/名称就绪。
+- Verify：26 真机液态玻璃到位，18 降级可接受，深浅色一致，图标/名称就绪。
 
 ### S8 — App Store 上架准备
 - Goal：完成签名合规与提交，至少 TestFlight 可安装。
