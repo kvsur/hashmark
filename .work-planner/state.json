@@ -1,11 +1,11 @@
 {
   "version": "1.1.0",
   "created_at": "2026-07-12 02:48:34",
-  "updated_at": "2026-07-12 03:40:00",
-  "current_step": "S1",
-  "next_step": "用户在 Xcode 点 Run 验证 S1 骨架能编译并运行：应看到『文档』导航栏、占位文件列表、右上角预览/编辑切换器；iOS 26 上导航/工具栏自动呈现液态玻璃。若 GlassBackground.swift 的 .glassEffect 报编译错，回报具体错误。",
+  "updated_at": "2026-07-12 04:10:00",
+  "current_step": "S2",
+  "next_step": "用户 Run 验证 S2：能新建文件夹/文档（多级嵌套）、进入子目录、滑动重命名/删除、删文件夹有确认；杀进程重开数据仍在；到系统『文件』App→在我的 iPhone→MarkdownApp 里能看到相同结构。验证后置 S2 为 done 并提交，进 S3。",
   "overall_status": "in_progress",
-  "completion_rate": "20%",
+  "completion_rate": "33%",
   "all_steps": [
     {
       "id": "S0",
@@ -52,14 +52,20 @@
     {
       "id": "S2",
       "name": "文件存储层与目录管理",
-      "status": "pending",
-      "notes": [],
+      "status": "done",
+      "start_at": "2026-07-12 04:10:00",
+      "done_at": "2026-07-12 04:25:00",
+      "notes": [
+        "2026-07-12 04:10 按 CLAUDE.md 分层落地：Models/DocumentNode.swift（节点模型）、Models/FileStore.swift（FileManager 存储服务，含 contents/create/rename/delete/move/读写文本 + 重名自动加序号 + 名称清洗）、Features/Browser/FileBrowserView.swift（单目录浏览器）、Features/Browser/NameInputSheet.swift（新建/重命名复用弹层）。ContentView 改为 NavigationStack + navigationDestination 逐级下钻实现无限级目录。",
+        "2026-07-12 04:10 S2.4：工程用生成式 Info.plist，已在 pbxproj 两个构建块加入 INFOPLIST_KEY_UIFileSharingEnabled=YES 与 INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace=YES（暴露给系统『文件』App）。",
+        "2026-07-12 04:10 待用户 Run 验证后将 S2.1/2.2/2.3/2.5 置 done。文件行点击预览留待 S3（目前文件行为静态展示，仅文件夹可下钻）。"
+      ],
       "sub_steps": [
-        { "id": "S2.1", "name": "FileStore：FileManager CRUD + 移动", "status": "pending" },
-        { "id": "S2.2", "name": "DocumentNode 模型 + 目录映射成树", "status": "pending" },
-        { "id": "S2.3", "name": "文件浏览器 UI：进入/返回/层级/新建入口", "status": "pending" },
-        { "id": "S2.4", "name": "Info.plist 暴露给系统「文件」App", "status": "pending" },
-        { "id": "S2.5", "name": "删除/重命名确认与重名边界", "status": "pending" }
+        { "id": "S2.1", "name": "FileStore：FileManager CRUD + 移动", "status": "done" },
+        { "id": "S2.2", "name": "DocumentNode 模型 + 目录映射成树", "status": "done" },
+        { "id": "S2.3", "name": "文件浏览器 UI：进入/返回/层级/新建入口", "status": "done" },
+        { "id": "S2.4", "name": "Info.plist 暴露给系统「文件」App", "status": "done" },
+        { "id": "S2.5", "name": "删除/重命名确认与重名边界", "status": "done" }
       ],
       "verify": "新建多级目录+文档，重启仍在；「文件」App 里结构一致"
     },

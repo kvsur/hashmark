@@ -1,0 +1,167 @@
+//
+//  FileBrowserView.swift
+//  MarkdownApp
+//
+//  单个目录的文件浏览器：文件夹点击进入下一级（无限嵌套），
+//  右上角「+」新建文件夹/文档，滑动可重命名/删除。
+//
+
+import SwiftUI
+
+struct FileBrowserView: View {
+    let store: FileStore
+    let directory: URL
+    /// 是否为根目录（根用「文档」作标题）。
+    var isRoot: Bool = false
+
+    @State private var nodes: [DocumentNode] = []
+    @State private var sheet: BrowserSheet?
+    @State private var pendingDelete: DocumentNode?
+    @State private var errorMessage: String?
+
+    var body: some View {
+        Group {
+            if nodes.isEmpty {
+                ContentUnavailableView(
+                    "空目录",
+                    systemImage: "folder",
+                    description: Text("点击右上角 + 新建文件夹或文档")
+                )
+            } else {
+                List {
+                    ForEach(nodes) { node in
+                        row(for: node)
+                    }
+                }
+            }
+        }
+        .navigationTitle(isRoot ? "文档" : directory.lastPathComponent)
+        .navigationBarTitleDisplayMode(isRoot ? .large : .inline)
+        .toolbar { addMenu }
+        .sheet(item: $sheet, content: sheetContent)
+        .onAppear(perform: reload)
+        .confirmationDialog(
+            "确定删除「\(pendingDelete?.displayName ?? "")」？",
+            isPresented: deleteBinding,
+            titleVisibility: .visible
+        ) {
+            Button("删除", role: .destructive) {
+                if let node = pendingDelete { perform { try store.delete(node) } }
+            }
+        } message: {
+            if pendingDelete?.isFolder == true {
+                Text("文件夹及其中所有内容都会被删除。")
+            }
+        }
+        .alert("操作失败", isPresented: errorBinding) {
+            Button("好", role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? "")
+        }
+    }
+
+    // MARK: - 行
+
+    @ViewBuilder
+    private func row(for node: DocumentNode) -> some View {
+        Group {
+            if node.isFolder {
+                NavigationLink(value: node) { label(for: node) }
+            } else {
+                // 文件：S3 接入预览，这里先作静态展示。
+                label(for: node)
+            }
+        }
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive) { pendingDelete = node } label: {
+                Label("删除", systemImage: "trash")
+            }
+            Button { sheet = .rename(node) } label: {
+                Label("重命名", systemImage: "pencil")
+            }
+            .tint(.blue)
+        }
+    }
+
+    private func label(for node: DocumentNode) -> some View {
+        Label(node.displayName, systemImage: node.systemImage)
+            .font(Theme.mono())
+    }
+
+    // MARK: - 工具栏
+
+    private var addMenu: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                Button { sheet = .newFolder } label: {
+                    Label("新建文件夹", systemImage: "folder.badge.plus")
+                }
+                Button { sheet = .newMarkdown } label: {
+                    Label("新建文档", systemImage: "doc.badge.plus")
+                }
+            } label: {
+                Image(systemName: "plus")
+            }
+        }
+    }
+
+    // MARK: - Sheet 内容
+
+    @ViewBuilder
+    private func sheetContent(_ sheet: BrowserSheet) -> some View {
+        switch sheet {
+        case .newFolder:
+            NameInputSheet(title: "新建文件夹", placeholder: "文件夹名称") { name in
+                perform { _ = try store.createFolder(named: name, in: directory) }
+            }
+        case .newMarkdown:
+            NameInputSheet(title: "新建文档", placeholder: "文档名称") { name in
+                perform { _ = try store.createMarkdown(named: name, in: directory) }
+            }
+        case .rename(let node):
+            NameInputSheet(title: "重命名", placeholder: "新名称", initialName: node.displayName) { name in
+                perform { _ = try store.rename(node, to: name) }
+            }
+        }
+    }
+
+    // MARK: - 逻辑
+
+    private func reload() {
+        nodes = store.contents(of: directory)
+    }
+
+    /// 执行一次会修改磁盘的操作，成功后刷新列表，失败则记录错误。
+    private func perform(_ action: () throws -> Void) {
+        do {
+            try action()
+            reload()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: - 绑定
+
+    private var deleteBinding: Binding<Bool> {
+        Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })
+    }
+    private var errorBinding: Binding<Bool> {
+        Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
+    }
+}
+
+/// 浏览器可能弹出的 sheet 种类。
+enum BrowserSheet: Identifiable {
+    case newFolder
+    case newMarkdown
+    case rename(DocumentNode)
+
+    var id: String {
+        switch self {
+        case .newFolder: "newFolder"
+        case .newMarkdown: "newMarkdown"
+        case .rename(let node): "rename-\(node.id.path)"
+        }
+    }
+}
