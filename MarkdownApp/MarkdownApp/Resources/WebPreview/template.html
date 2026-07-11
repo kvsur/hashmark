@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <!-- 禁止用户缩放，让排版跟随原生宽度；离线，全部资源为本地相对路径 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <link rel="stylesheet" href="github-markdown.css">
+  <link rel="stylesheet" href="highlight-github.css">
+  <style>
+    /* 背景交给 github-markdown.css 的语义色；这里只做外边距与安全区适配 */
+    html, body { margin: 0; padding: 0; -webkit-text-size-adjust: 100%; }
+    .markdown-body {
+      box-sizing: border-box;
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 16px calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+    }
+    /* 图片不撑破视口 */
+    .markdown-body img { max-width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+  <article id="content" class="markdown-body"></article>
+
+  <script src="marked.min.js"></script>
+  <script src="highlight.min.js"></script>
+  <script>
+    // 标准 GFM：表格、任务列表、删除线等。marked v12 默认已开启 gfm。
+    marked.setOptions({ gfm: true, breaks: false });
+
+    // 由 Swift 侧通过 evaluateJavaScript 调用：window.renderMarkdown(<JSON 字符串>)
+    window.renderMarkdown = function (md) {
+      var el = document.getElementById('content');
+      el.innerHTML = marked.parse(md || '');
+      // marked 会给代码块加 language-xxx class；逐块交给 highlight.js 上色
+      el.querySelectorAll('pre code').forEach(function (block) {
+        try { hljs.highlightElement(block); } catch (e) {}
+      });
+      // 渲染完滚回顶部，避免复用同一 WebView 时残留滚动位置
+      window.scrollTo(0, 0);
+    };
+  </script>
+</body>
+</html>

@@ -64,14 +64,8 @@ struct FileBrowserView: View {
 
     @ViewBuilder
     private func row(for node: DocumentNode) -> some View {
-        Group {
-            if node.isFolder {
-                NavigationLink(value: node) { label(for: node) }
-            } else {
-                // 文件：S3 接入预览，这里先作静态展示。
-                label(for: node)
-            }
-        }
+        // 文件夹下钻子目录，Markdown 文件下钻预览页；分流在 ContentView 的 navigationDestination。
+        NavigationLink(value: node) { label(for: node) }
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) { pendingDelete = node } label: {
                 Label("删除", systemImage: "trash")

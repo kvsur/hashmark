@@ -1,11 +1,11 @@
 {
   "version": "1.1.0",
   "created_at": "2026-07-12 02:48:34",
-  "updated_at": "2026-07-12 04:10:00",
-  "current_step": "S2",
-  "next_step": "用户 Run 验证 S2：能新建文件夹/文档（多级嵌套）、进入子目录、滑动重命名/删除、删文件夹有确认；杀进程重开数据仍在；到系统『文件』App→在我的 iPhone→MarkdownApp 里能看到相同结构。验证后置 S2 为 done 并提交，进 S3。",
+  "updated_at": "2026-07-12 04:05:30",
+  "current_step": "S5",
+  "next_step": "进入 S5 本地文件导入预览：用 .fileImporter 选 md/text；security-scoped resource 读内容；读到内容进入预览（可只读）。S3+S4 已于本次一起提交。",
   "overall_status": "in_progress",
-  "completion_rate": "33%",
+  "completion_rate": "56%",
   "all_steps": [
     {
       "id": "S0",
@@ -72,27 +72,44 @@
     {
       "id": "S3",
       "name": "Markdown 预览（WebView + GitHub 主题）",
-      "status": "pending",
-      "notes": [],
+      "status": "done",
+      "start_at": "2026-07-12 03:56:42",
+      "done_at": "2026-07-12 04:00:56",
+      "notes": [
+        "2026-07-12 03:56 本地 web 资源全部离线打包到 Resources/WebPreview/：marked@12.0.2(marked.min.js)、github-markdown-css@5(github-markdown.css，自带 prefers-color-scheme 明暗)、highlight.js@11.9.0(highlight.min.js)+GitHub 明暗主题(highlight-github.css，我把明/暗两份分别包进 @media prefers-color-scheme)。工程为无异常 PBXFileSystemSynchronizedRootGroup，这些非 .swift 文件会自动纳入 target 并拷入 bundle，无需手动改 pbxproj。",
+        "2026-07-12 03:56 渲染架构：Features/Preview/WebPreviewView.swift(UIViewRepresentable 包 WKWebView，loadFileURL 加载 template.html，allowingReadAccessTo=模板同目录以引用本地 css/js) + DocumentPreviewView.swift(读 FileStore 文本、摆标题)。Swift 侧不拼 HTML，改为 didFinish 后 evaluateJavaScript 调 window.renderMarkdown(json)，marked 转 HTML 再逐块 hljs.highlightElement。markdown 用 JSONEncoder 编 [String] 再剥中括号得到安全 JS 字符串字面量（规避顶层裸字符串 fragment 问题）。",
+        "2026-07-12 03:56 深浅色：WebPreviewView 按 @Environment(colorScheme) 设 webView.overrideUserInterfaceStyle，css 的 prefers-color-scheme 自动响应，无需两套 css 或注入 data-theme。",
+        "2026-07-12 03:56 导航接线：ContentView 的 navigationDestination(for: DocumentNode) 现按 isFolder 分流——文件夹→FileBrowserView 下钻，文档→DocumentPreviewView 预览；FileBrowserView 文件行由静态展示改为 NavigationLink(value: node)。",
+        "2026-07-12 03:56 本机 xcode-select 指向 CommandLineTools 而非完整 Xcode，无法用 xcodebuild 在 CLI 编译；沿用 S0-S2 约定由用户在 Xcode Run 验证。IDE 内 SourceKit 报的 UIViewRepresentable/WKWebView 成员/FileStore『找不到』均为错 SDK(macOS) 索引误报，非真错。",
+        "2026-07-12 03:56 S3.5 走查内容：编辑器 S4 才做，当前无法在 App 内输入正文。已在 scratchpad 生成 GFM-验证样例.md，让用户经系统『文件』App(S2 已暴露 UIFileSharingEnabled) 放进 MarkdownApp 目录再点开预览。远程图片离线会加载失败属正常，不影响本地文本渲染验证。"
+      ],
       "sub_steps": [
-        { "id": "S3.1", "name": "本地 web 资源：template.html + marked + github-markdown.css", "status": "pending" },
-        { "id": "S3.2", "name": "WebPreviewView 包 WKWebView，本地 baseURL 加载", "status": "pending" },
-        { "id": "S3.3", "name": "渲染管线：Markdown → JS → .markdown-body", "status": "pending" },
-        { "id": "S3.4", "name": "深浅色主题切换", "status": "pending" },
-        { "id": "S3.5", "name": "GFM 验证：表格/代码/任务列表/引用/图片", "status": "pending" }
+        { "id": "S3.1", "name": "本地 web 资源：template.html + marked + github-markdown.css", "status": "done" },
+        { "id": "S3.2", "name": "WebPreviewView 包 WKWebView，本地 baseURL 加载", "status": "done" },
+        { "id": "S3.3", "name": "渲染管线：Markdown → JS → .markdown-body", "status": "done" },
+        { "id": "S3.4", "name": "深浅色主题切换", "status": "done" },
+        { "id": "S3.5", "name": "GFM 验证：表格/代码/任务列表/引用/图片", "status": "done" }
       ],
       "verify": "含表格/代码/任务列表的 md 渲染正确，深浅色都好看，全程离线"
     },
     {
       "id": "S4",
       "name": "原生编辑器与模式切换",
-      "status": "pending",
-      "notes": [],
+      "status": "done",
+      "start_at": "2026-07-12 04:00:56",
+      "done_at": "2026-07-12 04:05:30",
+      "notes": [
+        "2026-07-12 04:00 结构重构：新增 Features/Document/DocumentView.swift 作『文档屏容器』——持有 text/savedText/mode 状态，工具栏 principal 放 segmented Picker(预览/编辑)，按 mode 切换 WebPreviewView(预览) 与 EditorView(编辑)。原 Features/Preview/DocumentPreviewView.swift 职责并入 DocumentView 后删除；WebPreviewView 保持为纯渲染器。ContentView 的 navigationDestination 文档分支改指向 DocumentView。",
+        "2026-07-12 04:00 新增 Features/Editor/EditorView.swift：TextEditor + Theme.mono 等宽字体，关自动纠错/首字母大写，scrollContentBackground(.hidden) 露底色。仅接 @Binding text，是纯受控编辑器。",
+        "2026-07-12 04:00 保存策略(S4.3)：DocumentView 内 text 为单一数据源。onAppear 从 FileStore 读入一次；切到预览(onChange mode==preview)与 onDisappear 时若 text!=savedText 则 store.writeText 写回并更新 savedText。预览直接读 text 状态，故编辑→预览立刻可见改动；写盘保证重启留存。",
+        "2026-07-12 04:00 S4.4 评估结论：MVP 纯文本+等宽编辑，SwiftUI TextEditor(iOS18) 已够用，暂不切 UITextView 桥接。将来若需 查找替换/大文档性能/光标与选区精细控制/语法高亮，再在 EditorView 内部替换为 UIViewRepresentable 包 UITextView（对外 @Binding 接口不变，改动可局部收敛）。据此 S4.4 记为 done(已决策)。",
+        "2026-07-12 04:00 仍无法 CLI 编译(xcode-select=CommandLineTools)，由用户 Xcode Run 验证；IDE 内 SourceKit 报错为错 SDK 误报。用户要求 S3 暂不提交，S4 验证通过后 S3+S4 一起提交。"
+      ],
       "sub_steps": [
-        { "id": "S4.1", "name": "EditorView：TextEditor + 等宽字体，加载内容", "status": "pending" },
-        { "id": "S4.2", "name": "button group 驱动 preview/edit 切换", "status": "pending" },
-        { "id": "S4.3", "name": "保存写回 FileStore，预览重渲染", "status": "pending" },
-        { "id": "S4.4", "name": "评估是否需切到 UITextView 桥接", "status": "pending" }
+        { "id": "S4.1", "name": "EditorView：TextEditor + 等宽字体，加载内容", "status": "done" },
+        { "id": "S4.2", "name": "button group 驱动 preview/edit 切换", "status": "done" },
+        { "id": "S4.3", "name": "保存写回 FileStore，预览重渲染", "status": "done" },
+        { "id": "S4.4", "name": "评估是否需切到 UITextView 桥接", "status": "done" }
       ],
       "verify": "改一篇 md → 预览见变化 → 重启内容仍是新的"
     },
@@ -181,6 +198,7 @@
   },
   "notes": [
     "2026-07-12 02:48 计划初始化。用户为资深 Web 前端、零 iOS 经验，机器上尚未安装 Xcode，S0 是最大门槛。",
-    "里程碑：M1=S0-S1 环境+骨架；M2=S2-S4 核心闭环；M3=S5-S6 导入；M4=S7-S8 打磨+上架；M5=S9 iCloud。"
+    "里程碑：M1=S0-S1 环境+骨架；M2=S2-S4 核心闭环；M3=S5-S6 导入；M4=S7-S8 打磨+上架；M5=S9 iCloud。",
+    "2026-07-12 03:56 时钟提示：S3 起用真实系统时钟(03:56)，早于上一会话为 S2 记录的 04:10/04:25——上一会话时间戳偏前，故审计时间线在 S2→S3 处非严格单调，非笔误。"
   ]
 }
