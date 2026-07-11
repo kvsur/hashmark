@@ -85,6 +85,21 @@ struct FileStore {
         try fileManager.removeItem(at: node.url)
     }
 
+    /// 把外部文件（分享/「打开方式」传入）拷贝进目标目录，返回新文件 URL（S6 导入落库）。
+    /// 源 URL 可能受安全作用域保护；重名自动加序号；无扩展名按 md 兜底。
+    @discardableResult
+    func importFile(from source: URL, to directory: URL) throws -> URL {
+        let scoped = source.startAccessingSecurityScopedResource()
+        defer { if scoped { source.stopAccessingSecurityScopedResource() } }
+
+        let data = try Data(contentsOf: source)
+        let base = source.deletingPathExtension().lastPathComponent
+        let ext = source.pathExtension.isEmpty ? markdownExtension : source.pathExtension
+        let destination = uniqueURL(for: sanitized(base), extension: ext, in: directory)
+        try data.write(to: destination)
+        return destination
+    }
+
     /// 把节点移动到目标目录下（供后续 S6 导入复用）。
     @discardableResult
     func move(_ node: DocumentNode, to directory: URL) throws -> URL {
@@ -99,6 +114,15 @@ struct FileStore {
 
     func readText(at url: URL) -> String {
         (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+    }
+
+    /// 读取来自「文件」App 等外部来源的文本（S5 导入预览）。
+    /// 外部 URL 受安全作用域保护，须先 start/stop AccessingSecurityScopedResource；
+    /// 读不到返回 nil，供调用方区分「空文件」与「打不开」。
+    func readExternalText(at url: URL) -> String? {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        return try? String(contentsOf: url, encoding: .utf8)
     }
 
     func writeText(_ text: String, to url: URL) throws {

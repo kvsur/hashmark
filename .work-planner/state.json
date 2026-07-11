@@ -1,11 +1,11 @@
 {
   "version": "1.1.0",
   "created_at": "2026-07-12 02:48:34",
-  "updated_at": "2026-07-12 04:05:30",
-  "current_step": "S5",
-  "next_step": "进入 S5 本地文件导入预览：用 .fileImporter 选 md/text；security-scoped resource 读内容；读到内容进入预览（可只读）。S3+S4 已于本次一起提交。",
+  "updated_at": "2026-07-12 04:29:27",
+  "current_step": "S7",
+  "next_step": "进入 S7 液态玻璃视觉打磨：在导航栏/工具栏/卡片/模式切换器统一应用 GlassBackground；26 真机走查原生玻璃、18 模拟器走查材质降级；Light/Dark 全流程走查；App 图标/启动屏/显示名。S5+S6+分段宽度小改已一起提交。",
   "overall_status": "in_progress",
-  "completion_rate": "56%",
+  "completion_rate": "73%",
   "all_steps": [
     {
       "id": "S0",
@@ -103,7 +103,8 @@
         "2026-07-12 04:00 新增 Features/Editor/EditorView.swift：TextEditor + Theme.mono 等宽字体，关自动纠错/首字母大写，scrollContentBackground(.hidden) 露底色。仅接 @Binding text，是纯受控编辑器。",
         "2026-07-12 04:00 保存策略(S4.3)：DocumentView 内 text 为单一数据源。onAppear 从 FileStore 读入一次；切到预览(onChange mode==preview)与 onDisappear 时若 text!=savedText 则 store.writeText 写回并更新 savedText。预览直接读 text 状态，故编辑→预览立刻可见改动；写盘保证重启留存。",
         "2026-07-12 04:00 S4.4 评估结论：MVP 纯文本+等宽编辑，SwiftUI TextEditor(iOS18) 已够用，暂不切 UITextView 桥接。将来若需 查找替换/大文档性能/光标与选区精细控制/语法高亮，再在 EditorView 内部替换为 UIViewRepresentable 包 UITextView（对外 @Binding 接口不变，改动可局部收敛）。据此 S4.4 记为 done(已决策)。",
-        "2026-07-12 04:00 仍无法 CLI 编译(xcode-select=CommandLineTools)，由用户 Xcode Run 验证；IDE 内 SourceKit 报错为错 SDK 误报。用户要求 S3 暂不提交，S4 验证通过后 S3+S4 一起提交。"
+        "2026-07-12 04:00 仍无法 CLI 编译(xcode-select=CommandLineTools)，由用户 Xcode Run 验证；IDE 内 SourceKit 报错为错 SDK 误报。用户要求 S3 暂不提交，S4 验证通过后 S3+S4 一起提交。",
+        "2026-07-12 04:29 UI 微调：预览/编辑分段控件加宽。先试段内 Text 加 padding(.horizontal,24) 效果歪（和 UISegmentedControl 选中胶囊布局打架），改为给整个 Picker 设 .frame(width:200) 让两段均分，用户验证 OK。随 S5+S6 一起提交。"
       ],
       "sub_steps": [
         { "id": "S4.1", "name": "EditorView：TextEditor + 等宽字体，加载内容", "status": "done" },
@@ -116,26 +117,41 @@
     {
       "id": "S5",
       "name": "本地文件导入预览",
-      "status": "pending",
-      "notes": [],
+      "status": "done",
+      "start_at": "2026-07-12 04:08:14",
+      "done_at": "2026-07-12 04:29:27",
+      "notes": [
+        "2026-07-12 04:08 按 SRP 拆分，不把导入塞进 FileBrowserView：FileStore 加 readExternalText(at:)（start/stopAccessingSecurityScopedResource 包裹，读不到返回 nil 以区分空文件/打不开）；Features/Import/ReadOnlyPreviewView.swift（通用只读预览模态，复用 WebPreviewView，右上角『完成』dismiss）；Features/Import/ImportPreviewButton.swift（自包含工具栏按钮，持 .fileImporter + sheet + 错误 alert，内含 ImportedDocument 模型）。",
+        "2026-07-12 04:08 入口：FileBrowserView 仅在 isRoot 时于工具栏挂 ImportPreviewButton（全局动作，避免各级目录重复）。allowedContentTypes=[.plainText,.text]+按扩展名兜底的 md UTI+net.daringfireball.markdown。",
+        "2026-07-12 04:08 这是『只读预览』路径：选中外部文件直接渲染查看，不拷进 App 目录；拷入式导入（选目标目录落库）是 S6 的事。S5.1/5.2/5.3 代码完成，待用户 Run 验证。",
+        "2026-07-12 04:08 仍无法 CLI 编译(xcode-select=CommandLineTools)，SourceKit 报错为错 SDK 误报，由用户 Xcode Run 验证。"
+      ],
       "sub_steps": [
-        { "id": "S5.1", "name": ".fileImporter 选 md/text 文件", "status": "pending" },
-        { "id": "S5.2", "name": "security-scoped resource 读取内容", "status": "pending" },
-        { "id": "S5.3", "name": "读到内容进入预览（可只读）", "status": "pending" }
+        { "id": "S5.1", "name": ".fileImporter 选 md/text 文件", "status": "done" },
+        { "id": "S5.2", "name": "security-scoped resource 读取内容", "status": "done" },
+        { "id": "S5.3", "name": "读到内容进入预览（可只读）", "status": "done" }
       ],
       "verify": "从「文件」App 任选一个 md 能正确预览"
     },
     {
       "id": "S6",
       "name": "外部分享 / 打开方式导入",
-      "status": "pending",
-      "notes": [],
+      "status": "done",
+      "start_at": "2026-07-12 04:16:59",
+      "done_at": "2026-07-12 04:29:27",
+      "notes": [
+        "2026-07-12 04:16 S6.1 Info.plist：工程用生成式 plist（GENERATE_INFOPLIST_FILE=YES），CFBundleDocumentTypes 是嵌套结构无法用 INFOPLIST_KEY_ 表达。方案=新建 MarkdownApp/Info.plist（放 SRCROOT 外层，刻意置于同步根 path=MarkdownApp 之外，避免被当资源误拷），声明 CFBundleDocumentTypes(LSItemContentTypes=net.daringfireball.markdown+public.plain-text, role=Editor, rank=Alternate) 与 UTImportedTypeDeclarations(把 .md/.markdown 映射到 markdown UTI)。用 perl 给两个 build config 在 GENERATE_INFOPLIST_FILE 后插入 INFOPLIST_FILE=Info.plist；Xcode 会把生成键合并进该文件。用户需 Clean Build 一次。",
+        "2026-07-12 04:16 S6.2/6.4 ContentView 改造：NavigationStack 改用显式 path:[DocumentNode]；.onOpenURL 收到 URL→包成 PendingImport 触发 sheet；导入成功回调里 path.append(新文件 node) 直接跳到预览（DocumentView 默认 .preview）。onOpenURL 挂在 ContentView（不在 App）以便驱动本地 UI 状态。",
+        "2026-07-12 04:16 S6.3 中间页 Features/Import/ImportTargetPicker.swift：轻量目录栈（首元素恒为根）下钻/上一级，不复用完整 FileBrowserView（那带增删改过重）；header 显示『导入 X 到 文档/子目录』路径；『导入到此处』调 store.importFile。FileStore.importFile(from:to:)：security-scoped 读源 Data→uniqueURL 去重命名→写入目标，无扩展名按 md 兜底。",
+        "2026-07-12 04:16 S6.5 边界：重名→uniqueURL 自动加序号；取消→dismiss 且 sheet(item:) 自动清空 pendingImport；非文本→importFile 原样拷 Data，预览 readText 非 utf8 得空串（可接受）。导入类型入口已由 CFBundleDocumentTypes 限定为 markdown/纯文本。",
+        "2026-07-12 04:16 仍无法 CLI 编译(xcode-select=CommandLineTools)，由用户 Xcode Run 验证；SourceKit 报错为错 SDK 误报。S5 上一轮未单独提交，本轮 S5+S6 待验证后一起提交。"
+      ],
       "sub_steps": [
-        { "id": "S6.1", "name": "Info.plist 注册文档类型(UTI)，出现在分享/打开方式", "status": "pending" },
-        { "id": "S6.2", "name": ".onOpenURL 接收传入文件", "status": "pending" },
-        { "id": "S6.3", "name": "中间页选目标目录（默认根），拷入 FileStore", "status": "pending" },
-        { "id": "S6.4", "name": "导入完成默认进入预览模式", "status": "pending" },
-        { "id": "S6.5", "name": "边界：重名/非 md/取消", "status": "pending" }
+        { "id": "S6.1", "name": "Info.plist 注册文档类型(UTI)，出现在分享/打开方式", "status": "done" },
+        { "id": "S6.2", "name": ".onOpenURL 接收传入文件", "status": "done" },
+        { "id": "S6.3", "name": "中间页选目标目录（默认根），拷入 FileStore", "status": "done" },
+        { "id": "S6.4", "name": "导入完成默认进入预览模式", "status": "done" },
+        { "id": "S6.5", "name": "边界：重名/非 md/取消", "status": "done" }
       ],
       "verify": "分享一个 md → 出现选目录中间页 → 确认 → 进目录并预览"
     },

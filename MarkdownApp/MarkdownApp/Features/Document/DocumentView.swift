@@ -40,7 +40,9 @@ struct DocumentView: View {
                         ForEach(Mode.allCases) { Text($0.label).tag($0) }
                     }
                     .pickerStyle(.segmented)
-                    .frame(maxWidth: 220)
+                    // 给整个控件固定宽度让两段均分加宽；比给段内 Text 加 padding 更稳，
+                    // 后者会和 UISegmentedControl 的选中胶囊布局打架、显得歪。
+                    .frame(width: 200)
                 }
             }
             .onAppear(perform: loadIfNeeded)

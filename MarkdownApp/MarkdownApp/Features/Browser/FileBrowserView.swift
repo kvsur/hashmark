@@ -37,7 +37,15 @@ struct FileBrowserView: View {
         }
         .navigationTitle(isRoot ? "文档" : directory.lastPathComponent)
         .navigationBarTitleDisplayMode(isRoot ? .large : .inline)
-        .toolbar { addMenu }
+        .toolbar {
+            addMenu
+            // 「打开文件预览」只在根目录露出，是个全局动作（只读预览外部文件）。
+            if isRoot {
+                ToolbarItem(placement: .topBarTrailing) {
+                    ImportPreviewButton(store: store)
+                }
+            }
+        }
         .sheet(item: $sheet, content: sheetContent)
         .onAppear(perform: reload)
         .confirmationDialog(
