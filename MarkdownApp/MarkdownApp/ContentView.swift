@@ -40,6 +40,10 @@ struct ContentView: View {
                 path.append(DocumentNode(url: newURL, kind: .markdown, modifiedAt: .now))
             }
         }
+        // 导入中间页关闭后（导入完成或取消）清理 Inbox 残留。
+        .onChange(of: pendingImport?.id) { _, newID in
+            if newID == nil { store.purgeInbox() }
+        }
     }
 }
 

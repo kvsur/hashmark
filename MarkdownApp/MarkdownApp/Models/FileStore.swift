@@ -19,6 +19,20 @@ struct FileStore {
         fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
 
+    /// 系统在「拷贝到本 App」时自动创建的收件目录 Documents/Inbox。
+    /// 由系统管理（只可读/删、不可写），属暂存区而非用户目录：不展示、不可选为目标，
+    /// 导入后其中的源件应被清理。
+    var inboxURL: URL {
+        rootURL.appendingPathComponent("Inbox", isDirectory: true)
+    }
+
+    /// 判断某 URL 是否落在系统 Inbox 内（含 Inbox 目录自身）。
+    private func isInInbox(_ url: URL) -> Bool {
+        let inbox = inboxURL.standardizedFileURL.path
+        let path = url.standardizedFileURL.path
+        return path == inbox || path.hasPrefix(inbox + "/")
+    }
+
     // MARK: - 读取
 
     /// 列出某目录的直接子项：文件夹在前，同类按名称自然排序。
@@ -33,6 +47,10 @@ struct FileStore {
         let nodes: [DocumentNode] = urls.compactMap { url in
             let values = try? url.resourceValues(forKeys: Set(keys))
             let isDir = values?.isDirectory ?? false
+            // 隐藏系统 Inbox（暂存区，非用户目录）：不进浏览器、也不进选目录器。
+            if isDir && url.standardizedFileURL == inboxURL.standardizedFileURL {
+                return nil
+            }
             // 只展示文件夹与 .md 文件，其它类型忽略。
             if !isDir && url.pathExtension.lowercased() != markdownExtension {
                 return nil
@@ -95,8 +113,19 @@ struct FileStore {
         try fileManager.removeItem(at: node.url)
     }
 
+    /// 清空系统 Inbox 里的残留源件（如取消导入留下的），best-effort，不抛错。
+    /// 仅在导入中间页关闭后调用——此时正在导入的文件要么已消费、要么已被用户放弃，
+    /// 故不会误删正在处理的传入文件（规避冷启动即打开文件的竞态）。
+    func purgeInbox() {
+        guard let items = try? fileManager.contentsOfDirectory(
+            at: inboxURL, includingPropertiesForKeys: nil
+        ) else { return }
+        for item in items { try? fileManager.removeItem(at: item) }
+    }
+
     /// 把外部文件（分享/「打开方式」传入）拷贝进目标目录，返回新文件 URL（S6 导入落库）。
     /// 源 URL 可能受安全作用域保护；重名自动加序号；无扩展名按 md 兜底。
+    /// 若源件来自系统 Inbox（暂存区），拷贝成功后清理它，避免 Inbox 残留与重复。
     @discardableResult
     func importFile(from source: URL, to directory: URL) throws -> URL {
         let scoped = source.startAccessingSecurityScopedResource()
@@ -107,6 +136,11 @@ struct FileStore {
         let ext = source.pathExtension.isEmpty ? markdownExtension : source.pathExtension
         let destination = uniqueURL(for: sanitized(base), extension: ext, in: directory)
         try data.write(to: destination)
+
+        // 只清理落在本 App Inbox 内的源件；外部安全作用域文件（如经文件 App 选取）绝不删。
+        if isInInbox(source) {
+            try? fileManager.removeItem(at: source)
+        }
         return destination
     }
 

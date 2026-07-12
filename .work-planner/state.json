@@ -135,6 +135,7 @@
   },
   "notes": [
     "2026-07-12 17:50 二期计划初始化。承接已交付 MVP，本期做 5 项体验/功能增强(S1-S5)+上架(S6,原S8)+iCloud(S7,原S9)。原 MVP 三文件已归档 archive/ios-markdown-mvp-core。",
-    "里程碑：本期 M1=S1-S5 体验增强；M2=S6 上架；M3=S7 iCloud。"
+    "里程碑：本期 M1=S1-S5 体验增强；M2=S6 上架；M3=S7 iCloud。",
+    "2026-07-12 20:40 用户报 Inbox bug：外部「拷贝到本 App」的文件被系统放进 Documents/Inbox（系统管理，只读/删不可写）。原 FileStore 把 Inbox 当普通目录列出→用户看到并试图操作它：导入后源件残留在 Inbox（重复）、删 Inbox 提示无权限、选 Inbox 为目标报无权限却仍写入。修复(改 FileStore + ContentView，非计划内步骤)：1) contents(of:) 过滤系统 Inbox（浏览器与 DirectoryPicker 一并生效不可见/不可选）；2) importFile 从 Inbox 导入后删源件（仅删 Inbox 内的，外部安全作用域文件不删）；3) 加 purgeInbox()，ContentView 在导入中间页关闭(pendingImport→nil)时清 Inbox 残留（放关闭时而非启动时，规避冷启动即打开文件的竞态）。待用户 Run 验证。"
   ]
 }
