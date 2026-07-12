@@ -1,11 +1,11 @@
 {
   "version": "1.1.0",
   "created_at": "2026-07-12 02:48:34",
-  "updated_at": "2026-07-12 04:29:27",
-  "current_step": "S7",
-  "next_step": "S7 仅剩用户设备走查 S7.2/S7.3：26 真机看导航/工具栏/分段器原生玻璃是否到位；18 模拟器看 .ultraThinMaterial 降级不违和；Light/Dark 切换走查 浏览器/预览/编辑/只读预览/导入中间页 五个界面。全部 OK 则 S7.2/7.3 与 S7 置 done（S7.1 已决策=维持系统玻璃，S7.4 图标+名已提交）。之后进 S8 上架准备。",
+  "updated_at": "2026-07-12 13:35:00",
+  "current_step": "S10",
+  "next_step": "实现 S10 文档快速切换器：FileStore.tree 递归树 + DocumentSwitcherSheet(OutlineGroup 折叠树) + DocumentView 底部按钮/半屏可拖 sheet + 原地切换(node 变状态，切换前存脏内容再载入新文档)。写完待用户 Run 验证。S8/S9 上架与 iCloud 仍在其后。",
   "overall_status": "in_progress",
-  "completion_rate": "73%",
+  "completion_rate": "78%",
   "all_steps": [
     {
       "id": "S0",
@@ -207,6 +207,25 @@
         { "id": "S9.3", "name": "本地已有文档迁移策略", "status": "pending" }
       ],
       "verify": "两台设备同一 iCloud，改动能同步"
+    },
+    {
+      "id": "S10",
+      "name": "文档快速切换器（编辑/预览页底部弹层）",
+      "status": "done",
+      "start_at": "2026-07-12 13:35:00",
+      "done_at": "2026-07-12 13:55:02",
+      "notes": [
+        "2026-07-12 13:35 用户新增功能（追加到计划）：编辑/预览页底部按钮→半屏可拖 Modal→折叠文档树→点文档原地切换。用户确认：明知系统『文件』App 已有可折叠树，仍要 App 内切换器，价值=不离开 App 多篇无打断来回切。",
+        "2026-07-12 13:38 实现：Models/DocumentTreeNode.swift(带 children，文件=nil 叶子) + FileStore.tree(of:) 递归；Features/Switcher/DocumentSwitcherSheet.swift 用 List+OutlineGroup(children:\\.children) 折叠树，文件夹只展示由 OutlineGroup 负责折叠、文件是 Button 点选回调并 dismiss，当前文档 accentColor 高亮；DocumentView 改造：node 由 let 改 @State(加 init)，加 .bottomBar 按钮开 sheet，.presentationDetents([.medium,.large])+.presentationDragIndicator(.visible)，switchTo(newNode)=先 save() 存旧文档再换 node+载入新文本，不改导航栈、保持当前 mode、标题随 node 更新。代码完成待用户 Run 验证。",
+        "2026-07-12 13:55 用户验证通过。底部按钮图标经几轮调整定为 list.bullet.rectangle；工具栏会把 Label 强制 icon-only，.labelStyle(.titleAndIcon) 无效，最终用显式 HStack{Image+Text} 才让『切换文档』文字显示。S10 done 并提交。"
+      ],
+      "sub_steps": [
+        { "id": "S10.1", "name": "FileStore.tree 递归树 + DocumentTreeNode", "status": "done" },
+        { "id": "S10.2", "name": "DocumentSwitcherSheet：OutlineGroup 折叠树 + 高亮当前 + 点选回调", "status": "done" },
+        { "id": "S10.3", "name": "DocumentView 底部按钮 + 半屏可拖 sheet(presentationDetents)", "status": "done" },
+        { "id": "S10.4", "name": "原地切换：node 变状态，切换前存脏内容再载入新文档", "status": "done" }
+      ],
+      "verify": "编辑一篇→弹层选另一篇→原地切到新文档(标题/内容都变)且当前修改已存，反复切换不串"
     }
   ],
   "failures": [],

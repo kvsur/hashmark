@@ -146,6 +146,16 @@ MarkdownApp/
   - S9.3 本地已有文档的迁移策略。
 - Verify：两台设备登录同一 iCloud，改动能同步。
 
+### S10 — 文档快速切换器（编辑/预览页底部弹层）
+- Goal：在编辑/预览某文档时，不离开 App 就能快速跳到另一篇继续预览/编辑。
+- 背景：系统「文件」App 已有可折叠文档树，但要离开本 App；本功能主打「留在 App 内多篇之间无打断切换」。
+- Sub-steps：
+  - S10.1 `FileStore.tree(of:)` 递归读出整棵目录/文档树；`DocumentTreeNode`（含 `children`，文件为叶子）。
+  - S10.2 `DocumentSwitcherSheet`：`OutlineGroup` 折叠/展开树（点文件夹收合、点文档选中），高亮当前文档，点文档回调并关闭。
+  - S10.3 `DocumentView` 底部工具栏加入口按钮，`.sheet` + `.presentationDetents([.medium, .large])` + 拖拽指示，默认半屏可上拖。
+  - S10.4 原地切换：`DocumentView` 的当前 node 改为可变状态；切换前保存当前脏内容，再载入新文档文本、更新标题，保持当前预览/编辑模式，不改导航栈。
+- Verify：编辑一篇→底部弹层→选另一篇→原地切到新文档（标题/内容都变），当前修改已存；反复切换内容不串。
+
 ---
 
 ## Milestones

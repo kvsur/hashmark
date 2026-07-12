@@ -14,7 +14,13 @@ import SwiftUI
 
 struct DocumentView: View {
     let store: FileStore
-    let node: DocumentNode
+    /// 当前文档节点。设为可变状态，配合快速切换器实现原地换文档（不改导航栈）。
+    @State private var node: DocumentNode
+
+    init(store: FileStore, node: DocumentNode) {
+        self.store = store
+        _node = State(initialValue: node)
+    }
 
     /// 两种模式：预览（渲染）/ 编辑（源码）。
     enum Mode: String, CaseIterable, Identifiable {
@@ -29,6 +35,7 @@ struct DocumentView: View {
     @State private var savedText: String = ""
     @State private var mode: Mode = .preview
     @State private var loaded = false
+    @State private var showSwitcher = false
 
     var body: some View {
         content
@@ -44,6 +51,17 @@ struct DocumentView: View {
                     // 后者会和 UISegmentedControl 的选中胶囊布局打架、显得歪。
                     .frame(width: 200)
                 }
+                ToolbarItem(placement: .bottomBar) {
+                    Button {
+                        showSwitcher = true
+                    } label: {
+                        // 工具栏会把 Label 强制显示成 icon-only，故用显式 HStack 让文字一定出现。
+                        HStack(spacing: 6) {
+                            Image(systemName: "list.bullet.rectangle")
+                            Text("切换文档")
+                        }
+                    }
+                }
             }
             .onAppear(perform: loadIfNeeded)
             // 切回预览时先落盘，保证预览读到的是最新且已持久化的内容。
@@ -51,6 +69,13 @@ struct DocumentView: View {
                 if newMode == .preview { save() }
             }
             .onDisappear(perform: save)
+            .sheet(isPresented: $showSwitcher) {
+                DocumentSwitcherSheet(store: store, currentURL: node.url) { selected in
+                    switchTo(selected)
+                }
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+            }
     }
 
     @ViewBuilder
@@ -78,6 +103,16 @@ struct DocumentView: View {
     private func save() {
         guard loaded, text != savedText else { return }
         try? store.writeText(text, to: node.url)
+        savedText = text
+    }
+
+    /// 原地切换到另一篇文档：先保存当前脏内容（用旧 node.url），再换 node 并载入新文本。
+    /// 不改导航栈，保持当前预览/编辑模式，标题随 node 自动更新。
+    private func switchTo(_ newNode: DocumentNode) {
+        guard newNode.url != node.url else { return }
+        save()                                    // 存旧文档
+        node = newNode
+        text = store.readText(at: newNode.url)    // 载入新文档
         savedText = text
     }
 }

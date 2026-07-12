@@ -1,0 +1,72 @@
+//
+//  DocumentSwitcherSheet.swift
+//  MarkdownApp
+//
+//  文档快速切换器（S10）：半屏弹层里用可折叠树展示全部目录/文档。
+//  与首页浏览器不同——这里点文件夹是「就地折叠/展开」，不下钻二级页；
+//  点文档则回调选中并关闭，用于在编辑/预览时快速切到另一篇。
+//
+
+import SwiftUI
+
+struct DocumentSwitcherSheet: View {
+    let store: FileStore
+    /// 当前正在查看的文档 URL，用来在树里高亮。
+    let currentURL: URL
+    /// 选中某文档时回调（回调后本弹层关闭）。
+    let onSelect: (DocumentNode) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var roots: [DocumentTreeNode] = []
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if roots.isEmpty {
+                    ContentUnavailableView(
+                        "没有文档",
+                        systemImage: "folder",
+                        description: Text("先在首页新建文档")
+                    )
+                } else {
+                    List {
+                        OutlineGroup(roots, children: \.children) { item in
+                            row(for: item)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("切换文档")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("完成") { dismiss() }
+                }
+            }
+            .onAppear { roots = store.tree(of: store.rootURL) }
+        }
+    }
+
+    @ViewBuilder
+    private func row(for item: DocumentTreeNode) -> some View {
+        if item.isFolder {
+            // 文件夹：只作展示，点击由 OutlineGroup 负责折叠/展开。
+            Label(item.node.displayName, systemImage: "folder.fill")
+                .font(Theme.mono())
+        } else {
+            let isCurrent = item.node.url == currentURL
+            Button {
+                onSelect(item.node)
+                dismiss()
+            } label: {
+                Label {
+                    Text(item.node.displayName)
+                } icon: {
+                    Image(systemName: isCurrent ? "doc.text.fill" : "doc.text")
+                }
+                .font(Theme.mono())
+                .foregroundStyle(isCurrent ? Color.accentColor : Color.primary)
+            }
+        }
+    }
+}

@@ -50,6 +50,16 @@ struct FileStore {
         }
     }
 
+    /// 递归读出某目录下的整棵树（文件夹在前）。文件为叶子（children=nil），
+    /// 文件夹的 children 为其内容（可能为空数组）。供 S10 快速切换器的折叠树使用。
+    func tree(of directory: URL) -> [DocumentTreeNode] {
+        contents(of: directory).map { node in
+            node.isFolder
+                ? DocumentTreeNode(node: node, children: tree(of: node.url))
+                : DocumentTreeNode(node: node, children: nil)
+        }
+    }
+
     // MARK: - 新建
 
     /// 在指定目录新建文件夹，返回新建 URL。名称冲突时自动追加序号。
