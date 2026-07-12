@@ -156,6 +156,14 @@ MarkdownApp/
   - S10.4 原地切换：`DocumentView` 的当前 node 改为可变状态；切换前保存当前脏内容，再载入新文档文本、更新标题，保持当前预览/编辑模式，不改导航栈。
 - Verify：编辑一篇→底部弹层→选另一篇→原地切到新文档（标题/内容都变），当前修改已存；反复切换内容不串。
 
+### S11 — 只读预览页「导入到 App」
+- Goal：从「文件」App 打开外部文档只读预览（S5 路径）时，可一键导入进 App 目录（复用 S6 的选目录+拷入）；若该文件本就在 App 目录内，则不显示导入入口。
+- Sub-steps：
+  - S11.1 `FileStore.isInsideStore(url)`：解析符号链接后判断文件是否已在 App Documents 内。
+  - S11.2 `ReadOnlyPreviewView` 传入 `store` + `sourceURL`，`canImport = !isInsideStore` 时在工具栏显示「导入」按钮。
+  - S11.3 点导入 → 复用 `ImportTargetPicker` 选目录 → `FileStore.importFile` 拷入 → 关闭只读预览（返回浏览器可见新文件）。
+- Verify：打开 iCloud/下载里的外部 md → 预览有「导入」→ 选目录导入 → 浏览器出现该文件；打开 Hashmark 自己目录里的 md → 预览无「导入」按钮。
+
 ---
 
 ## Milestones

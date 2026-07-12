@@ -42,7 +42,8 @@ struct FileBrowserView: View {
             // 「打开文件预览」只在根目录露出，是个全局动作（只读预览外部文件）。
             if isRoot {
                 ToolbarItem(placement: .topBarTrailing) {
-                    ImportPreviewButton(store: store)
+                    // 导入成功后刷新本目录列表（sheet 关闭不会触发 onAppear）。
+                    ImportPreviewButton(store: store, onImported: reload)
                 }
             }
         }

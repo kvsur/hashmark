@@ -12,6 +12,8 @@ import UniformTypeIdentifiers
 
 struct ImportPreviewButton: View {
     let store: FileStore
+    /// 导入成功后回调（供上层刷新文件列表）。
+    var onImported: () -> Void = {}
 
     @State private var importing = false
     @State private var document: ImportedDocument?
@@ -31,7 +33,7 @@ struct ImportPreviewButton: View {
             handleImport(result)
         }
         .sheet(item: $document) { doc in
-            ReadOnlyPreviewView(title: doc.title, markdown: doc.markdown)
+            ReadOnlyPreviewView(store: store, sourceURL: doc.url, title: doc.title, markdown: doc.markdown, onImported: onImported)
         }
         .alert("无法打开文件", isPresented: errorBinding) {
             Button("好", role: .cancel) {}
@@ -53,6 +55,7 @@ struct ImportPreviewButton: View {
                 return
             }
             document = ImportedDocument(
+                url: url,
                 title: url.deletingPathExtension().lastPathComponent,
                 markdown: text
             )
@@ -75,6 +78,8 @@ struct ImportPreviewButton: View {
 /// 被选中、待只读预览的外部文档。
 struct ImportedDocument: Identifiable {
     let id = UUID()
+    /// 外部文件原始 URL（供只读预览判断是否可导入）。
+    let url: URL
     let title: String
     let markdown: String
 }

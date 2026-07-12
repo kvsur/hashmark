@@ -1,11 +1,11 @@
 {
   "version": "1.1.0",
   "created_at": "2026-07-12 02:48:34",
-  "updated_at": "2026-07-12 13:35:00",
-  "current_step": "S10",
-  "next_step": "实现 S10 文档快速切换器：FileStore.tree 递归树 + DocumentSwitcherSheet(OutlineGroup 折叠树) + DocumentView 底部按钮/半屏可拖 sheet + 原地切换(node 变状态，切换前存脏内容再载入新文档)。写完待用户 Run 验证。S8/S9 上架与 iCloud 仍在其后。",
+  "updated_at": "2026-07-12 13:55:02",
+  "current_step": "S11",
+  "next_step": "实现 S11 只读预览页导入：FileStore.isInsideStore + ReadOnlyPreviewView 加导入按钮(仅外部文件显示) + 复用 ImportTargetPicker。写完待用户 Run 验证。S8/S9 上架与 iCloud 仍在其后。",
   "overall_status": "in_progress",
-  "completion_rate": "78%",
+  "completion_rate": "82%",
   "all_steps": [
     {
       "id": "S0",
@@ -226,6 +226,24 @@
         { "id": "S10.4", "name": "原地切换：node 变状态，切换前存脏内容再载入新文档", "status": "done" }
       ],
       "verify": "编辑一篇→弹层选另一篇→原地切到新文档(标题/内容都变)且当前修改已存，反复切换不串"
+    },
+    {
+      "id": "S11",
+      "name": "只读预览页「导入到 App」",
+      "status": "done",
+      "start_at": "2026-07-12 13:55:02",
+      "done_at": "2026-07-12 17:45:12",
+      "notes": [
+        "2026-07-12 13:55 用户新增：S5 只读预览(从文件 App 打开外部 md)时加『导入』按钮把它拷进 App 目录（分享路径 S6 已支持，这里补只读路径）。关键点：若打开的文件本就在 App 自己 Documents 内(如经文件 App 浏览 Hashmark 目录打开)，则不显示导入按钮——需能判断。",
+        "2026-07-12 13:58 实现：FileStore.isInsideStore(url)=resolvingSymlinksInPath 后比 rootURL 前缀；ReadOnlyPreviewView 改为收 store+sourceURL+title+markdown，canImport=!isInsideStore 时于 topBarLeading 显示『导入』(square.and.arrow.down)，点击 sheet 出 ImportTargetPicker(复用 S6 选目录+importFile)，onImported 里 dismiss 关闭只读预览；ImportedDocument 加 url 字段，ImportPreviewButton 相应传参。代码完成待用户 Run 验证。",
+        "2026-07-12 14:05 修复：导入后根目录列表不刷新（用户反馈）。根因=只读预览/选目录都是 sheet，从根 FileBrowserView 弹出，sheet 关闭不会触发根视图 onAppear，故 reload 不跑（S6 因导入后跳转再返回而侥幸刷新）。修法=onImported 回调一路上传 ImportTargetPicker→ReadOnlyPreviewView(onImported)→ImportPreviewButton(onImported)→FileBrowserView 传 reload。注：导入到子目录时根只刷出该文件夹，进目录才见文件（onAppear 刷新），符合预期。"
+      ],
+      "sub_steps": [
+        { "id": "S11.1", "name": "FileStore.isInsideStore(url) 判断是否已在 App Documents 内", "status": "done" },
+        { "id": "S11.2", "name": "ReadOnlyPreviewView 传 store+sourceURL，canImport 时显示导入按钮", "status": "done" },
+        { "id": "S11.3", "name": "点导入复用 ImportTargetPicker 选目录拷入并关闭预览", "status": "done" }
+      ],
+      "verify": "外部 md 预览有导入→选目录→浏览器出现；App 内文档预览无导入按钮"
     }
   ],
   "failures": [],

@@ -126,6 +126,14 @@ struct FileStore {
         (try? String(contentsOf: url, encoding: .utf8)) ?? ""
     }
 
+    /// 判断某文件是否已在本 App 的 Documents 目录内（S11：据此决定是否显示「导入」）。
+    /// 先解析符号链接再比路径，避免 /var 与 /private/var 之类差异导致误判。
+    func isInsideStore(_ url: URL) -> Bool {
+        let root = rootURL.resolvingSymlinksInPath().standardizedFileURL.path
+        let target = url.resolvingSymlinksInPath().standardizedFileURL.path
+        return target == root || target.hasPrefix(root + "/")
+    }
+
     /// 读取来自「文件」App 等外部来源的文本（S5 导入预览）。
     /// 外部 URL 受安全作用域保护，须先 start/stop AccessingSecurityScopedResource；
     /// 读不到返回 nil，供调用方区分「空文件」与「打不开」。
