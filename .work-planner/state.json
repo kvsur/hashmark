@@ -3,7 +3,7 @@
   "created_at": "2026-07-12 02:48:34",
   "updated_at": "2026-07-12 04:29:27",
   "current_step": "S7",
-  "next_step": "进入 S7 液态玻璃视觉打磨：在导航栏/工具栏/卡片/模式切换器统一应用 GlassBackground；26 真机走查原生玻璃、18 模拟器走查材质降级；Light/Dark 全流程走查；App 图标/启动屏/显示名。S5+S6+分段宽度小改已一起提交。",
+  "next_step": "S7 仅剩用户设备走查 S7.2/S7.3：26 真机看导航/工具栏/分段器原生玻璃是否到位；18 模拟器看 .ultraThinMaterial 降级不违和；Light/Dark 切换走查 浏览器/预览/编辑/只读预览/导入中间页 五个界面。全部 OK 则 S7.2/7.3 与 S7 置 done（S7.1 已决策=维持系统玻璃，S7.4 图标+名已提交）。之后进 S8 上架准备。",
   "overall_status": "in_progress",
   "completion_rate": "73%",
   "all_steps": [
@@ -158,18 +158,22 @@
     {
       "id": "S7",
       "name": "液态玻璃视觉打磨 & 主题适配",
-      "status": "in_progress",
+      "status": "done",
       "start_at": "2026-07-12 04:29:27",
+      "done_at": "2026-07-12 13:29:54",
       "notes": [
         "2026-07-12 04:29 现状：iOS26 导航栏/工具栏/分段控件已自动套原生 Liquid Glass，浏览器是标准 List、预览是 WKWebView。GlassBackground 封装(.glassEffect 26 / .ultraThinMaterial 降级)尚未在任何业务视图应用。S7.1 需判断哪些自定义表面真正受益（避免盲目套导致观感变差）。S7.4 图标需真实素材，按 CLAUDE.md 须与作者确认，不能用 emoji 顶替。已就『显示名 + 图标方案』向用户提问。",
         "2026-07-12 04:40 决策：显示名=Hashmark（用户定；桌面名不需 App Store 唯一，商店主名 S8 再定，若被占用加副名）；图标=用户自制 hashmark_final_1024.png(玻璃 # + .md)。原图 1024 但带 alpha，用 swift+CoreGraphics 铺黑底重绘为不透明 PNG(AppIcon-1024.png，hasAlpha:no)；Contents.json 改回单图标(去掉暂无素材的 Dark/Tinted 槽，系统兜底用主图)；CFBundleDisplayName=Hashmark 写入 Info.plist。启动屏沿用生成式空白屏(UILaunchScreen_Generation)。S7.4 主体完成，待用户 Run 确认图标/名字显示。",
         "2026-07-12 04:40 S7.1 评估：当前设计无天然『卡片』表面，nav/toolbar/分段器在 26 已自动玻璃；盲目给 List 行/空状态套 glassBackground 风险大（易出现类似分段控件的怪异）。倾向不过度应用，把 glassBackground 留给后续真正的浮层/卡片。待与用户确认后定 S7.1 取舍。",
-        "2026-07-12 04:50 用户换用满幅版图标 hashmark_final_full_bleed_1024.png（更贴规范），同法去 alpha 重绘覆盖 AppIcon-1024.png。用户 Cmd+R 确认 App 正常安装打开、图标显示 OK（此前 Preview 画布 failed to launch 是手动删 App 后 Xcode 状态问题，重跑即恢复，非代码问题）。S7.4 主体（图标+显示名）提交。S7.1 玻璃取舍与 S7.2/7.3 走查待续。"
+        "2026-07-12 04:50 用户换用满幅版图标 hashmark_final_full_bleed_1024.png（更贴规范），同法去 alpha 重绘覆盖 AppIcon-1024.png。用户 Cmd+R 确认 App 正常安装打开、图标显示 OK（此前 Preview 画布 failed to launch 是手动删 App 后 Xcode 状态问题，重跑即恢复，非代码问题）。S7.4 主体（图标+显示名）提交。S7.1 玻璃取舍与 S7.2/7.3 走查待续。",
+        "2026-07-12 04:55 S7.1 决策：用户选『维持系统自动玻璃』，不额外套 GlassBackground（避免返工），GlassBackground 封装保留给以后真正的浮层/卡片。S7.1 记 done（无代码改动）。剩 S7.2/7.3 为用户设备走查。",
+        "2026-07-12 13:29 用户完成 S7.2/7.3 设备走查，效果满意，S7 全部 done。",
+        "2026-07-12 13:29 【待提交 & 待验证】引入自定义 INFOPLIST_FILE 后发现 UIFileSharingEnabled 未被合并进最终 plist（用 plutil 查 DerivedData 构建产物证实：LSSupportsOpeningDocumentsInPlace=true 但 UIFileSharingEnabled 缺失），导致『文件』App 我的 iPhone 下不显示 Hashmark 目录。修复=在自定义 Info.plist 显式写入 UIFileSharingEnabled=true 与 LSSupportsOpeningDocumentsInPlace=true。此为 S2.4『暴露给文件 App』的实际生效补丁，尚未提交，待用户 Clean Build 后确认 Hashmark 目录出现再连同 state 一起提交。"
       ],
       "sub_steps": [
-        { "id": "S7.1", "name": "导航栏/工具栏/卡片/切换器统一应用 GlassBackground", "status": "pending" },
-        { "id": "S7.2", "name": "26 真机原生玻璃 + 18 模拟器降级走查", "status": "pending" },
-        { "id": "S7.3", "name": "Light/Dark 全流程走查", "status": "pending" },
+        { "id": "S7.1", "name": "导航栏/工具栏/卡片/切换器统一应用 GlassBackground", "status": "done" },
+        { "id": "S7.2", "name": "26 真机原生玻璃 + 18 模拟器降级走查", "status": "done" },
+        { "id": "S7.3", "name": "Light/Dark 全流程走查", "status": "done" },
         { "id": "S7.4", "name": "App 图标 / 启动屏 / 显示名", "status": "done" }
       ],
       "verify": "26 真机玻璃到位，18 降级可接受，深浅色一致，图标/名称就绪"
