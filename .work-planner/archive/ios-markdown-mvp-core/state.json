@@ -1,0 +1,237 @@
+{
+  "version": "1.1.0",
+  "created_at": "2026-07-12 02:48:34",
+  "updated_at": "2026-07-12 17:50:00",
+  "current_step": "S11",
+  "next_step": "（本计划已归档）MVP 核心全部完成：S0-S7 骨架/存储/预览/编辑/导入/玻璃，S10 快速切换器，S11 只读导入。原 S8 上架、S9 iCloud 已移出，作为后续新计划(.work-planner/plan.md)的 S6/S7。",
+  "overall_status": "done",
+  "completion_rate": "100%",
+  "all_steps": [
+    {
+      "id": "S0",
+      "name": "开发环境搭建",
+      "status": "done",
+      "start_at": "2026-07-12 02:52:10",
+      "done_at": "2026-07-12 03:40:00",
+      "notes": [
+        "2026-07-12 02:52 用户选择带教方式=给清单自己搞。S0 主要为本机 GUI 操作，由用户手动完成，遇报错回来问。",
+        "2026-07-12 03:20 建工程时 Xcode 自带勾选建了里层独立 git 仓库，且外层不再是 git 仓库。已按用户选择的『保持嵌套』布局理顺：删除 MarkdownApp/.git，在仓库根 git init，加 Swift/Xcode .gitignore，初始提交 af1ed61。最终唯一仓库在 /Users/kvsur/projects/ios-markdown-app 根目录，代码位于 MarkdownApp/ 子目录。",
+        "2026-07-12 03:20 待办：S0.2 确认是否已在 Xcode 登录 Apple ID（建工程时 Team 显示 Add account，可能未登录）；S0.4 尚未在模拟器/真机跑通模板。",
+        "2026-07-12 03:20 注意：新工程默认部署目标可能是 iOS 26，S1.1 需改为 iOS 18.0。"
+      ],
+      "sub_steps": [
+        { "id": "S0.1", "name": "安装 Xcode（含 iOS 26 SDK）+ 命令行组件", "status": "done" },
+        { "id": "S0.2", "name": "Xcode 登录个人 Apple ID", "status": "done" },
+        { "id": "S0.3", "name": "新建 SwiftUI iOS 工程 MarkdownApp", "status": "done" },
+        { "id": "S0.4", "name": "模拟器 + iOS 26 真机各跑通模板（真机开启 Developer Mode）", "status": "done" },
+        { "id": "S0.5", "name": "Xcode 工程纳入 git + 补 .gitignore", "status": "done" }
+      ],
+      "verify": "模拟器与 iOS 26 真机都能看到默认 Hello World 界面"
+    },
+    {
+      "id": "S1",
+      "name": "工程骨架与设计基座",
+      "status": "done",
+      "start_at": "2026-07-12 03:40:00",
+      "done_at": "2026-07-12 03:55:00",
+      "notes": [
+        "2026-07-12 03:40 用户将最低版本从 iOS 17 改为 iOS 18（少一档兼容判断）。已同步 summary/plan/state 及工程 IPHONEOS_DEPLOYMENT_TARGET=18.0。",
+        "2026-07-12 03:40 工程为 FileSystemSynchronized（自动同步文件夹）模式，新建 .swift 无需手动加入工程即自动编译。",
+        "2026-07-12 03:40 已写入：DesignSystem/Theme.swift（等宽字体/圆角，颜色用系统语义色自动深浅色）、DesignSystem/GlassBackground.swift（iOS26 .glassEffect / 低版本 .ultraThinMaterial）、ContentView.swift（NavigationStack + 占位列表 + 右上角 segmented 预览/编辑切换）。S1.2/1.3/1.4/1.5 代码完成，待用户 Run 验证编译后置 done。",
+        "2026-07-12 03:40 风险：GlassBackground 的 .glassEffect(.regular,in:) 为 iOS26 新 API，若编译报错需按实际 SDK 调整签名。S1 暂未在业务视图应用 GlassBackground（依赖 iOS26 导航/工具栏自动玻璃），真正 card 应用与走查留到 S7。"
+      ],
+      "sub_steps": [
+        { "id": "S1.1", "name": "最低部署版本设为 iOS 18.0", "status": "done" },
+        { "id": "S1.2", "name": "NavigationStack 主界面 + 文件浏览器占位页", "status": "done" },
+        { "id": "S1.3", "name": "Theme：light/dark 颜色与等宽字体", "status": "done" },
+        { "id": "S1.4", "name": "GlassBackground 液态玻璃/材质降级封装", "status": "done" },
+        { "id": "S1.5", "name": "右上角 preview/edit 模式切换 button group 占位", "status": "done" }
+      ],
+      "verify": "有导航壳，深浅色自动适配，液态玻璃层在 26 真机与 18 模拟器都不崩"
+    },
+    {
+      "id": "S2",
+      "name": "文件存储层与目录管理",
+      "status": "done",
+      "start_at": "2026-07-12 04:10:00",
+      "done_at": "2026-07-12 04:25:00",
+      "notes": [
+        "2026-07-12 04:10 按 CLAUDE.md 分层落地：Models/DocumentNode.swift（节点模型）、Models/FileStore.swift（FileManager 存储服务，含 contents/create/rename/delete/move/读写文本 + 重名自动加序号 + 名称清洗）、Features/Browser/FileBrowserView.swift（单目录浏览器）、Features/Browser/NameInputSheet.swift（新建/重命名复用弹层）。ContentView 改为 NavigationStack + navigationDestination 逐级下钻实现无限级目录。",
+        "2026-07-12 04:10 S2.4：工程用生成式 Info.plist，已在 pbxproj 两个构建块加入 INFOPLIST_KEY_UIFileSharingEnabled=YES 与 INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace=YES（暴露给系统『文件』App）。",
+        "2026-07-12 04:10 待用户 Run 验证后将 S2.1/2.2/2.3/2.5 置 done。文件行点击预览留待 S3（目前文件行为静态展示，仅文件夹可下钻）。"
+      ],
+      "sub_steps": [
+        { "id": "S2.1", "name": "FileStore：FileManager CRUD + 移动", "status": "done" },
+        { "id": "S2.2", "name": "DocumentNode 模型 + 目录映射成树", "status": "done" },
+        { "id": "S2.3", "name": "文件浏览器 UI：进入/返回/层级/新建入口", "status": "done" },
+        { "id": "S2.4", "name": "Info.plist 暴露给系统「文件」App", "status": "done" },
+        { "id": "S2.5", "name": "删除/重命名确认与重名边界", "status": "done" }
+      ],
+      "verify": "新建多级目录+文档，重启仍在；「文件」App 里结构一致"
+    },
+    {
+      "id": "S3",
+      "name": "Markdown 预览（WebView + GitHub 主题）",
+      "status": "done",
+      "start_at": "2026-07-12 03:56:42",
+      "done_at": "2026-07-12 04:00:56",
+      "notes": [
+        "2026-07-12 03:56 本地 web 资源全部离线打包到 Resources/WebPreview/：marked@12.0.2(marked.min.js)、github-markdown-css@5(github-markdown.css，自带 prefers-color-scheme 明暗)、highlight.js@11.9.0(highlight.min.js)+GitHub 明暗主题(highlight-github.css，我把明/暗两份分别包进 @media prefers-color-scheme)。工程为无异常 PBXFileSystemSynchronizedRootGroup，这些非 .swift 文件会自动纳入 target 并拷入 bundle，无需手动改 pbxproj。",
+        "2026-07-12 03:56 渲染架构：Features/Preview/WebPreviewView.swift(UIViewRepresentable 包 WKWebView，loadFileURL 加载 template.html，allowingReadAccessTo=模板同目录以引用本地 css/js) + DocumentPreviewView.swift(读 FileStore 文本、摆标题)。Swift 侧不拼 HTML，改为 didFinish 后 evaluateJavaScript 调 window.renderMarkdown(json)，marked 转 HTML 再逐块 hljs.highlightElement。markdown 用 JSONEncoder 编 [String] 再剥中括号得到安全 JS 字符串字面量（规避顶层裸字符串 fragment 问题）。",
+        "2026-07-12 03:56 深浅色：WebPreviewView 按 @Environment(colorScheme) 设 webView.overrideUserInterfaceStyle，css 的 prefers-color-scheme 自动响应，无需两套 css 或注入 data-theme。",
+        "2026-07-12 03:56 导航接线：ContentView 的 navigationDestination(for: DocumentNode) 现按 isFolder 分流——文件夹→FileBrowserView 下钻，文档→DocumentPreviewView 预览；FileBrowserView 文件行由静态展示改为 NavigationLink(value: node)。",
+        "2026-07-12 03:56 本机 xcode-select 指向 CommandLineTools 而非完整 Xcode，无法用 xcodebuild 在 CLI 编译；沿用 S0-S2 约定由用户在 Xcode Run 验证。IDE 内 SourceKit 报的 UIViewRepresentable/WKWebView 成员/FileStore『找不到』均为错 SDK(macOS) 索引误报，非真错。",
+        "2026-07-12 03:56 S3.5 走查内容：编辑器 S4 才做，当前无法在 App 内输入正文。已在 scratchpad 生成 GFM-验证样例.md，让用户经系统『文件』App(S2 已暴露 UIFileSharingEnabled) 放进 MarkdownApp 目录再点开预览。远程图片离线会加载失败属正常，不影响本地文本渲染验证。"
+      ],
+      "sub_steps": [
+        { "id": "S3.1", "name": "本地 web 资源：template.html + marked + github-markdown.css", "status": "done" },
+        { "id": "S3.2", "name": "WebPreviewView 包 WKWebView，本地 baseURL 加载", "status": "done" },
+        { "id": "S3.3", "name": "渲染管线：Markdown → JS → .markdown-body", "status": "done" },
+        { "id": "S3.4", "name": "深浅色主题切换", "status": "done" },
+        { "id": "S3.5", "name": "GFM 验证：表格/代码/任务列表/引用/图片", "status": "done" }
+      ],
+      "verify": "含表格/代码/任务列表的 md 渲染正确，深浅色都好看，全程离线"
+    },
+    {
+      "id": "S4",
+      "name": "原生编辑器与模式切换",
+      "status": "done",
+      "start_at": "2026-07-12 04:00:56",
+      "done_at": "2026-07-12 04:05:30",
+      "notes": [
+        "2026-07-12 04:00 结构重构：新增 Features/Document/DocumentView.swift 作『文档屏容器』——持有 text/savedText/mode 状态，工具栏 principal 放 segmented Picker(预览/编辑)，按 mode 切换 WebPreviewView(预览) 与 EditorView(编辑)。原 Features/Preview/DocumentPreviewView.swift 职责并入 DocumentView 后删除；WebPreviewView 保持为纯渲染器。ContentView 的 navigationDestination 文档分支改指向 DocumentView。",
+        "2026-07-12 04:00 新增 Features/Editor/EditorView.swift：TextEditor + Theme.mono 等宽字体，关自动纠错/首字母大写，scrollContentBackground(.hidden) 露底色。仅接 @Binding text，是纯受控编辑器。",
+        "2026-07-12 04:00 保存策略(S4.3)：DocumentView 内 text 为单一数据源。onAppear 从 FileStore 读入一次；切到预览(onChange mode==preview)与 onDisappear 时若 text!=savedText 则 store.writeText 写回并更新 savedText。预览直接读 text 状态，故编辑→预览立刻可见改动；写盘保证重启留存。",
+        "2026-07-12 04:00 S4.4 评估结论：MVP 纯文本+等宽编辑，SwiftUI TextEditor(iOS18) 已够用，暂不切 UITextView 桥接。将来若需 查找替换/大文档性能/光标与选区精细控制/语法高亮，再在 EditorView 内部替换为 UIViewRepresentable 包 UITextView（对外 @Binding 接口不变，改动可局部收敛）。据此 S4.4 记为 done(已决策)。",
+        "2026-07-12 04:00 仍无法 CLI 编译(xcode-select=CommandLineTools)，由用户 Xcode Run 验证；IDE 内 SourceKit 报错为错 SDK 误报。用户要求 S3 暂不提交，S4 验证通过后 S3+S4 一起提交。",
+        "2026-07-12 04:29 UI 微调：预览/编辑分段控件加宽。先试段内 Text 加 padding(.horizontal,24) 效果歪（和 UISegmentedControl 选中胶囊布局打架），改为给整个 Picker 设 .frame(width:200) 让两段均分，用户验证 OK。随 S5+S6 一起提交。"
+      ],
+      "sub_steps": [
+        { "id": "S4.1", "name": "EditorView：TextEditor + 等宽字体，加载内容", "status": "done" },
+        { "id": "S4.2", "name": "button group 驱动 preview/edit 切换", "status": "done" },
+        { "id": "S4.3", "name": "保存写回 FileStore，预览重渲染", "status": "done" },
+        { "id": "S4.4", "name": "评估是否需切到 UITextView 桥接", "status": "done" }
+      ],
+      "verify": "改一篇 md → 预览见变化 → 重启内容仍是新的"
+    },
+    {
+      "id": "S5",
+      "name": "本地文件导入预览",
+      "status": "done",
+      "start_at": "2026-07-12 04:08:14",
+      "done_at": "2026-07-12 04:29:27",
+      "notes": [
+        "2026-07-12 04:08 按 SRP 拆分，不把导入塞进 FileBrowserView：FileStore 加 readExternalText(at:)（start/stopAccessingSecurityScopedResource 包裹，读不到返回 nil 以区分空文件/打不开）；Features/Import/ReadOnlyPreviewView.swift（通用只读预览模态，复用 WebPreviewView，右上角『完成』dismiss）；Features/Import/ImportPreviewButton.swift（自包含工具栏按钮，持 .fileImporter + sheet + 错误 alert，内含 ImportedDocument 模型）。",
+        "2026-07-12 04:08 入口：FileBrowserView 仅在 isRoot 时于工具栏挂 ImportPreviewButton（全局动作，避免各级目录重复）。allowedContentTypes=[.plainText,.text]+按扩展名兜底的 md UTI+net.daringfireball.markdown。",
+        "2026-07-12 04:08 这是『只读预览』路径：选中外部文件直接渲染查看，不拷进 App 目录；拷入式导入（选目标目录落库）是 S6 的事。S5.1/5.2/5.3 代码完成，待用户 Run 验证。",
+        "2026-07-12 04:08 仍无法 CLI 编译(xcode-select=CommandLineTools)，SourceKit 报错为错 SDK 误报，由用户 Xcode Run 验证。"
+      ],
+      "sub_steps": [
+        { "id": "S5.1", "name": ".fileImporter 选 md/text 文件", "status": "done" },
+        { "id": "S5.2", "name": "security-scoped resource 读取内容", "status": "done" },
+        { "id": "S5.3", "name": "读到内容进入预览（可只读）", "status": "done" }
+      ],
+      "verify": "从「文件」App 任选一个 md 能正确预览"
+    },
+    {
+      "id": "S6",
+      "name": "外部分享 / 打开方式导入",
+      "status": "done",
+      "start_at": "2026-07-12 04:16:59",
+      "done_at": "2026-07-12 04:29:27",
+      "notes": [
+        "2026-07-12 04:16 S6.1 Info.plist：工程用生成式 plist（GENERATE_INFOPLIST_FILE=YES），CFBundleDocumentTypes 是嵌套结构无法用 INFOPLIST_KEY_ 表达。方案=新建 MarkdownApp/Info.plist（放 SRCROOT 外层，刻意置于同步根 path=MarkdownApp 之外，避免被当资源误拷），声明 CFBundleDocumentTypes(LSItemContentTypes=net.daringfireball.markdown+public.plain-text, role=Editor, rank=Alternate) 与 UTImportedTypeDeclarations(把 .md/.markdown 映射到 markdown UTI)。用 perl 给两个 build config 在 GENERATE_INFOPLIST_FILE 后插入 INFOPLIST_FILE=Info.plist；Xcode 会把生成键合并进该文件。用户需 Clean Build 一次。",
+        "2026-07-12 04:16 S6.2/6.4 ContentView 改造：NavigationStack 改用显式 path:[DocumentNode]；.onOpenURL 收到 URL→包成 PendingImport 触发 sheet；导入成功回调里 path.append(新文件 node) 直接跳到预览（DocumentView 默认 .preview）。onOpenURL 挂在 ContentView（不在 App）以便驱动本地 UI 状态。",
+        "2026-07-12 04:16 S6.3 中间页 Features/Import/ImportTargetPicker.swift：轻量目录栈（首元素恒为根）下钻/上一级，不复用完整 FileBrowserView（那带增删改过重）；header 显示『导入 X 到 文档/子目录』路径；『导入到此处』调 store.importFile。FileStore.importFile(from:to:)：security-scoped 读源 Data→uniqueURL 去重命名→写入目标，无扩展名按 md 兜底。",
+        "2026-07-12 04:16 S6.5 边界：重名→uniqueURL 自动加序号；取消→dismiss 且 sheet(item:) 自动清空 pendingImport；非文本→importFile 原样拷 Data，预览 readText 非 utf8 得空串（可接受）。导入类型入口已由 CFBundleDocumentTypes 限定为 markdown/纯文本。",
+        "2026-07-12 04:16 仍无法 CLI 编译(xcode-select=CommandLineTools)，由用户 Xcode Run 验证；SourceKit 报错为错 SDK 误报。S5 上一轮未单独提交，本轮 S5+S6 待验证后一起提交。"
+      ],
+      "sub_steps": [
+        { "id": "S6.1", "name": "Info.plist 注册文档类型(UTI)，出现在分享/打开方式", "status": "done" },
+        { "id": "S6.2", "name": ".onOpenURL 接收传入文件", "status": "done" },
+        { "id": "S6.3", "name": "中间页选目标目录（默认根），拷入 FileStore", "status": "done" },
+        { "id": "S6.4", "name": "导入完成默认进入预览模式", "status": "done" },
+        { "id": "S6.5", "name": "边界：重名/非 md/取消", "status": "done" }
+      ],
+      "verify": "分享一个 md → 出现选目录中间页 → 确认 → 进目录并预览"
+    },
+    {
+      "id": "S7",
+      "name": "液态玻璃视觉打磨 & 主题适配",
+      "status": "done",
+      "start_at": "2026-07-12 04:29:27",
+      "done_at": "2026-07-12 13:29:54",
+      "notes": [
+        "2026-07-12 04:29 现状：iOS26 导航栏/工具栏/分段控件已自动套原生 Liquid Glass，浏览器是标准 List、预览是 WKWebView。GlassBackground 封装(.glassEffect 26 / .ultraThinMaterial 降级)尚未在任何业务视图应用。S7.1 需判断哪些自定义表面真正受益（避免盲目套导致观感变差）。S7.4 图标需真实素材，按 CLAUDE.md 须与作者确认，不能用 emoji 顶替。已就『显示名 + 图标方案』向用户提问。",
+        "2026-07-12 04:40 决策：显示名=Hashmark（用户定；桌面名不需 App Store 唯一，商店主名 S8 再定，若被占用加副名）；图标=用户自制 hashmark_final_1024.png(玻璃 # + .md)。原图 1024 但带 alpha，用 swift+CoreGraphics 铺黑底重绘为不透明 PNG(AppIcon-1024.png，hasAlpha:no)；Contents.json 改回单图标(去掉暂无素材的 Dark/Tinted 槽，系统兜底用主图)；CFBundleDisplayName=Hashmark 写入 Info.plist。启动屏沿用生成式空白屏(UILaunchScreen_Generation)。S7.4 主体完成，待用户 Run 确认图标/名字显示。",
+        "2026-07-12 04:40 S7.1 评估：当前设计无天然『卡片』表面，nav/toolbar/分段器在 26 已自动玻璃；盲目给 List 行/空状态套 glassBackground 风险大（易出现类似分段控件的怪异）。倾向不过度应用，把 glassBackground 留给后续真正的浮层/卡片。待与用户确认后定 S7.1 取舍。",
+        "2026-07-12 04:50 用户换用满幅版图标 hashmark_final_full_bleed_1024.png（更贴规范），同法去 alpha 重绘覆盖 AppIcon-1024.png。用户 Cmd+R 确认 App 正常安装打开、图标显示 OK（此前 Preview 画布 failed to launch 是手动删 App 后 Xcode 状态问题，重跑即恢复，非代码问题）。S7.4 主体（图标+显示名）提交。S7.1 玻璃取舍与 S7.2/7.3 走查待续。",
+        "2026-07-12 04:55 S7.1 决策：用户选『维持系统自动玻璃』，不额外套 GlassBackground（避免返工），GlassBackground 封装保留给以后真正的浮层/卡片。S7.1 记 done（无代码改动）。剩 S7.2/7.3 为用户设备走查。",
+        "2026-07-12 13:29 用户完成 S7.2/7.3 设备走查，效果满意，S7 全部 done。",
+        "2026-07-12 13:29 【待提交 & 待验证】引入自定义 INFOPLIST_FILE 后发现 UIFileSharingEnabled 未被合并进最终 plist（用 plutil 查 DerivedData 构建产物证实：LSSupportsOpeningDocumentsInPlace=true 但 UIFileSharingEnabled 缺失），导致『文件』App 我的 iPhone 下不显示 Hashmark 目录。修复=在自定义 Info.plist 显式写入 UIFileSharingEnabled=true 与 LSSupportsOpeningDocumentsInPlace=true。此为 S2.4『暴露给文件 App』的实际生效补丁，尚未提交，待用户 Clean Build 后确认 Hashmark 目录出现再连同 state 一起提交。"
+      ],
+      "sub_steps": [
+        { "id": "S7.1", "name": "导航栏/工具栏/卡片/切换器统一应用 GlassBackground", "status": "done" },
+        { "id": "S7.2", "name": "26 真机原生玻璃 + 18 模拟器降级走查", "status": "done" },
+        { "id": "S7.3", "name": "Light/Dark 全流程走查", "status": "done" },
+        { "id": "S7.4", "name": "App 图标 / 启动屏 / 显示名", "status": "done" }
+      ],
+      "verify": "26 真机玻璃到位，18 降级可接受，深浅色一致，图标/名称就绪"
+    },
+    {
+      "id": "S10",
+      "name": "文档快速切换器（编辑/预览页底部弹层）",
+      "status": "done",
+      "start_at": "2026-07-12 13:35:00",
+      "done_at": "2026-07-12 13:55:02",
+      "notes": [
+        "2026-07-12 13:35 用户新增功能（追加到计划）：编辑/预览页底部按钮→半屏可拖 Modal→折叠文档树→点文档原地切换。用户确认：明知系统『文件』App 已有可折叠树，仍要 App 内切换器，价值=不离开 App 多篇无打断来回切。",
+        "2026-07-12 13:38 实现：Models/DocumentTreeNode.swift(带 children，文件=nil 叶子) + FileStore.tree(of:) 递归；Features/Switcher/DocumentSwitcherSheet.swift 用 List+OutlineGroup(children:\\.children) 折叠树，文件夹只展示由 OutlineGroup 负责折叠、文件是 Button 点选回调并 dismiss，当前文档 accentColor 高亮；DocumentView 改造：node 由 let 改 @State(加 init)，加 .bottomBar 按钮开 sheet，.presentationDetents([.medium,.large])+.presentationDragIndicator(.visible)，switchTo(newNode)=先 save() 存旧文档再换 node+载入新文本，不改导航栈、保持当前 mode、标题随 node 更新。代码完成待用户 Run 验证。",
+        "2026-07-12 13:55 用户验证通过。底部按钮图标经几轮调整定为 list.bullet.rectangle；工具栏会把 Label 强制 icon-only，.labelStyle(.titleAndIcon) 无效，最终用显式 HStack{Image+Text} 才让『切换文档』文字显示。S10 done 并提交。"
+      ],
+      "sub_steps": [
+        { "id": "S10.1", "name": "FileStore.tree 递归树 + DocumentTreeNode", "status": "done" },
+        { "id": "S10.2", "name": "DocumentSwitcherSheet：OutlineGroup 折叠树 + 高亮当前 + 点选回调", "status": "done" },
+        { "id": "S10.3", "name": "DocumentView 底部按钮 + 半屏可拖 sheet(presentationDetents)", "status": "done" },
+        { "id": "S10.4", "name": "原地切换：node 变状态，切换前存脏内容再载入新文档", "status": "done" }
+      ],
+      "verify": "编辑一篇→弹层选另一篇→原地切到新文档(标题/内容都变)且当前修改已存，反复切换不串"
+    },
+    {
+      "id": "S11",
+      "name": "只读预览页「导入到 App」",
+      "status": "done",
+      "start_at": "2026-07-12 13:55:02",
+      "done_at": "2026-07-12 17:45:12",
+      "notes": [
+        "2026-07-12 13:55 用户新增：S5 只读预览(从文件 App 打开外部 md)时加『导入』按钮把它拷进 App 目录（分享路径 S6 已支持，这里补只读路径）。关键点：若打开的文件本就在 App 自己 Documents 内(如经文件 App 浏览 Hashmark 目录打开)，则不显示导入按钮——需能判断。",
+        "2026-07-12 13:58 实现：FileStore.isInsideStore(url)=resolvingSymlinksInPath 后比 rootURL 前缀；ReadOnlyPreviewView 改为收 store+sourceURL+title+markdown，canImport=!isInsideStore 时于 topBarLeading 显示『导入』(square.and.arrow.down)，点击 sheet 出 ImportTargetPicker(复用 S6 选目录+importFile)，onImported 里 dismiss 关闭只读预览；ImportedDocument 加 url 字段，ImportPreviewButton 相应传参。代码完成待用户 Run 验证。",
+        "2026-07-12 14:05 修复：导入后根目录列表不刷新（用户反馈）。根因=只读预览/选目录都是 sheet，从根 FileBrowserView 弹出，sheet 关闭不会触发根视图 onAppear，故 reload 不跑（S6 因导入后跳转再返回而侥幸刷新）。修法=onImported 回调一路上传 ImportTargetPicker→ReadOnlyPreviewView(onImported)→ImportPreviewButton(onImported)→FileBrowserView 传 reload。注：导入到子目录时根只刷出该文件夹，进目录才见文件（onAppear 刷新），符合预期。"
+      ],
+      "sub_steps": [
+        { "id": "S11.1", "name": "FileStore.isInsideStore(url) 判断是否已在 App Documents 内", "status": "done" },
+        { "id": "S11.2", "name": "ReadOnlyPreviewView 传 store+sourceURL，canImport 时显示导入按钮", "status": "done" },
+        { "id": "S11.3", "name": "点导入复用 ImportTargetPicker 选目录拷入并关闭预览", "status": "done" }
+      ],
+      "verify": "外部 md 预览有导入→选目录→浏览器出现；App 内文档预览无导入按钮"
+    }
+  ],
+  "failures": [],
+  "decisions": {
+    "platform": "仅 iPhone/iPad（iOS/iPadOS），暂不做 macOS",
+    "min_deployment": "iOS 18.0；Liquid Glass 用 if #available(iOS 26,*) 渐进增强，低版本材质降级",
+    "ui_framework": "SwiftUI 为主，WKWebView/UITextView 用 UIViewRepresentable 桥接",
+    "preview": "WKWebView + 本地打包 marked + github-markdown-css，离线，标准 GFM",
+    "editor": "原生纯文本 + 等宽字体，无语法高亮（增强阶段再考虑）",
+    "storage": "MVP 用 App 本地 Documents 目录（Files 可见）；iCloud 延后到 S9",
+    "import": "注册文档类型(UTI) + .onOpenURL，非 Share Extension",
+    "distribution": "上架 App Store，需付费开发者账号",
+    "rendering_scope": "标准 GFM；数学公式/mermaid 不在 MVP",
+    "test_device": "真机为 iOS 26，可验证原生液态玻璃"
+  },
+  "notes": [
+    "2026-07-12 02:48 计划初始化。用户为资深 Web 前端、零 iOS 经验，机器上尚未安装 Xcode，S0 是最大门槛。",
+    "里程碑：M1=S0-S1 环境+骨架；M2=S2-S4 核心闭环；M3=S5-S6 导入；M4=S7-S8 打磨+上架；M5=S9 iCloud。",
+    "2026-07-12 03:56 时钟提示：S3 起用真实系统时钟(03:56)，早于上一会话为 S2 记录的 04:10/04:25——上一会话时间戳偏前，故审计时间线在 S2→S3 处非严格单调，非笔误。"
+  ]
+}

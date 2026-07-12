@@ -1,54 +1,41 @@
-# Plan Summary — iOS Markdown 预览/编辑 App
+# Plan Summary — Markdown App 迭代二期（体验增强 + 上架 + iCloud）
 
 ## Goal
-从零构建一款**原生 SwiftUI iOS/iPadOS App**，用于 Markdown 文档的预览与编辑。
-从（From）：完全空目录，开发者是资深 Web 前端但**零 iOS 开发经验**，机器上连 Xcode 都没装。
-到（To）：一个能在自己 iOS 26 真机上跑、支持本地/分享导入、目录管理、WebView 预览（GitHub 主题）、原生编辑、液态玻璃视觉，并**上架 App Store** 的应用。
+在已交付的 MVP（原生 SwiftUI iOS Markdown 预览/编辑 App，见 `archive/ios-markdown-mvp-core/`）之上，做一轮**交互体验增强**，并完成**App Store 上架**与后续 **iCloud 同步**。
+从（From）：MVP 核心闭环已跑通（目录管理、WebView 预览、原生编辑、两条导入路径、快速切换器、液态玻璃、图标/显示名）。
+到（To）：更顺手的预览/分享/导入体验 + 最终品牌命名 + 上架 TestFlight/审核 +（后续）多设备 iCloud 同步。
 
 ## Scope
-- In（MVP 范围内）：
-  - 本地文件系统选择 `.md` 文档预览（`.fileImporter`）
-  - 其他 App 通过分享/「打开方式」把 `.md` 导入本 App（含选择目标目录的中间步骤，默认根目录）
-  - App 内文档的**无限级目录**管理（新建/重命名/删除/移动 文件夹与文档）
-  - 新建 Markdown 文档，存储在 App 本地目录（通过「文件」App 可见）
-  - WebView 预览，GitHub Markdown 主题，标准 GFM
-  - 原生编辑器（纯文本 + 等宽字体），预览/编辑模式切换（右上角 button group）
-  - Light/Dark 主题适配
-  - 液态玻璃：iOS 26+ 用系统原生 Liquid Glass，iOS 18–25 降级为材质模糊
-  - App Store 上架（签名、证书、隐私清单、审核提交）
-- Out（本期不做，已规划为后续阶段）：
-  - iCloud 多设备同步（S9，MVP 后再加）
-  - 编辑器语法高亮 / 工具栏
-  - 数学公式（LaTeX）、mermaid 图表
-  - macOS / iPad 专属分栏布局的深度优化（iPad 先保证可用）
+- In（本期）：
+  - 最终定名并改显示名（拟 "Markdown Lite" / 或备选）
+  - 预览里点外部链接：不覆盖当前预览，改为 **App 内 Safari 模态**（SFSafariViewController）
+  - 导入选目录中间页支持**当场新建文件夹**
+  - 预览态右上角**分享**：长截图 / 源文件 .md / 源内容 三选一
+  - 编辑态右上角 **AI 辅助编辑** 按钮（先占位，交互待定）
+  - App Store 上架准备（原 MVP 计划 S8）
+- Out / 后续：
+  - iCloud 多设备同步（S7，MVP 后再做）
+  - AI 辅助编辑的实际能力（本期仅占位）
+  - 编辑器语法高亮、数学公式、mermaid
 
 ## Constraints / Coexistence
-- 平台：仅 iPhone/iPad（iOS/iPadOS），暂不做 macOS。
-- 最低部署版本：**iOS 18.0**。液态玻璃通过 `if #available(iOS 26, *)` 分支，低版本优雅降级，不因新 API 崩溃。
-- 技术栈：原生 Swift + **SwiftUI**（非 UIKit 主体，必要处用 `UIViewRepresentable` 桥接 WKWebView / UITextView）。
-- 预览渲染：WebView 内 **本地打包** 的 JS（marked/markdown-it）+ github-markdown-css，**不联网**（离线可用、便于 App Store 审核、无隐私风险）。
-- 存储：MVP 用 App 本地 Documents 目录，通过 Info.plist 暴露给系统「文件」App；iCloud 容器留到 S9。
-- 分发：需要**付费 Apple Developer 账号**（99 美元/年），S8 处理。
-- 测试真机为 iOS 26，可直接验证原生液态玻璃。
+- 延续 MVP 技术栈与约定：SwiftUI 为主，WKWebView/编辑器用 Representable 桥接；最低 iOS 18，液态玻璃 iOS 26+ 渐进增强。
+- 预览仍**离线**（本地打包 marked + github-markdown-css）；外链走 SFSafariViewController（用户点击才联网，不影响离线渲染与审核）。
+- 存储仍为本地 Documents（Files 可见）；iCloud 留到 S7。
+- 遵循 CLAUDE.md：文案无 emoji、图标用 SF Symbols、单一职责、可复用封装。
 
-## Definition of Done（MVP 完成信号，可验证）
-1. App 能在 iOS 26 真机安装运行，不崩溃。
-2. 能新建目录（多级嵌套）与文档，重启后仍在，且在系统「文件」App 中可见。
-3. 从「文件」App 或其他 App 选一个 `.md` → 能在本 App 预览为 GitHub 风格。
-4. 其他 App 分享 `.md` → 出现选择目标目录的中间页 → 确认后导入并进入预览。
-5. 任一文档可在右上角切换到编辑模式，改动能保存并在预览端反映。
-6. Light/Dark 切换下预览与界面均正确适配。
-7. iOS 26 上呈现液态玻璃；模拟器降级到 iOS 18 不崩溃、观感可接受。
-8. 成功提交 App Store 审核（TestFlight 可安装即视为里程碑达成）。
+## Definition of Done（本期完成信号）
+1. 桌面图标名 / 文件 App 目录名为最终品牌名。
+2. 预览点外链 → App 内 Safari 模态打开，当前预览不被覆盖，关闭后回到原预览。
+3. 导入/分享保存的选目录页可新建文件夹并导入进去。
+4. 预览分享按钮三种模式都能唤起系统分享面板；长截图含超出屏幕的完整内容。
+5. 编辑态有 AI 辅助编辑占位按钮，点击有反馈、不崩。
+6. 成功提交 App Store 审核（TestFlight 可安装即里程碑）。
 
 ## Key Decisions (locked)
 | Decision | Choice | Why |
 |---|---|---|
-| UI 框架 | SwiftUI 为主 | 现代、代码少、对 Liquid Glass 支持最好；WebView/编辑器处用 Representable 桥接 |
-| 最低系统 | iOS 18.0 | 兼顾旧设备；Liquid Glass 用可用性分支渐进增强 |
-| 预览方案 | WKWebView + 本地 marked + github-markdown-css | 满足「GitHub 主题 + WebView」诉求，离线、审核友好 |
-| Markdown 范围 | 标准 GFM | 覆盖日常笔记；数学/图表列为后续 |
-| 编辑器 | 原生纯文本 + 等宽字体 | 先跑通、可靠；语法高亮作为增强阶段 |
-| 存储 | 本地 Documents 目录（Files 可见） | MVP 最简；iCloud 同步延后到 S9 |
-| 导入方式 | 注册文档类型(UTI) + `.onOpenURL` | 比 Share Extension 简单，`.md` 会出现在分享/打开方式里 |
-| 分发 | App Store | 用户明确要上架 |
+| 外链打开方式 | SFSafariViewController（App 内 Safari 模态） | 原生、带地址栏/前进后退/完成，不覆盖预览、不离开 App |
+| 归档 | 原 MVP 计划归档到 archive/ios-markdown-mvp-core | 保留已交付记录，本期为其续作 |
+| 上架/iCloud | 承接自原计划 S8/S9，本期作为 S6/S7 | 顺延未完成的收尾与后续 |
+| App 名称 | 待定（Markdown Lite / Featherdown / Hashmark…） | 用户拍板；商店主名需全球唯一，S6 处理 |
