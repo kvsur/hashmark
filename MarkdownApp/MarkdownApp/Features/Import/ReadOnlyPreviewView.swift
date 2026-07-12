@@ -21,16 +21,17 @@ struct ReadOnlyPreviewView: View {
     /// 导入成功后回调（供上层刷新文件列表）。
     var onImported: () -> Void = {}
 
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
     @State private var showImportPicker = false
+    /// 桥接预览 WebView，供「分享 - 长截图」取用。
+    @State private var previewHandle = PreviewHandle()
 
     /// 仅当文件不在本 App 目录内时才允许导入。
     private var canImport: Bool { !store.isInsideStore(sourceURL) }
 
     var body: some View {
         NavigationStack {
-            WebPreviewView(markdown: markdown, colorScheme: colorScheme)
+            MarkdownPreviewView(markdown: markdown, handle: previewHandle)
                 .ignoresSafeArea(edges: .bottom)
                 .navigationTitle(title)
                 .navigationBarTitleDisplayMode(.inline)
@@ -43,6 +44,9 @@ struct ReadOnlyPreviewView: View {
                                 Label("导入", systemImage: "square.and.arrow.down")
                             }
                         }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        PreviewShareButton(markdown: markdown, sourceURL: sourceURL, handle: previewHandle)
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button("完成") { dismiss() }

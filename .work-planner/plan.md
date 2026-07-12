@@ -37,21 +37,29 @@ MarkdownApp/MarkdownApp/
   - S2.3 边界：非 http(s)（mailto/tel 等）交系统 `openURL`；锚点内跳转仍在页面内。
 - Verify：点文档外链 → App 内 Safari 模态打开 → 关闭回到原预览，预览未被覆盖；顶部/切换按钮不再被网页盖住。
 
-### S3 — 选目录中间页支持「新建文件夹」
-- Goal：`ImportTargetPicker` 里没有合适目录时可当场新建。
+### S3 — 目录管理增强（选目录新建文件夹 + 首页滑动「移动到目录」+ 滑动图标优化）
+- Goal：把「选目录 / 建目录 / 移动到目录」这条目录管理链路补齐并统一交互。
 - Sub-steps：
   - S3.1 选目录页工具栏加「新建文件夹」，复用 `NameInputSheet` + `FileStore.createFolder(in: currentDir)`。
   - S3.2 新建后刷新当前层，可进入新目录或直接导入到它。
-- Verify：导入/分享保存时，新建一个目录 → 导入进该新目录成功。
+  - S3.3 抽象通用目录选择器：把 `ImportTargetPicker` 的「目录栈下钻 + 上一级 + 新建文件夹」逻辑抽成可复用的 `DirectoryPicker`（回调选中的目录 URL），导入与移动共用一处（DRY）。
+  - S3.4 首页 `FileBrowserView` 行滑动新增「移动到目录」：弹 `DirectoryPicker` → `FileStore.move(node, to:)` → 刷新列表；目标不能是自身或自身子目录。
+  - S3.5 滑动三动作改为纯图标（`Label(...).labelStyle(.iconOnly)` 保留无障碍文案）并重选醒目图标与配色：删除 `trash`(红/destructive)、重命名 `square.and.pencil`(蓝)、移动 `folder.fill`(靛/橙)。
+- Verify：
+  - 导入/分享保存时新建目录 → 导入进该新目录成功；
+  - 首页左滑某文件/目录 → 移动到另一目录成功，列表刷新，移动到自身子目录被拦截；
+  - 三个滑动动作只显示图标、醒目可辨、无障碍朗读正常。
+- 备注：`FileStore.move(_:to:)` 已存在（文件夹/文件通用、自动去重名），S3.4 直接复用。
 
-### S4 — 预览态「分享」按钮（三选一）
-- Goal：预览右上角分享按钮，弹出三种分享模式。
+### S4 — 预览态「分享」按钮（四选一）
+- Goal：预览右上角分享按钮，弹出四种分享模式；两个预览入口（DocumentView / ReadOnlyPreviewView）共用。
 - Sub-steps：
-  - S4.1 入口：`DocumentView` 预览模式时 topBarTrailing 放分享按钮（`square.and.arrow.up`），点击弹 `confirmationDialog`/菜单三选一。
-  - S4.2 长截图：把整篇渲染内容导出为长图分享（`WKWebView` 全内容快照，含超出屏幕部分）。
-  - S4.3 分享源文件：`UIActivityViewController`/`ShareLink` 分享该 `.md` 文件 URL。
-  - S4.4 分享源内容：分享纯文本正文。
-- Verify：三种模式都能唤起系统分享面板；长截图完整（含滚动区外内容）。
+  - S4.1 入口：预览模式时 topBarTrailing 放分享按钮（`square.and.arrow.up`），点击弹 `confirmationDialog` 多选一。抽成复用件 `PreviewShareButton`，两个预览入口共用。
+  - S4.2 长截图：把整篇渲染内容导出为长图分享（`WKWebView` 全内容快照，含超出屏幕部分）。经 `PreviewHandle`（弱持 WebView）实现。
+  - S4.3 分享源文件：`UIActivityViewController`（`ShareSheet` 包装）分享该 `.md` 文件 URL。
+  - S4.4 分享源内容（Markdown）：分享带语法标记的 Markdown 原文。
+  - S4.5 分享纯文本：分享去掉 Markdown 语法后的渲染可见文字（读 `#content` 的 innerText）。用户 2026-07-12 追加。
+- Verify：四种模式都能唤起系统分享面板；长截图完整（含滚动区外内容）；纯文本无 #/* 等标记。
 
 ### S5 — 编辑态「AI 辅助编辑」按钮（占位）
 - Goal：编辑模式右上角放 AI 辅助编辑按钮，先占位。

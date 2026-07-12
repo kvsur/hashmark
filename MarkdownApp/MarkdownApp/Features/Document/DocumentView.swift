@@ -29,13 +29,14 @@ struct DocumentView: View {
         var label: String { self == .preview ? "预览" : "编辑" }
     }
 
-    @Environment(\.colorScheme) private var colorScheme
     @State private var text: String = ""
     /// 上次已写入磁盘的内容，用来判断是否有未保存改动（脏检查）。
     @State private var savedText: String = ""
     @State private var mode: Mode = .preview
     @State private var loaded = false
     @State private var showSwitcher = false
+    /// 桥接预览 WebView，供预览态「分享 - 长截图」取用。
+    @State private var previewHandle = PreviewHandle()
 
     var body: some View {
         content
@@ -62,6 +63,18 @@ struct DocumentView: View {
                         }
                     }
                 }
+                // 分享只在预览态露出（此时内容已渲染、已落盘）。
+                if mode == .preview {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        PreviewShareButton(markdown: text, sourceURL: node.url, handle: previewHandle)
+                    }
+                }
+                // AI 辅助编辑只在编辑态露出（占位）。
+                if mode == .edit {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        AIAssistButton()
+                    }
+                }
             }
             .onAppear(perform: loadIfNeeded)
             // 切回预览时先落盘，保证预览读到的是最新且已持久化的内容。
@@ -82,7 +95,7 @@ struct DocumentView: View {
     private var content: some View {
         switch mode {
         case .preview:
-            WebPreviewView(markdown: text, colorScheme: colorScheme)
+            MarkdownPreviewView(markdown: text, handle: previewHandle)
                 .ignoresSafeArea(edges: .bottom)
         case .edit:
             EditorView(text: $text)
