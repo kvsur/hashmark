@@ -36,8 +36,9 @@ struct FileStore {
     // MARK: - 读取
 
     /// 列出某目录的直接子项：文件夹在前，同类按名称自然排序。
+    /// 顺带读入元信息（文件大小 / 目录子项数），供列表副标题展示。
     func contents(of directory: URL) -> [DocumentNode] {
-        let keys: [URLResourceKey] = [.isDirectoryKey, .contentModificationDateKey]
+        let keys: [URLResourceKey] = [.isDirectoryKey, .contentModificationDateKey, .fileSizeKey]
         guard let urls = try? fileManager.contentsOfDirectory(
             at: directory,
             includingPropertiesForKeys: keys,
@@ -58,13 +59,35 @@ struct FileStore {
             return DocumentNode(
                 url: url,
                 kind: isDir ? .folder : .markdown,
-                modifiedAt: values?.contentModificationDate ?? .distantPast
+                modifiedAt: values?.contentModificationDate ?? .distantPast,
+                fileSize: isDir ? nil : values?.fileSize.map(Int64.init),
+                // 文件夹子项数用浅层计数，不递归（避免列一层就读整棵树）。
+                childCount: isDir ? visibleChildCount(of: url) : nil
             )
         }
 
         return nodes.sorted { a, b in
             if a.isFolder != b.isFolder { return a.isFolder }   // 文件夹在前
             return a.name.localizedStandardCompare(b.name) == .orderedAscending
+        }
+    }
+
+    /// 某目录下「本 App 可见项」（文件夹 + .md，排除系统 Inbox）的浅层数量。
+    /// 只读一层、不构建节点、不递归，用于列表里目录行的「N 项」。
+    private func visibleChildCount(of directory: URL) -> Int {
+        guard let urls = try? fileManager.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) else { return 0 }
+
+        return urls.reduce(into: 0) { count, url in
+            let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+            if isDir {
+                if url.standardizedFileURL != inboxURL.standardizedFileURL { count += 1 }
+            } else if url.pathExtension.lowercased() == markdownExtension {
+                count += 1
+            }
         }
     }
 

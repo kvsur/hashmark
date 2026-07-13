@@ -45,3 +45,5 @@ fastlane/test_output
 # 系统临时
 *.swp
 *~
+
+*.env

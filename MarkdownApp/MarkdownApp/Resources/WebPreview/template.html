@@ -39,6 +39,20 @@
       // 渲染完滚回顶部，避免复用同一 WebView 时残留滚动位置
       window.scrollTo(0, 0);
     };
+
+    // AI 流式渲染：Swift 侧节流调用 window.aiRender(<JSON 字符串>, isFinal)
+    // 流式期间跳过语法高亮（重解析开销大），只在结束(isFinal)时高亮一次；
+    // 每次渲染后滚到底，让最新生成内容始终可见。
+    window.aiRender = function (md, isFinal) {
+      var el = document.getElementById('content');
+      el.innerHTML = marked.parse(md || '');
+      if (isFinal) {
+        el.querySelectorAll('pre code').forEach(function (block) {
+          try { hljs.highlightElement(block); } catch (e) {}
+        });
+      }
+      window.scrollTo(0, document.body.scrollHeight);
+    };
   </script>
 </body>
 </html>

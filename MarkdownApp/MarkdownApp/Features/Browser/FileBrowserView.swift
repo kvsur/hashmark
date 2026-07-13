@@ -18,6 +18,8 @@ struct FileBrowserView: View {
     @State private var sheet: BrowserSheet?
     @State private var pendingDelete: DocumentNode?
     @State private var errorMessage: String?
+    /// 设置页开关（仅根目录露出入口）。
+    @State private var showingSettings = false
 
     var body: some View {
         Group {
@@ -38,6 +40,14 @@ struct FileBrowserView: View {
         .navigationTitle(isRoot ? "文档" : directory.lastPathComponent)
         .navigationBarTitleDisplayMode(isRoot ? .large : .inline)
         .toolbar {
+            // 设置入口：全局动作，只在根目录左上角露出。
+            if isRoot {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { showingSettings = true } label: {
+                        Label("设置", systemImage: "gearshape").labelStyle(.iconOnly)
+                    }
+                }
+            }
             addMenu
             // 「打开文件预览」只在根目录露出，是个全局动作（只读预览外部文件）。
             if isRoot {
@@ -48,20 +58,8 @@ struct FileBrowserView: View {
             }
         }
         .sheet(item: $sheet, content: sheetContent)
+        .sheet(isPresented: $showingSettings) { SettingsView() }
         .onAppear(perform: reload)
-        .confirmationDialog(
-            "确定删除「\(pendingDelete?.displayName ?? "")」？",
-            isPresented: deleteBinding,
-            titleVisibility: .visible
-        ) {
-            Button("删除", role: .destructive) {
-                if let node = pendingDelete { perform { try store.delete(node) } }
-            }
-        } message: {
-            if pendingDelete?.isFolder == true {
-                Text("文件夹及其中所有内容都会被删除。")
-            }
-        }
         .alert("操作失败", isPresented: errorBinding) {
             Button("好", role: .cancel) {}
         } message: {
@@ -76,11 +74,15 @@ struct FileBrowserView: View {
         // 文件夹下钻子目录，Markdown 文件下钻预览页；分流在 ContentView 的 navigationDestination。
         NavigationLink(value: node) { label(for: node) }
         // 三个动作只用图标（labelStyle(.iconOnly) 保留 VoiceOver 文案），配色区分：
-        // 删除=红(destructive) / 重命名=蓝 / 移动=靛。
-        .swipeActions(edge: .trailing) {
-            Button(role: .destructive) { pendingDelete = node } label: {
+        // 删除=红 / 重命名=蓝 / 移动=靛。
+        // 删除按钮不用 role:.destructive：否则 List 会在点击时自动播放「行滑出删除」动画，
+        // 而我们只是先弹确认、并没真删，行滑出又弹回是多余的抖动。用 .tint(.red) 保持红色。
+        // allowsFullSwipe:false 避免整行全滑直接触发删除确认。
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button { pendingDelete = node } label: {
                 Label("删除", systemImage: "trash").labelStyle(.iconOnly)
             }
+            .tint(.red)
             Button { sheet = .rename(node) } label: {
                 Label("重命名", systemImage: "square.and.pencil").labelStyle(.iconOnly)
             }
@@ -90,11 +92,38 @@ struct FileBrowserView: View {
             }
             .tint(.indigo)
         }
+        // 确认框挂在「行」上而非整个 List：以 popover 呈现时（iPad）才能锚定到被滑动的这一行，
+        // 否则会固定锚在列表顶部。用「当前行是否为待删除项」控制各行自己的弹出。
+        .confirmationDialog(
+            "确定删除「\(node.displayName)」？",
+            isPresented: deleteBinding(for: node),
+            titleVisibility: .visible
+        ) {
+            Button("删除", role: .destructive) {
+                perform { try store.delete(node) }
+            }
+        } message: {
+            if node.isFolder {
+                Text("文件夹及其中所有内容都会被删除。")
+            }
+        }
     }
 
     private func label(for node: DocumentNode) -> some View {
-        Label(node.displayName, systemImage: node.systemImage)
-            .font(Theme.mono())
+        HStack(spacing: 12) {
+            Image(systemName: node.systemImage)
+                .font(.title3)
+                .foregroundStyle(node.isFolder ? Color.accentColor : .secondary)
+                .frame(width: 26)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(node.displayName)
+                    .font(Theme.mono())
+                // 副标题：修改时间 + 子项数/大小，对齐系统「文件」App。
+                Text(node.metadataText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     // MARK: - 工具栏
@@ -176,8 +205,12 @@ struct FileBrowserView: View {
 
     // MARK: - 绑定
 
-    private var deleteBinding: Binding<Bool> {
-        Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })
+    /// 每行一个：只有「待删除项恰好是本行」时才为 true，关闭时清空。
+    private func deleteBinding(for node: DocumentNode) -> Binding<Bool> {
+        Binding(
+            get: { pendingDelete?.id == node.id },
+            set: { if !$0 { pendingDelete = nil } }
+        )
     }
     private var errorBinding: Binding<Bool> {
         Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })

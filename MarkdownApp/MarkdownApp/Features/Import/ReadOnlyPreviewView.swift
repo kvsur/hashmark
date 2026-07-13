@@ -46,7 +46,13 @@ struct ReadOnlyPreviewView: View {
                         }
                     }
                     ToolbarItem(placement: .topBarTrailing) {
-                        PreviewShareButton(markdown: markdown, sourceURL: sourceURL, handle: previewHandle)
+                        // 只读预览始终是渲染态：长截图/纯文本/PDF 与源文件/源内容都可用。
+                        PreviewShareButton(
+                            markdown: markdown,
+                            sourceURL: sourceURL,
+                            handle: previewHandle,
+                            actions: [.longScreenshot, .plainText, .pdf, .sourceFile, .sourceContent]
+                        )
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button("完成") { dismiss() }

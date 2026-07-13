@@ -14,6 +14,15 @@ final class PreviewHandle {
     /// 由 MarkdownPreviewView 在 WebView 创建时回填；弱引用避免越权持有 WebView 生命周期。
     weak var webView: WKWebView?
 
+    /// 把整篇渲染内容导出为 PDF 数据。rect 默认 CGRectNull → 捕获整页内容。
+    @MainActor
+    func exportPDF(completion: @escaping (Data?) -> Void) {
+        guard let webView else { completion(nil); return }
+        webView.createPDF(configuration: WKPDFConfiguration()) { result in
+            completion(try? result.get())
+        }
+    }
+
     /// 取「纯文本」：渲染后 DOM 的可见文字（marked.js 已解析，去掉了 #、* 等语法标记）。
     /// 直接读渲染容器的 innerText，比在 Swift 侧重造 Markdown 去标记更准确。
     @MainActor

@@ -33,16 +33,8 @@ struct WebPreviewView: UIViewRepresentable {
         webView.backgroundColor = .clear
         webView.scrollView.backgroundColor = .clear
 
-        // 从 bundle 加载模板。FileSystemSynchronized 可能保留 WebPreview 子目录，也可能摊平到根，
-        // 两种情况都兜住。
-        let bundle = Bundle.main
-        guard let templateURL = bundle.url(forResource: "template", withExtension: "html", subdirectory: "WebPreview")
-            ?? bundle.url(forResource: "template", withExtension: "html") else {
-            return webView
-        }
-        // 允许读取模板同目录下的 css/js（相对路径引用即在此目录解析）。
-        let readAccess = templateURL.deletingLastPathComponent()
-        webView.loadFileURL(templateURL, allowingReadAccessTo: readAccess)
+        // 从 bundle 加载离线模板（与 AI 流式预览共用同一加载器）。
+        WebPreviewTemplate.load(into: webView)
         return webView
     }
 
