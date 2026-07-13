@@ -1,96 +1,93 @@
-# Plan — Markdown App 迭代二期
+# Plan — AI 写作（流式生成 + 边收边渲染 + 预览应用）
 
-> 承接已归档的 MVP 计划（`archive/ios-markdown-mvp-core/`）。代码结构与工程约定见 `CLAUDE.md`。
+## Target architecture
 
-## Target architecture（现状回顾）
-已落地的分层（本期在此基础上增量）：
 ```
 MarkdownApp/MarkdownApp/
-├── App/ ContentView（NavigationStack + onOpenURL 导入分流）
-├── Models/ FileStore（CRUD/移动/导入/树/外部读取/isInsideStore）、DocumentNode、DocumentTreeNode
-├── Features/
-│   ├── Browser/ FileBrowserView、NameInputSheet
-│   ├── Preview/ WebPreviewView（WKWebView 本地渲染）
-│   ├── Editor/  EditorView（TextEditor 等宽）
-│   ├── Document/ DocumentView（预览/编辑容器 + 分段切换 + 底部快速切换器）
-│   ├── Import/  ImportPreviewButton、ReadOnlyPreviewView、ImportTargetPicker
-│   └── Switcher/ DocumentSwitcherSheet
-├── DesignSystem/ Theme、GlassBackground
-└── Resources/WebPreview/ template.html + marked + github-markdown-css + highlight.js
+├── Models/
+│   ├── AIConfig.swift            # 已有：baseURL/model/apiKey/responseFormat
+│   ├── AIConfigStore.swift       # 已有：Application Support JSON 读写
+│   ├── AIMessage.swift           # 新：role + content（组装请求用）
+│   ├── AIAction.swift            # 新：续写/润色/整理/自定义 → prompt 模板 + 上下文策略
+│   └── AIClient.swift            # 新：流式请求协议 + ChatGPT/Claude 两实现（AsyncThrowingStream<String>）
+└── Features/AI/
+    ├── AIStreamingPreview.swift  # 新：WebView 边收 delta 边渲染（marked.js 节流重渲染 + 滚底）
+    ├── AIWritingSession.swift    # 新：会话状态机（idle/loading/streaming/done/error）+ 取消/累积文本
+    ├── AIWritingView.swift       # 新：核心 UI——prompt 半屏→全屏、状态、接受/close(二次确认)
+    ├── AIActionPicker.swift      # 新：编辑器内选动作（续写/润色/整理/自定义）
+    ├── AIConfigGate.swift        # 新：入口门槛——isComplete 才放行，否则提示+跳配置页（所有入口共用）
+    └── HomeAIButton.swift        # 新：首页大号 AI 入口（复用 Theme.aiGradient）
 ```
-关键接线：`DocumentView` 工具栏 = principal 分段器 + bottomBar 切换文档；topBarTrailing 目前空缺 → 本期按模式放「分享」(预览) / 「AI 辅助」(编辑)。
+
+- 复用：WebPreviewView / marked.js 本地模板；AIConfigStore；Theme.aiGradient；AIAssistButton（编辑器/预览入口）。
+- WebView 流式渲染桥：给 web 模板加 JS API `window.aiSetMarkdown(text)`（全量覆盖 + marked 重渲染 + 滚到底），Swift 侧节流（~60ms）调用；避免每 token 重渲染。
+- 网络：URLSession.bytes(for:) 逐行读 SSE；ChatGPT 解析 `data:` 的 choices[].delta.content，Claude 解析 content_block_delta.delta.text；`[DONE]`/message_stop 结束。
 
 ## Phases / Steps
 
-### S1 — 最终定名与显示名
-- Goal：把 App 品牌名定下来并落到显示名/文案。
-- Sub-steps：
-  - S1.1 定名（候选：Markdown Lite / Featherdown / Hashmark / MarkLite…；用户拍板）。
-  - S1.2 改 `Info.plist` 的 `CFBundleDisplayName`；检查空状态等文案是否需要同步。
-- Verify：桌面图标名、文件 App 目录名为新名。
+### S1 — AI 网络层（流式双格式）
+- Goal: 用 AIConfig 发起流式请求，吐出 delta 文本流。
+- Sub-steps:
+  - S1.1 AIMessage（role/content）+ AIAction 请求上下文的数据结构
+  - S1.2 AIClient 协议：`stream(messages:) -> AsyncThrowingStream<String>`；错误类型（无配置/网络/鉴权401/限流/解析）
+  - S1.3 ChatGPTClient：OpenAI 式 /chat/completions，Bearer 鉴权，SSE 解析 delta.content
+  - S1.4 ClaudeClient：Anthropic /messages，x-api-key + anthropic-version，SSE 解析 content_block_delta
+  - S1.5 工厂：按 AIConfig.responseFormat 选 client；取消（Task 取消即断流）
+  - S1.6 AIConfig.isComplete：baseURL/model/apiKey 均非空（AI 入口前置校验用）
+- Verify: 两种格式都能拿到流式 delta；无配置/401 有明确错误；isComplete 正确判定。
 
-### S2 — 预览外链改为 App 内 Safari 模态
-- Goal：预览里点外部链接不再覆盖当前预览，改为 SFSafariViewController 弹出。
-- Sub-steps：
-  - S2.1 `WebPreviewView` 的 `WKNavigationDelegate.decidePolicyFor`：对 `http/https` 且 `navigationType == .linkActivated` 的外链 `.cancel`，把 URL 抛给 SwiftUI 层。
-  - S2.2 用 `SFSafariViewController`（`UIViewControllerRepresentable`）经 `.sheet`/`.fullScreenCover` 弹出该链接；本地模板加载与锚点不受影响。
-  - S2.3 边界：非 http(s)（mailto/tel 等）交系统 `openURL`；锚点内跳转仍在页面内。
-- Verify：点文档外链 → App 内 Safari 模态打开 → 关闭回到原预览，预览未被覆盖；顶部/切换按钮不再被网页盖住。
+### S2 — 提示词/动作预设
+- Goal: 把「续写/润色/整理/自定义」表达为 prompt + 上下文注入策略。
+- Sub-steps:
+  - S2.1 AIAction 枚举：label、systemPrompt、上下文策略（none=新建/全文/选中）
+  - S2.2 组装 messages：system + 注入文档上下文 + 用户 prompt（自定义时用户自由输入）
+  - S2.3 空 prompt / 无上下文的兜底与校验
+- Verify: 各动作生成的 messages 合理；自定义可自由 prompt；新建无上下文成立。
 
-### S3 — 目录管理增强（选目录新建文件夹 + 首页滑动「移动到目录」+ 滑动图标优化）
-- Goal：把「选目录 / 建目录 / 移动到目录」这条目录管理链路补齐并统一交互。
-- Sub-steps：
-  - S3.1 选目录页工具栏加「新建文件夹」，复用 `NameInputSheet` + `FileStore.createFolder(in: currentDir)`。
-  - S3.2 新建后刷新当前层，可进入新目录或直接导入到它。
-  - S3.3 抽象通用目录选择器：把 `ImportTargetPicker` 的「目录栈下钻 + 上一级 + 新建文件夹」逻辑抽成可复用的 `DirectoryPicker`（回调选中的目录 URL），导入与移动共用一处（DRY）。
-  - S3.4 首页 `FileBrowserView` 行滑动新增「移动到目录」：弹 `DirectoryPicker` → `FileStore.move(node, to:)` → 刷新列表；目标不能是自身或自身子目录。
-  - S3.5 滑动三动作改为纯图标（`Label(...).labelStyle(.iconOnly)` 保留无障碍文案）并重选醒目图标与配色：删除 `trash`(红/destructive)、重命名 `square.and.pencil`(蓝)、移动 `folder.fill`(靛/橙)。
-- Verify：
-  - 导入/分享保存时新建目录 → 导入进该新目录成功；
-  - 首页左滑某文件/目录 → 移动到另一目录成功，列表刷新，移动到自身子目录被拦截；
-  - 三个滑动动作只显示图标、醒目可辨、无障碍朗读正常。
-- 备注：`FileStore.move(_:to:)` 已存在（文件夹/文件通用、自动去重名），S3.4 直接复用。
+### S3 — 流式渲染（WebView 边收边渲染）
+- Goal: delta 实时进 WebView 渲染，性能可控。
+- Sub-steps:
+  - S3.1 web 模板加 `aiSetMarkdown(text)`：marked 重渲染 + 自动滚到底
+  - S3.2 AIStreamingPreview：SwiftUI 包装，接受累积文本，节流（~60ms）evaluateJavaScript
+  - S3.3 性能：合帧/节流、超长文本时的表现；流结束后再定格一次
+- Verify: 流式内容边出边渲染、能滚动跟随；长文本不卡死。
 
-### S4 — 预览态「分享」按钮（四选一）
-- Goal：预览右上角分享按钮，弹出四种分享模式；两个预览入口（DocumentView / ReadOnlyPreviewView）共用。
-- Sub-steps：
-  - S4.1 入口：预览模式时 topBarTrailing 放分享按钮（`square.and.arrow.up`），点击弹 `confirmationDialog` 多选一。抽成复用件 `PreviewShareButton`，两个预览入口共用。
-  - S4.2 长截图：把整篇渲染内容导出为长图分享（`WKWebView` 全内容快照，含超出屏幕部分）。经 `PreviewHandle`（弱持 WebView）实现。
-  - S4.3 分享源文件：`UIActivityViewController`（`ShareSheet` 包装）分享该 `.md` 文件 URL。
-  - S4.4 分享源内容（Markdown）：分享带语法标记的 Markdown 原文。
-  - S4.5 分享纯文本：分享去掉 Markdown 语法后的渲染可见文字（读 `#content` 的 innerText）。用户 2026-07-12 追加。
-- Verify：四种模式都能唤起系统分享面板；长截图完整（含滚动区外内容）；纯文本无 #/* 等标记。
+### S4 — AI 会话 UI（核心交互）
+- Goal: 完整的一次 AI 写作交互闭环。
+- Sub-steps:
+  - S4.1 AIWritingSession：状态机 idle/loading/streaming/done/error + 累积文本 + cancel
+  - S4.2 AIWritingView：prompt 半屏 modal（medium detent）→ 收到首个 delta 立即转全屏
+  - S4.3 各状态 UI：loading 转圈、streaming 预览、error（信息+重试）、done（接受/close）
+  - S4.4 接受 = 回调应用；close = 有内容则二次确认再丢弃；流中可取消
+  - S4.5 共享入口门槛 AIConfigGate：AIConfig.isComplete 才进入 AI；否则 alert 提示 + 跳转 AI 配置页（AIConfigEditorView）。首页/编辑器所有 AI 入口统一走此门槛
+- Verify: 半屏→全屏切换顺；loading/error/取消都稳；close 二次确认；接受回调触发；配置不全被拦截并可一键去配置。
 
-### S5 — 编辑态「AI 辅助编辑」按钮（占位）
-- Goal：编辑模式右上角放 AI 辅助编辑按钮，先占位。
-- Sub-steps：
-  - S5.1 `DocumentView` 编辑模式时 topBarTrailing 放按钮（`sparkles`），点击弹占位 sheet/提示（后续再接实际能力）。
-- Verify：编辑态出现按钮，点击有占位反馈、不崩；预览态不显示它。
+### S5 — 首页「一键开启 AI 写作」（端到端打通）
+- Goal: 首页大号入口跑通「prompt→生成整篇→接受新建文档」。
+- Sub-steps:
+  - S5.1 HomeAIButton：首页**大号**醒目入口（彩色渐变，比普通工具栏按钮显著）
+  - S5.2 接入 AIWritingView（无上下文、用户自由 prompt）
+  - S5.3 接受 → FileStore 新建 .md 写入生成内容 → 进入编辑；进入前过 AIConfigGate（配置不全先提示再跳配置页）
+- Verify: 首页大按钮→半屏 prompt→全屏流式→接受生成新文档并打开；配置不全被拦截、提示并可跳配置页。
 
-### S6 — App Store 上架准备（承接原 MVP S8）
-- Goal：完成签名合规与提交，至少 TestFlight 可安装。
-- Sub-steps：
-  - S6.1 注册付费 Apple Developer Program（99 美元/年）。
-  - S6.2 App ID / Bundle Identifier、证书与 provisioning（Xcode 自动签名优先）。
-  - S6.3 隐私清单 `PrivacyInfo.xcprivacy`——本 App 不联网收集数据，如实声明。
-  - S6.4 App Store Connect 建条目：名称（需全球唯一）、描述、分类、截图。
-  - S6.5 Archive → 上传 → TestFlight 内测安装。
-  - S6.6 提交审核。
-- Verify：TestFlight 能装到真机（里程碑）；提交审核成功。
-- 承接决策（自原计划）：大陆个人开发者建议注册中国区账号（全球发布与账号区无关）；大陆上架需 ICP 备案，MVP 发布范围可勾全球排除大陆以规避，日后再单独备案。
+### S6 — 编辑器/预览内 AI（应用到当前文档）
+- Goal: 在文档内用 AI 动作并把结果应用回文档。
+- Sub-steps:
+  - S6.1 AIAssistButton → AIActionPicker（续写/润色/整理/自定义）
+  - S6.2 走 AIWritingView（注入当前文档/选中作上下文）
+  - S6.3 接受 → 按动作应用（续写=插入文末/光标；润色/整理=替换全文），落盘
+- Verify: 各动作流式生成、预览确认后正确应用到当前文档并保存。
 
-### S7 —（后续）iCloud 同步（承接原 MVP S9）
-- Goal：文档改存 iCloud 容器，多设备自动同步。
-- Sub-steps（占位，届时细化）：
-  - S7.1 开启 iCloud Documents entitlement + ubiquity container。
-  - S7.2 `FileStore` 迁移到 iCloud 容器路径，处理下载/冲突状态。
-  - S7.3 本地已有文档的迁移策略。
-- Verify：两台设备登录同一 iCloud，改动能同步。
+### S7 — 异常与打磨
+- Goal: 边界与体验收尾。
+- Sub-steps:
+  - S7.1 无配置引导（去设置页 AI 配置）串起来
+  - S7.2 错误分类文案 + 重试；取消中断干净
+  - S7.3 空 prompt/超长文档/断网 等边界
+  - S7.4 二次确认、loading 骨架、整体一致性打磨
+- Verify: 各异常路径有反馈不崩；体验顺。
 
----
-
-## Notes / 风险
-- S2 外链拦截要区分「本地模板首帧加载 / 锚点内跳 / 真外链」，只拦 `.linkActivated` 的 http(s)，避免误伤渲染。
-- S4 长截图是本期技术难点：需要抓 WKWebView 完整内容高度再快照，注意大文档内存与分段拼接。
-- S6 上架名全球唯一：拟定名可能被占，需备副名。
-- 延续 CLAUDE.md：无 emoji 文案、SF Symbols 图标、单一职责、逻辑外移、版本差异收敛在封装层。
+## Milestones
+- M1 = S1–S5：streaming 端到端跑通（首页一键生成整篇）
+- M2 = S6：编辑器内 AI 动作应用到文档
+- M3 = S7：异常与打磨

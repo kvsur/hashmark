@@ -1,0 +1,118 @@
+{
+  "version": "1.1.0",
+  "created_at": "2026-07-12 22:20:00",
+  "updated_at": "2026-07-12 23:45:00",
+  "current_step": "S5",
+  "next_step": "计划完成并验收通过（含主题窗口级修复、分段控件加高）。设置页全功能上线。",
+  "overall_status": "done",
+  "completion_rate": "100%",
+  "all_steps": [
+    {
+      "id": "S1",
+      "name": "本地存储基座（模型 + Store）",
+      "status": "done",
+      "start_at": "2026-07-12 22:20:00",
+      "done_at": "2026-07-12 22:35:00",
+      "notes": [
+        "2026-07-12 22:35 实现四个文件（Models/）：ThemePreference（enum system/light/dark + colorScheme 映射 system→nil + label）；SettingsStore（@Observable，UserDefaults 封装 theme，写入即落盘，init 有存储优先否则 system）；AIConfig（Codable：baseURL/model/apiKey/responseFormat enum chatGPT|claude，含 .empty 默认与 label）；AIConfigStore（读写 Library/Application Support/AIConfig.json，写前 createDirectory，缺文件/损坏返回 .empty，原子写）。",
+        "2026-07-12 22:35 偏离计划：SettingsStore 未存 language。语言本期仅 UI 占位（S4.1），无需持久化，等真做多语言再扩展，避免死代码。",
+        "2026-07-12 22:35 本机仅 CommandLineTools 无完整 Xcode，无法 xcodebuild；S1 为纯模型/存储层无独立 UI，运行时验证（Application Support 落盘、非 Documents）随 S3 设置页可用时一并由用户 Run 确认。SourceKit 跨文件报错为索引噪声。"
+      ],
+      "sub_steps": [
+        { "id": "S1.1", "name": "ThemePreference enum + colorScheme 映射（system→nil）", "status": "done" },
+        { "id": "S1.2", "name": "SettingsStore（@Observable，UserDefaults 封装 theme；language 暂不持久化）", "status": "done" },
+        { "id": "S1.3", "name": "AIConfig（Codable：baseURL/model/apiKey/responseFormat enum chatGPT|claude）", "status": "done" },
+        { "id": "S1.4", "name": "AIConfigStore（读写 Application Support/AIConfig.json，缺目录先建缺文件返回默认）", "status": "done" }
+      ],
+      "verify": "能存取；写入后文件出现在 Application Support 而非 Documents（随 S3 一并 Run 验证）"
+    },
+    {
+      "id": "S2",
+      "name": "主题应用到全局",
+      "status": "done",
+      "start_at": "2026-07-12 22:38:00",
+      "done_at": "2026-07-12 22:42:00",
+      "notes": [
+        "2026-07-12 22:42 MarkdownAppApp 加 @State private var settings = SettingsStore()，WindowGroup 内 ContentView().environment(settings).preferredColorScheme(settings.colorScheme)。主题在根一处生效覆盖全 App（含 sheet/预览）；@Observable+@State 使 theme 变化即重算 preferredColorScheme。S3 的 SettingsView 用 @Environment(SettingsStore.self) 取用。运行时验证随 S3 一并 Run。"
+      ],
+      "sub_steps": [
+        { "id": "S2.1", "name": "App 入口/根视图创建并注入 SettingsStore（@State + environment）", "status": "done" },
+        { "id": "S2.2", "name": "根视图 .preferredColorScheme(store.colorScheme)", "status": "done" }
+      ],
+      "verify": "切 Light/Dark/System 立刻全局生效；重启保持；未设置跟随系统"
+    },
+    {
+      "id": "S3",
+      "name": "设置入口 + 设置页骨架 + 主题选择",
+      "status": "done",
+      "start_at": "2026-07-12 22:45:00",
+      "done_at": "2026-07-12 22:52:00",
+      "notes": [
+        "2026-07-12 22:52 新建 Features/Settings/SettingsView.swift：NavigationStack+Form 四 Section（外观/语言/AI/关于），完成按钮 dismiss。主题用 @Bindable var settings=settings + Picker($settings.theme).pickerStyle(.segmented)，读写 @Environment(SettingsStore.self)。语言/AI/关于本步仅静态 Label 占位（secondary 色），交互留 S4/S5。",
+        "2026-07-12 22:52 FileBrowserView：加 @State showingSettings，仅 isRoot 时 topBarLeading 齿轮按钮(gearshape,iconOnly)，.sheet(isPresented:$showingSettings){SettingsView()}。SettingsView 经 sheet 继承 App 根 .environment(settings) 注入的 SettingsStore。",
+        "2026-07-12 22:52 里程碑 M1（S1-S3）代码完成，可 Run：验证设置入口、主题即时全局生效+重启保持、AIConfig 目录落盘（S1）。"
+      ],
+      "sub_steps": [
+        { "id": "S3.1", "name": "根 FileBrowserView 工具栏 topBarLeading 齿轮按钮 → sheet 打开 SettingsView（独立 NavigationStack）", "status": "done" },
+        { "id": "S3.2", "name": "SettingsView：Form 四 Section（主题/语言/AI 配置/关于）", "status": "done" },
+        { "id": "S3.3", "name": "主题 Section：Picker(System/Light/Dark segmented) 绑定 SettingsStore", "status": "done" }
+      ],
+      "verify": "主页左上有设置按钮；设置页四区块齐全；选主题生效"
+    },
+    {
+      "id": "S4",
+      "name": "语言占位 + 关于",
+      "status": "done",
+      "start_at": "2026-07-12 22:55:00",
+      "done_at": "2026-07-12 23:08:00",
+      "notes": [
+        "2026-07-12 23:08 重写 SettingsView：语言/AI/关于三处占位 Label 换成可点披露行（抽 disclosureRow(title,systemImage,action) DRY，标题+尾部 chevron，tint primary）；用 SettingsSheet 枚举(language/about/aiConfig)统一 .sheet(item:) 驱动，沿用 BrowserSheet 惯例。语言点开 LanguagePlaceholderSheet（ContentUnavailableView+medium detent，沿用 AIAssistPlaceholderSheet 风格，无 emoji）。",
+        "2026-07-12 23:08 新建 AboutView：Form + LabeledContent(\"联系邮箱\") + Link(mailto:hello1024lc@gmail.com)，medium detent。email 常量固定故 URL 强解包安全。"
+      ],
+      "sub_steps": [
+        { "id": "S4.1", "name": "语言 Section：切换语言披露行 + LanguagePlaceholderSheet 占位（无 emoji）", "status": "done" },
+        { "id": "S4.2", "name": "关于 Section：弹 AboutView 显示 email hello1024lc@gmail.com（mailto 可点）", "status": "done" }
+      ],
+      "verify": "语言按钮有占位反馈不崩；关于弹出显示 email 且可点发邮件"
+    },
+    {
+      "id": "S5",
+      "name": "AI API 配置编辑器（modal）",
+      "status": "done",
+      "start_at": "2026-07-12 23:08:00",
+      "done_at": "2026-07-12 23:15:00",
+      "notes": [
+        "2026-07-12 23:15 新建 AIConfigEditorView(store: AIConfigStore)：Form 三 Section——接口(BaseURL keyboardType(.URL)+Model，均 never 大写/关自动纠错)、鉴权(SecureField API Key)、响应格式(Picker segmented ChatGPT|Claude)。@State draft=AIConfig.empty 草稿副本，.onAppear{draft=store.load()} 载入现有配置。工具栏 取消(cancellationAction，dismiss 丢弃)/保存(confirmationAction，try store.save(draft) 成功 dismiss、失败弹 alert)。SettingsView 的 AI 行经 SettingsSheet.aiConfig 弹出，传入共享 aiConfigStore。",
+        "2026-07-12 23:15 数据落 Library/Application Support/AIConfig.json（AIConfigStore，S1 已建），不进 Documents/Files App 不可见——满足用户存储约束。"
+      ],
+      "sub_steps": [
+        { "id": "S5.1", "name": "AIConfigEditorView：BaseURL/Model/APIKey(SecureField)/Response Format(Picker ChatGPT|Claude)", "status": "done" },
+        { "id": "S5.2", "name": "草稿副本载入现有配置；取消丢弃、保存写 AIConfigStore 后关闭", "status": "done" },
+        { "id": "S5.3", "name": "SettingsView AI Section 行 → 弹出此 modal", "status": "done" }
+      ],
+      "verify": "编辑→取消不落盘；编辑→保存重开仍在；数据在 Application Support/AIConfig.json"
+    }
+  ],
+  "failures": [],
+  "decisions": {
+    "predecessor": "二期计划（体验增强+上架+iCloud）已归档 archive/ios-markdown-phase2-enhancements（S1-S5,S8 已交付；S6 上架/S7 iCloud 暂缓，待所有功能开发完再恢复）",
+    "pref_storage": "主题/语言用 UserDefaults（Library/Preferences），不进 Documents",
+    "ai_config_storage": "AI 配置全量（含 APIKey）以 JSON 存 Library/Application Support/AIConfig.json，用户选定；不进 Documents、Files App 不可见",
+    "theme_model": "enum system/light/dark，默认 system；有本地存储则优先（UserDefaults 天然满足）",
+    "theme_apply": "根视图 .preferredColorScheme(store.colorScheme) 一处收敛全局生效",
+    "ai_editor": "独立 modal + 草稿副本 + 取消(不保存)/保存(落本地)",
+    "settings_entry": "根 FileBrowserView topBarLeading 齿轮(gearshape)→sheet 打开 SettingsView（独立 NavigationStack）",
+    "language": "本期仅占位按钮，多语言以后迭代",
+    "dev_email": "hello1024lc@gmail.com（用户本次指定，区别于账号 icloud 邮箱）",
+    "min_deployment": "iOS 18；文案禁 emoji、图标用 SF Symbols（遵 CLAUDE.md）"
+  },
+  "notes": [
+    "2026-07-12 22:20 新计划初始化：设置页（主题/语言占位/AI 配置/关于）。前序二期计划已归档 archive/ios-markdown-phase2-enhancements，其 S6 上架/S7 iCloud 暂缓待恢复。",
+    "里程碑：M1=S1-S3（存储基座+主题全局生效+设置页可用）；M2=S4-S5（语言占位+关于+AI 配置编辑落盘）。",
+    "存储位置硬约束：一律不进文档存储目录（Documents）。偏好→UserDefaults；AI 配置→Application Support/AIConfig.json。",
+    "2026-07-12 23:15 S1-S5 全部代码完成（M1+M2）。用户要求做完所有步骤后统一验收，故各步已置 done、completion 100%，但 overall_status 暂留 in_progress，待用户 Run 验收通过再收尾为 done。本机无完整 Xcode（仅 CommandLineTools），未能 xcodebuild；SourceKit 跨文件/‘macOS 不可用’报错均为单文件索引噪声，非真实编译错误。",
+    "2026-07-12 23:22 验收期 UI 调整（用户反馈分段控件太扁）：新增 DesignSystem/SegmentedPickerStyle.swift 的 .tallSegmentedPicker()（.segmented + controlSize(.large) + 纵向 padding），主题(S3)与 AI 响应格式(S5)两处共用，收敛一处便于统一调高度。",
+    "2026-07-12 23:35 主题 bug 修复（用户反馈：设置页 sheet 里切主题不跟着换）。根因：.preferredColorScheme 不跨 sheet 呈现边界，且挂在 Scene body 对 @Observable 重算不可靠。改为窗口级：新增 DesignSystem/InterfaceStyleController.apply(theme)（遍历 connectedScenes 设 UIWindow.overrideUserInterfaceStyle，system→unspecified），覆盖所有 sheet/alert。MarkdownAppApp 去掉 .preferredColorScheme 仅留 .environment；ContentView 加 @Environment(SettingsStore.self) + .onChange(of: settings.theme, initial:true){ apply }，Preview 补 .environment(SettingsStore())。清死代码：删 SettingsStore.colorScheme 与 ThemePreference.colorScheme（SettingsStore import 降为 Foundation）。附带收益：预览的 @Environment(\\.colorScheme) 随窗口覆盖自动跟随。待用户 Run 验证。",
+    "2026-07-12 23:45 用户验收通过（含主题窗口级修复、分段控件加高）。overall_status=done，设置页计划完成。下一任务：预览/编辑 UI 调整（分享按钮两模式共用+编辑态截图先切预览、AI 按钮下移到切换按钮旁两模式共用+彩色+封装供首页复用），按小改动直接做、暂不新开 phased plan。"
+  ]
+}

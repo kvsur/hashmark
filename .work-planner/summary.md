@@ -1,41 +1,46 @@
-# Plan Summary — Markdown App 迭代二期（体验增强 + 上架 + iCloud）
+# Plan Summary — AI 写作（流式生成 + 边收边渲染 + 预览应用）
 
 ## Goal
-在已交付的 MVP（原生 SwiftUI iOS Markdown 预览/编辑 App，见 `archive/ios-markdown-mvp-core/`）之上，做一轮**交互体验增强**，并完成**App Store 上架**与后续 **iCloud 同步**。
-从（From）：MVP 核心闭环已跑通（目录管理、WebView 预览、原生编辑、两条导入路径、快速切换器、液态玻璃、图标/显示名）。
-到（To）：更顺手的预览/分享/导入体验 + 最终品牌命名 + 上架 TestFlight/审核 +（后续）多设备 iCloud 同步。
+把 App 从「Markdown 预览/编辑器」升级为「带 AI 写作助手」的工具：用户用 prompt（预设或自定义）驱动 AI，**流式**生成 Markdown，边收边在 WebView 里渲染预览，满意则应用到文档、放弃则丢弃。
+从（From）：AI 相关只有配置（AIConfig/AIConfigStore：BaseURL/Model/APIKey/响应格式 ChatGPT|Claude）与占位按钮 AIAssistButton。
+到（To）：端到端可用的 AI 写作——首页「一键生成整篇」+ 编辑器内「续写/润色/整理/自定义」，均流式渲染、预览确认后应用。
 
 ## Scope
 - In（本期）：
-  - 最终定名并改显示名（拟 "Markdown Lite" / 或备选）
-  - 预览里点外部链接：不覆盖当前预览，改为 **App 内 Safari 模态**（SFSafariViewController）
-  - 导入选目录中间页支持**当场新建文件夹**
-  - 预览态右上角**分享**：长截图 / 源文件 .md / 源内容 三选一
-  - 编辑态右上角 **AI 辅助编辑** 按钮（先占位，交互待定）
-  - App Store 上架准备（原 MVP 计划 S8）
+  - AI 网络层：流式 client，兼容 ChatGPT（OpenAI 式 /chat/completions）与 Claude（Anthropic /messages）两种 SSE 格式；鉴权、错误、取消。
+  - 动作/提示词：续写、润色/改写、整理格式、自定义指令——本质都是「prompt 模板 + 上下文注入策略（全文/选中/无）」。
+  - 流式渲染：往 WebView 增量推 delta，marked.js 节流重渲染 + 自动滚底（性能关键）。
+  - AI 会话 UI：prompt 半屏 modal → 一开始返回立即转全屏；loading/streaming/done/error 全状态；取消；接受 / close（close 前二次确认）。
+  - 首页「一键开启 AI 写作」：**大号**醒目入口 → 输入 prompt → 生成整篇 → 接受则新建文档进入。
+  - 编辑器/预览内 AI：AIAssistButton 选动作 → 会话 → 预览确认后应用（插入/替换）到当前文档。
 - Out / 后续：
-  - iCloud 多设备同步（S7，MVP 后再做）
-  - AI 辅助编辑的实际能力（本期仅占位）
-  - 编辑器语法高亮、数学公式、mermaid
+  - 翻译/总结等更多预设（可用「自定义指令」先覆盖）。
+  - AI 会话内的可编辑 Tab（本期只预览；接受后落到编辑器再改）。
+  - 多轮对话 / 上下文记忆 / 历史记录。
+  - 本地模型、图片多模态。
 
 ## Constraints / Coexistence
-- 延续 MVP 技术栈与约定：SwiftUI 为主，WKWebView/编辑器用 Representable 桥接；最低 iOS 18，液态玻璃 iOS 26+ 渐进增强。
-- 预览仍**离线**（本地打包 marked + github-markdown-css）；外链走 SFSafariViewController（用户点击才联网，不影响离线渲染与审核）。
-- 存储仍为本地 Documents（Files 可见）；iCloud 留到 S7。
-- 遵循 CLAUDE.md：文案无 emoji、图标用 SF Symbols、单一职责、可复用封装。
+- 遵循 CLAUDE.md：功能分层（新代码进 Features/AI + Models）、文案禁 emoji、图标用 SF Symbols、DRY、视图轻/逻辑外移、版本差异收敛封装层。
+- 最低 iOS 18；SwiftUI + 现有 WebPreviewView（marked.js 本地资源）复用。
+- APIKey/配置来自 AIConfigStore（Library/Application Support），HTTPS。
+- AIConfig 任一项（baseURL/model/apiKey）未配置即不得进入 AI 模式：共享 AIConfigGate 先提示、再跳转到 AI 配置页；所有 AI 入口统一走此门槛，不静默失败。
+- 本机仅 CommandLineTools 无完整 Xcode，编译/运行验证由用户在 Xcode Run；SourceKit 跨文件报错为索引噪声。
 
-## Definition of Done（本期完成信号）
-1. 桌面图标名 / 文件 App 目录名为最终品牌名。
-2. 预览点外链 → App 内 Safari 模态打开，当前预览不被覆盖，关闭后回到原预览。
-3. 导入/分享保存的选目录页可新建文件夹并导入进去。
-4. 预览分享按钮三种模式都能唤起系统分享面板；长截图含超出屏幕的完整内容。
-5. 编辑态有 AI 辅助编辑占位按钮，点击有反馈、不崩。
-6. 成功提交 App Store 审核（TestFlight 可安装即里程碑）。
+## Definition of Done
+- 首页大号 AI 入口 → 半屏输入 prompt → 开始返回即转全屏 → 流式边渲染 → 接受生成新文档 / close（二次确认）丢弃。
+- 编辑器内 AI（续写/润色/整理/自定义）流式生成、预览确认后应用到当前文档。
+- ChatGPT 与 Claude 两种响应格式都能流式跑通。
+- loading/error/取消/空 prompt/无配置 等边界都有明确反馈、不崩。
 
 ## Key Decisions (locked)
 | Decision | Choice | Why |
 |---|---|---|
-| 外链打开方式 | SFSafariViewController（App 内 Safari 模态） | 原生、带地址栏/前进后退/完成，不覆盖预览、不离开 App |
-| 归档 | 原 MVP 计划归档到 archive/ios-markdown-mvp-core | 保留已交付记录，本期为其续作 |
-| 上架/iCloud | 承接自原计划 S8/S9，本期作为 S6/S7 | 顺延未完成的收尾与后续 |
-| App 名称 | 待定（Markdown Lite / Featherdown / Hashmark…） | 用户拍板；商店主名需全球唯一，S6 处理 |
+| 动作模型 | 预设=prompt 模板 + 上下文策略；含自定义自由 prompt | 用户洞察：一切皆 prompt |
+| 输出 | 必须流式 + 边收边渲染 | 用户明确要求，体验核心 |
+| 流式渲染 | WebView 增量推 delta + marked.js 节流重渲染 + 自动滚底 | 兼顾实时性与性能 |
+| 结果应用 | 先弹层预览（渲染态），确认后应用；本期不加编辑 Tab | 用户要预览；接受后落编辑器再改 |
+| 首页入口 | 大号入口 → prompt 生成整篇 → 接受新建文档 | 用户指定，含「按钮做大」 |
+| 输入交互 | prompt 半屏 modal → 开始返回立即全屏 | 用户指定的交互细节 |
+| 放弃 | close 前二次确认（有已生成内容时） | 用户指定 |
+| 双格式 | ChatGPT(OpenAI) 与 Claude(Anthropic) 均支持流式 | AIConfig.responseFormat 已有 |
+| 无配置 | 任一字段空即拦截：先提示、再跳 AI 配置页（共享 AIConfigGate） | 不能静默失败，所有入口统一 |

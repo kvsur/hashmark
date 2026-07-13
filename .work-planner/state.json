@@ -1,141 +1,147 @@
 {
   "version": "1.1.0",
-  "created_at": "2026-07-12 17:50:00",
-  "updated_at": "2026-07-12 20:20:00",
+  "created_at": "2026-07-13 00:44:00",
+  "updated_at": "2026-07-13 02:05:00",
   "current_step": "S5",
-  "next_step": "S5 代码已完成（编辑态 sparkles 按钮 + AI 辅助占位弹层，AIAssistButton 独立组件）。S4、S5 均待用户 Run 验证：S4 四种分享/长截图超长不空白；S5 编辑态有按钮点击弹占位、预览态不显示。两步验证通过后一并置 done，M1(S1-S5) 里程碑达成，转 S6 上架。",
+  "next_step": "S5：首页大号 AI 入口（HomeAIButton，彩色渐变，比工具栏按钮显著）→ aiConfigGate 门槛 → AIWritingView(action:.custom, context:nil, 生成整篇) → 接受则 FileStore 新建 .md 写入并导航进入编辑。挂在 FileBrowserView 根目录。注：S6 已先做（用户在测编辑器），S5 待做。",
   "overall_status": "in_progress",
-  "completion_rate": "64%",
+  "completion_rate": "74%",
   "all_steps": [
     {
       "id": "S1",
-      "name": "最终定名与显示名",
+      "name": "AI 网络层（流式双格式）",
       "status": "done",
-      "start_at": "2026-07-12 17:55:00",
-      "done_at": "2026-07-12 17:55:00",
+      "start_at": "2026-07-13 00:45:00",
+      "done_at": "2026-07-13 01:05:00",
       "notes": [
-        "2026-07-12 17:55 用户定名保持 Hashmark（呼应 # 图标）。CFBundleDisplayName 早在 S7.4 已是 Hashmark，故本步零代码改动。App Store 副标题(subtitle，≤30 字符)定为 'Lightweight Markdown editor'——纠正了用户原句 proview→preview、去掉多余 'Hashmark -' 前缀、Markdown 大写、控长；此为商店元数据，S6 上架时填 App Store Connect，不进代码。"
+        "2026-07-13 01:05 实现：Models/AIMessage(role system/user/assistant + content)；AIConfig.isComplete(baseURL/model/apiKey 去空白均非空)；Models/AIClient.swift——AIClient 协议 stream(messages:)->AsyncThrowingStream<String,Error>；AIError(notConfigured/invalidURL/http(status,body)/network，errorDescription 中文，401/403/429 特化)；共享 SSEStream.run(request,parse)（URLSession.bytes 逐行，非2xx 读体报 http 错，parse 返回 token/done/ignore，onTermination→task.cancel，CancellationError 静默 finish）；ChatGPTClient(/chat/completions,Bearer,Body{model,messages,stream:true},解析 choices[0].delta.content，[DONE]结束)；ClaudeClient(/messages,x-api-key+anthropic-version:2023-06-01,max_tokens=4096,system 抽为顶层字段、messages 仅 user/assistant,解析 type==content_block_delta 的 delta.text，message_stop 结束)；AIClientFactory.make 按 responseFormat 选；endpointURL 去尾斜杠拼 path。",
+        "2026-07-13 01:05 运行时验证（真实流式/双格式/401）随 S3-S5 联调时由用户 Run。SourceKit 跨文件报错为索引噪声。"
       ],
       "sub_steps": [
-        { "id": "S1.1", "name": "定名=Hashmark（保持）", "status": "done" },
-        { "id": "S1.2", "name": "CFBundleDisplayName 已是 Hashmark，无需改；副标题定 Lightweight Markdown editor（留 S6 填商店）", "status": "done" }
+        { "id": "S1.1", "name": "AIMessage(role/content)", "status": "done" },
+        { "id": "S1.2", "name": "AIClient 协议 + AIError + 共享 SSEStream", "status": "done" },
+        { "id": "S1.3", "name": "ChatGPTClient：/chat/completions，Bearer，解析 delta.content", "status": "done" },
+        { "id": "S1.4", "name": "ClaudeClient：/messages，x-api-key+anthropic-version，解析 content_block_delta", "status": "done" },
+        { "id": "S1.5", "name": "AIClientFactory 按 responseFormat 选；Task 取消即断流", "status": "done" },
+        { "id": "S1.6", "name": "AIConfig.isComplete：baseURL/model/apiKey 均非空", "status": "done" }
       ],
-      "verify": "桌面图标名、文件 App 目录名为 Hashmark（已达成）"
+      "verify": "两种格式都能拿到流式 delta；无配置/401 有明确错误；isComplete 正确判定"
     },
     {
       "id": "S2",
-      "name": "预览外链改为 App 内 Safari 模态",
+      "name": "提示词/动作预设",
       "status": "done",
-      "start_at": "2026-07-12 17:55:00",
-      "done_at": "2026-07-12 18:20:00",
+      "start_at": "2026-07-13 01:06:00",
+      "done_at": "2026-07-13 01:15:00",
       "notes": [
-        "2026-07-12 18:00 实现：WebPreviewView 加 onExternalLink 回调 + Coordinator.decidePolicyFor：仅拦 navigationType==.linkActivated 的 http(s)→回调上层并 .cancel（不覆盖预览）；mailto/tel/sms/facetime→UIApplication.open 交系统；其余(file:// 本地模板/锚点)→.allow。新增 SafariView(SFSafariViewController 包装) + MarkdownPreviewView 封装(持 colorScheme + 外链 sheet)。DocumentView/ReadOnlyPreviewView 改用 MarkdownPreviewView(markdown:)，各自移除不再需要的 colorScheme 环境变量。外链处理集中一处，两个预览入口都生效。",
-        "2026-07-12 18:20 用户验收通过。"
+        "2026-07-13 01:15 Models/AIAction：enum continueWriting/polish/format/custom + label/systemImage/requiresContext(custom=false)/systemPrompt；userContent(context,prompt) 按动作语义拼（续写=已有内容+继续；润色/整理=对全文操作；custom 有上下文带参考、无则纯指令→覆盖首页生成整篇）；messages(context,prompt)→[system,user]；validationError（requiresContext 无内容 / custom 空 prompt 时给原因，供禁用开始按钮）。上下文策略用 requiresContext + 是否传入 context 表达，未单列枚举（更简）。"
       ],
       "sub_steps": [
-        { "id": "S2.1", "name": "WKNavigationDelegate 拦截 http(s) linkActivated 外链并抛给 SwiftUI", "status": "done" },
-        { "id": "S2.2", "name": "SFSafariViewController(UIViewControllerRepresentable) 经 sheet 弹出", "status": "done" },
-        { "id": "S2.3", "name": "边界：mailto/tel 交 openURL；锚点内跳不拦", "status": "done" }
+        { "id": "S2.1", "name": "AIAction 枚举：label/systemImage/systemPrompt/requiresContext", "status": "done" },
+        { "id": "S2.2", "name": "messages(context,prompt)：system + 文档上下文 + 用户 prompt", "status": "done" },
+        { "id": "S2.3", "name": "validationError：空 prompt / 无上下文兜底", "status": "done" }
       ],
-      "verify": "点外链→App 内 Safari 模态→关闭回原预览，预览未被覆盖"
+      "verify": "各动作 messages 合理；自定义可自由 prompt；新建无上下文成立"
     },
     {
       "id": "S3",
-      "name": "目录管理增强（选目录新建文件夹 + 首页滑动移动到目录 + 滑动图标优化）",
+      "name": "流式渲染（WebView 边收边渲染）",
       "status": "done",
-      "start_at": "2026-07-12 18:30:00",
-      "done_at": "2026-07-12 19:05:00",
+      "start_at": "2026-07-13 01:15:00",
+      "done_at": "2026-07-13 01:25:00",
       "notes": [
-        "2026-07-12 18:20 用户在 S2 验收后追加需求：首页文件/目录左滑现有 重命名+删除，新增「移动到目录」；三动作去文字改纯图标，重命名/删除图标重选更醒目，移动也醒目。并入 S3。FileStore.move 已存在可复用。移动目标选择拟复用/抽象 ImportTargetPicker 的选目录能力为通用 DirectoryPicker。图标方案待用户确认。",
-        "2026-07-12 18:30 图标方案用户选定「语义直觉型」：移动 folder.fill(靛)/重命名 square.and.pencil(蓝)/删除 trash(红)。",
-        "2026-07-12 18:45 实现：新建 DirectoryPicker.swift（通用选目录：目录栈下钻+上一级+新建文件夹内建，确认闭包 (URL) throws->Void，抛错内部弹失败提示、成功自动 dismiss；isDisabled 用于禁用不可进入/选为目标的目录）。ImportTargetPicker 瘦身为 DirectoryPicker 薄包装（确认时 importFile）。FileBrowserView：BrowserSheet 加 .move(node)，滑动加移动按钮，三动作全部 Label(...).labelStyle(.iconOnly) 保 VoiceOver；移动弹 DirectoryPicker，isDisabled 排除自身及子目录(path 前缀判断)，确认时若目标==原父目录则空操作（避免 move 重名复制），否则 store.move+reload。工程用文件系统同步分组，新文件自动纳入 target，无需改 pbxproj。SourceKit 报错为 macOS 上下文索引噪声，非真实编译错误。待用户 Run 验证。",
-        "2026-07-12 19:05 用户验收通过。"
+        "2026-07-13 01:25 template.html 加 window.aiRender(md,isFinal)：marked 重渲染；流式期间跳过 hljs 语法高亮（重解析开销大），仅 isFinal 时高亮一次；每次渲染 scrollTo 底部跟随最新内容。抽 Features/Preview/WebPreviewTemplate.load(into:) 共享离线模板加载器（DRY），WebPreviewView 改用它。新增 Features/AI/AIStreamingPreview（UIViewRepresentable）：Coordinator 做 ~60ms 节流合帧（高频 delta 合并成一次 evaluateJavaScript），isFinal 帧强制渲染，didFinish 后 flush 加载期攒下的内容。",
+        "2026-07-13 01:25 运行时性能（超长文档流式渲染是否卡）随 S4/S5 联调由用户 Run。"
       ],
       "sub_steps": [
-        { "id": "S3.1", "name": "ImportTargetPicker 工具栏加新建文件夹（复用 NameInputSheet + createFolder）", "status": "done" },
-        { "id": "S3.2", "name": "新建后刷新当前层，可进入或直接导入到新目录", "status": "done" },
-        { "id": "S3.3", "name": "抽象通用 DirectoryPicker（目录栈下钻+上一级+新建文件夹），导入与移动共用", "status": "done" },
-        { "id": "S3.4", "name": "首页行滑动新增移动到目录：弹 DirectoryPicker→FileStore.move→刷新；拦截移到自身子目录", "status": "done" },
-        { "id": "S3.5", "name": "滑动三动作改纯图标(labelStyle iconOnly 保无障碍)+重选醒目图标配色：trash红/square.and.pencil蓝/folder.fill靛", "status": "done" }
+        { "id": "S3.1", "name": "template.html 加 aiRender(md,isFinal)：marked 重渲染+滚底+仅结束高亮", "status": "done" },
+        { "id": "S3.2", "name": "AIStreamingPreview + Coordinator 节流(~60ms) evaluateJavaScript；共享 WebPreviewTemplate", "status": "done" },
+        { "id": "S3.3", "name": "性能：流式跳高亮/结束高亮、合帧、结束帧强制渲染", "status": "done" }
       ],
-      "verify": "导入时新建目录→导入成功；首页左滑移动到另一目录成功且拦截移到自身子目录；三动作仅图标、醒目、无障碍正常"
+      "verify": "流式内容边出边渲染、能滚动跟随；长文本不卡死"
     },
     {
       "id": "S4",
-      "name": "预览态分享按钮（长截图/源文件/源内容/纯文本）",
-      "status": "in_progress",
-      "start_at": "2026-07-12 19:10:00",
+      "name": "AI 会话 UI（核心交互）",
+      "status": "done",
+      "start_at": "2026-07-13 01:25:00",
+      "done_at": "2026-07-13 01:45:00",
       "notes": [
-        "2026-07-12 19:30 实现：新增 ShareSheet(UIActivityViewController 包装)+ShareItems、PreviewHandle(弱持 WKWebView，captureLongScreenshot 放大到内容尺寸整页快照再还原 + extractPlainText 读 #content innerText)、PreviewShareButton(confirmationDialog 四选一)。WebPreviewView 加 onWebViewReady 回调；MarkdownPreviewView 透传 handle。DocumentView 预览态 topBarTrailing 放 PreviewShareButton(sourceURL=node.url)；ReadOnlyPreviewView 同样加(sourceURL=外部文件)。分享按钮只在预览态露出（DocumentView 用 mode==.preview 条件）。",
-        "2026-07-12 19:25 用户在实现中追加第 4 种模式「纯文本」：与「源内容(Markdown 原文)」区分——纯文本取渲染后 DOM innerText，去掉 #/* 等语法标记。已加为 S4.5。",
-        "2026-07-12 20:00 用户反馈长截图超长页面得到空白图。原因：单次整页 takeSnapshot 超过 GPU 纹理尺寸上限→空白（非异步渲染问题）。改为分片方案：逐屏 setContentOffset 滚动+每屏 takeSnapshot(afterScreenUpdates,每屏等 0.12s 让 WebKit 画出)→UIGraphicsImageRenderer 拼成整页长图；接近底部用 rectY 修正被夹到 maxOffset 的截取起点。PreviewShareButton 加 isCapturing 状态：截图期间按钮转圈+禁用。待用户 Run 验证超长文档不再空白。"
+        "2026-07-13 01:45 Features/AI 新增三件：AIWritingSession(@Observable 状态机 Phase idle/loading/streaming/done/error + 累积 text + start(messages)@MainActor 迭代 stream 累加、首个 delta 转 streaming、完成 done、CancellationError 静默、AIError 取 errorDescription；stop 保留部分结果转 done；cancel 取消 Task)。AIWritingView(通用会话 UI：init 传 config/action/context/title/onAccept；prompt 半屏 medium detent 输入→onChange(phase) streaming/done 时 detent=.large 转全屏；content 按 phase 切 promptInput/loading/AIStreamingPreview(isFinal=isDone)/error(重试)；toolbar 关闭(attemptClose)+停止/接受；有内容 interactiveDismissDisabled+关闭走 confirmationDialog 二次确认；开始按钮按 action.validationError 禁用)。AIConfigGate(.aiConfigGate(trigger,store,onReady) 修饰符：trigger 置真→store.load()，isComplete 则 onReady(config) 否则 alert‘尚未配置 AI’+‘去配置’弹 AIConfigEditorView)。",
+        "2026-07-13 01:45 决策：AIWritingView 通用化，首页/编辑器共用；未加编辑 Tab（本期只预览，接受后落编辑器）。运行时（半屏→全屏/真实流式/取消/二次确认）随 S5 联调由用户 Run。"
       ],
       "sub_steps": [
-        { "id": "S4.1", "name": "预览态 topBarTrailing 分享按钮 + confirmationDialog；抽 PreviewShareButton 两入口共用", "status": "done" },
-        { "id": "S4.2", "name": "长截图：PreviewHandle 放大 WKWebView 到内容尺寸整页快照", "status": "done" },
-        { "id": "S4.3", "name": "分享源文件 .md（ShareSheet 包装 UIActivityViewController）", "status": "done" },
-        { "id": "S4.4", "name": "分享源内容（Markdown 原文）", "status": "done" },
-        { "id": "S4.5", "name": "分享纯文本（渲染 DOM innerText，去语法标记）——用户追加", "status": "done" }
+        { "id": "S4.1", "name": "AIWritingSession 状态机 idle/loading/streaming/done/error + 累积 + cancel/stop", "status": "done" },
+        { "id": "S4.2", "name": "AIWritingView：prompt 半屏 medium → streaming/done 转 .large 全屏", "status": "done" },
+        { "id": "S4.3", "name": "各状态 UI：loading/streaming(AIStreamingPreview)/error(重试)/done(接受/关闭)", "status": "done" },
+        { "id": "S4.4", "name": "接受=onAccept 回调；关闭=有内容二次确认+interactiveDismissDisabled；流中停止", "status": "done" },
+        { "id": "S4.5", "name": "AIConfigGate 修饰符：isComplete 才 onReady，否则 alert+跳 AIConfigEditorView", "status": "done" }
       ],
-      "verify": "四种分享都能唤起系统面板；长截图含超出屏幕的完整内容；纯文本无 #/* 等标记"
+      "verify": "半屏→全屏顺；loading/error/取消稳；close 二次确认；接受回调触发；配置不全时被拦截并可一键去配置"
     },
     {
       "id": "S5",
-      "name": "编辑态 AI 辅助编辑按钮（占位）",
-      "status": "in_progress",
-      "start_at": "2026-07-12 20:20:00",
-      "notes": [
-        "2026-07-12 20:20 实现：新增 AIAssistButton（sparkles 按钮 + AIAssistPlaceholderSheet 占位说明，用 ContentUnavailableView，medium detent，无 emoji 遵 CLAUDE.md）。DocumentView 工具栏 mode==.edit 时 topBarTrailing 显示；与预览态 PreviewShareButton 互斥（按 mode 条件）。待用户 Run 验证。"
-      ],
-      "sub_steps": [
-        { "id": "S5.1", "name": "编辑态 topBarTrailing sparkles 按钮 + 占位 sheet/提示", "status": "done" }
-      ],
-      "verify": "编辑态有按钮、点击有占位反馈不崩；预览态不显示"
-    },
-    {
-      "id": "S6",
-      "name": "App Store 上架准备（承接原 MVP S8）",
-      "status": "pending",
-      "notes": [
-        "2026-07-12 03:00 承接自原计划：开发者账号所在国须匹配真实居住地/税务/收款主体；大陆个人开发者建议注册中国区个人账号（全球发布与账号区无关，发布范围逐 App 勾选）。",
-        "2026-07-12 03:00 承接自原计划：大陆 App Store 上架自 2023 需 ICP 备案（个人较难）。建议发布范围勾全球但排除大陆以规避，日后进大陆再单独备案。免费 Apple ID 即可开发+真机调试，本步注册付费账号才落地。"
-      ],
-      "sub_steps": [
-        { "id": "S6.1", "name": "注册付费 Apple Developer Program", "status": "pending" },
-        { "id": "S6.2", "name": "Bundle ID / 证书 / provisioning（自动签名）", "status": "pending" },
-        { "id": "S6.3", "name": "隐私清单 PrivacyInfo.xcprivacy（不联网/不收集）", "status": "pending" },
-        { "id": "S6.4", "name": "App Store Connect 条目 + 截图（名称需全球唯一；副标题 Lightweight Markdown editor）", "status": "pending" },
-        { "id": "S6.5", "name": "Archive → 上传 → TestFlight", "status": "pending" },
-        { "id": "S6.6", "name": "提交审核", "status": "pending" }
-      ],
-      "verify": "TestFlight 能装到真机（里程碑）；提交审核成功"
-    },
-    {
-      "id": "S7",
-      "name": "（后续）iCloud 同步（承接原 MVP S9）",
+      "name": "首页「一键开启 AI 写作」（端到端打通）",
       "status": "pending",
       "notes": [],
       "sub_steps": [
-        { "id": "S7.1", "name": "开启 iCloud Documents entitlement + ubiquity container", "status": "pending" },
-        { "id": "S7.2", "name": "FileStore 迁移到 iCloud 容器，处理下载/冲突", "status": "pending" },
-        { "id": "S7.3", "name": "本地已有文档迁移策略", "status": "pending" }
+        { "id": "S5.1", "name": "HomeAIButton：首页大号醒目入口（彩色渐变，比工具栏按钮显著）", "status": "pending" },
+        { "id": "S5.2", "name": "接入 AIWritingView（无上下文、自由 prompt）", "status": "pending" },
+        { "id": "S5.3", "name": "接受→FileStore 新建 .md 写入并进入编辑；进入前过 AIConfigGate（配置不全先提示再跳配置页）", "status": "pending" }
       ],
-      "verify": "两台设备同一 iCloud，改动能同步"
+      "verify": "首页大按钮→半屏 prompt→全屏流式→接受生成新文档并打开；配置不全时被拦截、提示并可跳配置页"
+    },
+    {
+      "id": "S6",
+      "name": "编辑器/预览内 AI（应用到当前文档）",
+      "status": "done",
+      "start_at": "2026-07-13 01:50:00",
+      "done_at": "2026-07-13 02:05:00",
+      "notes": [
+        "2026-07-13 02:05 提前做（用户测编辑器发现 AI 还是占位）。AIAssistButton 重构为纯展示（title? + action 闭包，去掉自带占位弹层 AIAssistPlaceholderSheet）。DocumentView 接线：aiConfigStore；AI 按钮→showAIActions confirmationDialog 列 AIAction.allCases（续写/润色/整理/自定义）；选中→pendingAction+aiTrigger；.aiConfigGate(trigger,store){config in aiLaunch=AILaunch(config,action)}；.sheet(item:$aiLaunch)→AIWritingView(config,action,context:text,title)；接受 applyAI 按 editorApplyMode append(续写/自定义,文末加\\n\\n)/replace(润色/整理)后 save()。AIAction 加 editorApplyMode。上下文用整篇文本（暂不支持 TextEditor 选中）。",
+        "2026-07-13 02:05 偏离计划：未建独立 AIActionPicker.swift，用 DocumentView 内联 confirmationDialog 更简（编辑器专用，无复用需求）。风险待验证：DocumentView 现有多个 sheet（switcher + aiLaunch + gate 内 editor），iOS 18 多 sheet 应可共存，Run 时留意。",
+    "2026-07-13 02:20 联调 bugfix（用户 404）：用户 BaseURL 填的是完整端点（https://api.minimaxi.com/anthropic/v1/messages，MiniMax 的 Anthropic 兼容端点，responseFormat 应选 Claude），而 endpointURL 又追加 /messages→.../messages/messages→404。改 endpointURL：若 base 已以目标 path 结尾则直接用、否则才追加，兼容『填到 /v1』与『填完整端点』两种。ChatGPT 同理。"
+      ],
+      "sub_steps": [
+        { "id": "S6.1", "name": "AIAssistButton 纯展示化 + 内联 confirmationDialog 选动作", "status": "done" },
+        { "id": "S6.2", "name": "aiConfigGate 门槛 → AIWritingView（注入当前文档为上下文）", "status": "done" },
+        { "id": "S6.3", "name": "接受→按 editorApplyMode 应用（append/replace）并落盘", "status": "done" }
+      ],
+      "verify": "各动作流式生成、预览确认后正确应用到当前文档并保存"
+    },
+    {
+      "id": "S7",
+      "name": "异常与打磨",
+      "status": "pending",
+      "notes": [],
+      "sub_steps": [
+        { "id": "S7.1", "name": "无配置引导（去设置页 AI 配置）串起来", "status": "pending" },
+        { "id": "S7.2", "name": "错误分类文案 + 重试；取消中断干净", "status": "pending" },
+        { "id": "S7.3", "name": "空 prompt/超长文档/断网 边界", "status": "pending" },
+        { "id": "S7.4", "name": "二次确认、loading 骨架、整体一致性打磨", "status": "pending" }
+      ],
+      "verify": "各异常路径有反馈不崩；体验顺"
     }
   ],
   "failures": [],
   "decisions": {
-    "predecessor": "MVP 计划已归档至 .work-planner/archive/ios-markdown-mvp-core（S0-S7,S10,S11 已交付）",
-    "external_link": "预览外链用 SFSafariViewController（App 内 Safari 模态），不覆盖预览、不离开 App",
-    "app_name": "待用户拍板（Markdown Lite / Featherdown / Hashmark…）；商店主名需全球唯一",
-    "min_deployment": "延续 iOS 18.0；Liquid Glass iOS 26+ 渐进增强",
-    "storage": "延续本地 Documents（Files 可见）；iCloud 到 S7",
-    "distribution": "上架 App Store（承接原 S8）",
-    "swipe_icons": "首页滑动纯图标(labelStyle iconOnly 保无障碍)：移动 folder.fill(靛)/重命名 square.and.pencil(蓝)/删除 trash(红)。用户 2026-07-12 选定语义直觉型方案。"
+    "predecessor": "设置页计划已归档 archive/settings-page-theme-lang-ai-about（含 AIConfig/AIConfigStore/AIAssistButton 占位/主题窗口级）",
+    "action_model": "预设=prompt 模板+上下文策略；含自定义自由 prompt（用户洞察：一切皆 prompt）",
+    "output": "必须流式 + 边收边渲染（WebView 增量推 delta + marked.js 节流重渲染 + 自动滚底）",
+    "result_apply": "先弹层预览（渲染态）确认后应用；本期不加编辑 Tab，接受后落编辑器",
+    "home_entry": "首页大号 AI 入口 → prompt 生成整篇 → 接受新建文档；用户要求按钮做大",
+    "input_interaction": "prompt 半屏 modal → 收到首个返回立即转全屏",
+    "discard": "close 前二次确认（有已生成内容时）",
+    "dual_format": "格式完全由 responseFormat 决定、不假设 provider：ChatGPT=OpenAI 兼容(/chat/completions,Bearer)、Claude=Anthropic 兼容(/messages,x-api-key+anthropic-version)。BaseURL 用户自填(官方或任意兼容端点)。工厂按 responseFormat 选 client",
+    "no_config": "任一 AIConfig 字段(baseURL/model/apiKey)为空即不得进入 AI 模式：共享 AIConfigGate 先 alert 提示、再跳转到 AI 配置页(AIConfigEditorView)。所有 AI 入口(首页/编辑器)统一走此门槛",
+    "streaming_tech": "URLSession.bytes(for:) 逐行读 SSE；ChatGPT 取 choices[].delta.content，Claude 取 content_block_delta.delta.text",
+    "build": "本机仅 CommandLineTools 无完整 Xcode，Run 验证交用户；SourceKit 跨文件报错为索引噪声"
   },
   "notes": [
-    "2026-07-12 17:50 二期计划初始化。承接已交付 MVP，本期做 5 项体验/功能增强(S1-S5)+上架(S6,原S8)+iCloud(S7,原S9)。原 MVP 三文件已归档 archive/ios-markdown-mvp-core。",
-    "里程碑：本期 M1=S1-S5 体验增强；M2=S6 上架；M3=S7 iCloud。",
-    "2026-07-12 20:40 用户报 Inbox bug：外部「拷贝到本 App」的文件被系统放进 Documents/Inbox（系统管理，只读/删不可写）。原 FileStore 把 Inbox 当普通目录列出→用户看到并试图操作它：导入后源件残留在 Inbox（重复）、删 Inbox 提示无权限、选 Inbox 为目标报无权限却仍写入。修复(改 FileStore + ContentView，非计划内步骤)：1) contents(of:) 过滤系统 Inbox（浏览器与 DirectoryPicker 一并生效不可见/不可选）；2) importFile 从 Inbox 导入后删源件（仅删 Inbox 内的，外部安全作用域文件不删）；3) 加 purgeInbox()，ContentView 在导入中间页关闭(pendingImport→nil)时清 Inbox 残留（放关闭时而非启动时，规避冷启动即打开文件的竞态）。待用户 Run 验证。"
+    "2026-07-13 00:44 新计划初始化：AI 写作（流式生成+边收边渲染+预览应用）。前序设置页计划已归档 archive/settings-page-theme-lang-ai-about。",
+    "里程碑：M1=S1-S5 streaming 端到端（首页一键生成整篇）；M2=S6 编辑器内 AI；M3=S7 异常与打磨。",
+    "用户核心诉求：流式且边收边渲染（性能关键点在 WebView 增量渲染节流）；首页 AI 按钮做大；prompt 半屏→全屏；close 二次确认；loading/error 全处理。",
+    "已有基座：AIConfig/AIConfigStore（Application Support）、AIAssistButton（彩色可复用）、Theme.aiGradient、WebPreviewView+marked.js。",
+    "2026-07-13 00:52 用户补充硬门槛：AIConfig 任一项(baseURL/model/apiKey)未配置就不能进入 AI 模式——先提示、再跳转到 AI 配置页。落为共享 AIConfigGate（S4.5），首页/编辑器所有 AI 入口统一走；AIConfig.isComplete 校验在 S1.6。"
   ]
 }
