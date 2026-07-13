@@ -11,6 +11,7 @@
 import SwiftUI
 
 struct ContentView: View {
+    @Environment(SettingsStore.self) private var settings
     private let store = FileStore()
 
     /// 显式导航路径，用于导入完成后以代码方式跳到新文件的预览。
@@ -44,9 +45,14 @@ struct ContentView: View {
         .onChange(of: pendingImport?.id) { _, newID in
             if newID == nil { store.purgeInbox() }
         }
+        // 主题：进入即应用当前偏好、之后随设置变化实时更新（窗口级，覆盖所有 sheet）。
+        .onChange(of: settings.theme, initial: true) { _, newTheme in
+            InterfaceStyleController.apply(newTheme)
+        }
     }
 }
 
 #Preview {
     ContentView()
+        .environment(SettingsStore())
 }
