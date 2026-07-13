@@ -27,4 +27,18 @@ enum Theme {
     // MARK: - 间距
 
     static let spacing: CGFloat = 12
+
+    // MARK: - 颜色
+
+    /// AI 功能统一品牌渐变：用于所有 AI 入口按钮的图标/文字着色，保证全 App 一致（DRY）。
+    /// 这是有意的品牌色（区别于随深浅色自适应的语义色），故作为设计常量集中在此。
+    static let aiGradient = LinearGradient(
+        colors: [
+            Color(red: 0.55, green: 0.36, blue: 0.96),  // 紫
+            Color(red: 0.36, green: 0.60, blue: 0.98),  // 蓝
+            Color(red: 0.93, green: 0.42, blue: 0.72)   // 粉
+        ],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
 }

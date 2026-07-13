@@ -38,6 +38,13 @@ struct DocumentView: View {
     /// 桥接预览 WebView，供预览态「分享 - 长截图」取用。
     @State private var previewHandle = PreviewHandle()
 
+    // AI 写作：点按钮先选动作，过配置门槛后弹会话，接受则应用回文档。
+    private let aiConfigStore = AIConfigStore()
+    @State private var showAIActions = false
+    @State private var aiTrigger = false
+    @State private var pendingAction: AIAction?
+    @State private var aiLaunch: AILaunch?
+
     var body: some View {
         content
             .navigationTitle(node.displayName)
@@ -52,28 +59,45 @@ struct DocumentView: View {
                     // 后者会和 UISegmentedControl 的选中胶囊布局打架、显得歪。
                     .frame(width: 200)
                 }
-                ToolbarItem(placement: .bottomBar) {
-                    Button {
-                        showSwitcher = true
-                    } label: {
-                        // 工具栏会把 Label 强制显示成 icon-only，故用显式 HStack 让文字一定出现。
-                        HStack(spacing: 6) {
-                            Image(systemName: "list.bullet.rectangle")
-                            Text("切换文档")
-                        }
+                // 分享两态都有，但选项按模式区分：
+                // 预览态=长截图/纯文本/PDF（依赖已渲染 WebView）；编辑态=源文件/源内容（只依赖文本）。
+                ToolbarItem(placement: .topBarTrailing) {
+                    PreviewShareButton(
+                        markdown: text,
+                        sourceURL: node.url,
+                        handle: previewHandle,
+                        actions: mode == .preview
+                            ? [.longScreenshot, .plainText, .pdf]
+                            : [.sourceFile, .sourceContent]
+                    )
+                }
+                // 底部两个按钮一左一右：中间放弹性空隙把「切换文档」推到左下角、AI 推到右下角。
+                // 各自成一枚独立玻璃胶囊（iOS 18 无 ToolbarSpacer 时用 Group + Spacer 回退）。
+                if #available(iOS 26, *) {
+                    ToolbarItem(placement: .bottomBar) { switchDocButton }
+                    ToolbarSpacer(.flexible, placement: .bottomBar)
+                    ToolbarItem(placement: .bottomBar) { aiActionButton }
+                } else {
+                    ToolbarItemGroup(placement: .bottomBar) {
+                        switchDocButton
+                        Spacer()
+                        aiActionButton
                     }
                 }
-                // 分享只在预览态露出（此时内容已渲染、已落盘）。
-                if mode == .preview {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        PreviewShareButton(markdown: text, sourceURL: node.url, handle: previewHandle)
-                    }
+            }
+            .aiConfigGate(trigger: $aiTrigger, store: aiConfigStore) { config in
+                if let action = pendingAction {
+                    aiLaunch = AILaunch(config: config, action: action)
                 }
-                // AI 辅助编辑只在编辑态露出（占位）。
-                if mode == .edit {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        AIAssistButton()
-                    }
+            }
+            .sheet(item: $aiLaunch) { launch in
+                AIWritingView(
+                    config: launch.config,
+                    action: launch.action,
+                    context: text,
+                    title: launch.action.label
+                ) { result in
+                    applyAI(launch.action, result)
                 }
             }
             .onAppear(perform: loadIfNeeded)
@@ -91,6 +115,40 @@ struct DocumentView: View {
             }
     }
 
+    // MARK: - 底栏按钮
+
+    /// 「切换文档」按钮：仅图标（rectangle.stack 表意「多篇文档间切换」），略放大。
+    private var switchDocButton: some View {
+        Button {
+            showSwitcher = true
+        } label: {
+            // 仅图标：直接用 Label，工具栏会自动呈现为 icon-only（accessibility 仍保留文字）。
+            Label("切换文档", systemImage: "rectangle.stack")
+        }
+        .controlSize(.large)
+    }
+
+    /// AI 辅助按钮：彩色 "AI" 文字 + sparkles 图标，点按弹出动作列表（锚定到本按钮）。
+    private var aiActionButton: some View {
+        AIAssistButton(title: "AI") { showAIActions = true }
+            .controlSize(.large)
+            // 弹层锚定到 AI 按钮本身：紧贴底部工具栏出现，而非飘到屏幕顶部。
+            // compact 场景显式用 .popover 适配，保持「贴着按钮」的观感。
+            .popover(isPresented: $showAIActions) {
+                AIActionPopover { action in
+                    pendingAction = action
+                    showAIActions = false
+                    // 延迟触发，确保 popover 关闭动画完成后再触发 AI 流程，
+                    // 避免视图层级变化导致状态更新丢失。
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(100))
+                        aiTrigger = true
+                    }
+                }
+                .presentationCompactAdaptation(.popover)
+            }
+    }
+
     @ViewBuilder
     private var content: some View {
         switch mode {
@@ -100,6 +158,20 @@ struct DocumentView: View {
         case .edit:
             EditorView(text: $text)
         }
+    }
+
+    // MARK: - AI
+
+    /// 接受 AI 结果：按动作应用到当前文档并落盘。
+    /// 续写/自定义=追加文末（不破坏原文）；润色/整理=替换全文。上下文用整篇（暂不支持选中）。
+    private func applyAI(_ action: AIAction, _ result: String) {
+        switch action.editorApplyMode {
+        case .append:
+            text = text.isEmpty ? result : text + "\n\n" + result
+        case .replace:
+            text = result
+        }
+        save()
     }
 
     // MARK: - 逻辑
@@ -128,4 +200,11 @@ struct DocumentView: View {
         text = store.readText(at: newNode.url)    // 载入新文档
         savedText = text
     }
+}
+
+/// 驱动 AI 会话 sheet(item:) 的载荷：过完配置门槛后携带 config + 选中的动作。
+private struct AILaunch: Identifiable {
+    let id = UUID()
+    let config: AIConfig
+    let action: AIAction
 }

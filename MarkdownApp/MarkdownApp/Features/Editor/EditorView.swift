@@ -19,6 +19,8 @@ struct EditorView: View {
             .autocorrectionDisabled()
             .textInputAutocapitalization(.never)   // Markdown 源码不该自动大写
             .scrollContentBackground(.hidden)      // 隐藏默认背景，露出系统底色
-            .padding(.horizontal, 4)
+            // 只加左右内边距（类似 web padding:0 12px）。不加上下：底部要让内容滚到
+            // 工具栏下方形成半透明浮动效果，加了下边距会顶出空隙、破坏该效果。
+            .padding(.horizontal, 12)
     }
 }

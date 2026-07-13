@@ -2,46 +2,38 @@
 //  AIAssistButton.swift
 //  MarkdownApp
 //
-//  编辑态「AI 辅助编辑」入口（占位）：先放按钮 + 占位说明弹层，
-//  后续再接入实际能力（续写/润色/整理）。抽成独立组件让 DocumentView 保持精简。
+//  彩色 AI 入口按钮（纯展示）：sparkles + 品牌渐变着色，点击执行传入的 action。
+//  可复用——编辑器/预览工具栏用仅图标；首页可传 title 显示「AI 写作」（做大）。
+//  真正的 AI 流程由调用方组织（上下文、门槛、会话），本按钮不关心。
 //
 
 import SwiftUI
 
 struct AIAssistButton: View {
-    @State private var showPlaceholder = false
+    /// 可选文字标签：nil = 仅图标；非 nil = 图标+文字。
+    var title: String? = nil
+    let action: () -> Void
 
     var body: some View {
-        Button {
-            showPlaceholder = true
-        } label: {
-            Image(systemName: "sparkles")
-        }
-        .sheet(isPresented: $showPlaceholder) {
-            AIAssistPlaceholderSheet()
+        Button(action: action) {
+            label
+                // AI 品牌渐变着色，让入口一眼可辨（图标与文字统一上色）。
+                .foregroundStyle(Theme.aiGradient)
         }
     }
-}
 
-/// 占位说明：功能未上线时给一个清晰、不崩的反馈。
-private struct AIAssistPlaceholderSheet: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            ContentUnavailableView {
-                Label("AI 辅助编辑", systemImage: "sparkles")
-            } description: {
-                Text("即将上线：用 AI 帮你续写、润色与整理 Markdown。")
+    @ViewBuilder
+    private var label: some View {
+        if let title {
+            // 用显式 HStack 而非 Label：工具栏会把 Label 折叠成 icon-only 而丢掉文字，
+            // 显式拼接可保证图标与文字都出现（两者一起被上面的渐变着色）。
+            // 文字在前、图标在后（"AI" + sparkles）。
+            HStack(spacing: 5) {
+                Text(title)
+                Image(systemName: "sparkles")
             }
-            .navigationTitle("AI 辅助编辑")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("完成") { dismiss() }
-                }
-            }
+        } else {
+            Image(systemName: "sparkles")
         }
-        .presentationDetents([.medium])
     }
 }
