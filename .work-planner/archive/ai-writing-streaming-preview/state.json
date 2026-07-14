@@ -1,11 +1,11 @@
 {
   "version": "1.1.0",
   "created_at": "2026-07-13 00:44:00",
-  "updated_at": "2026-07-13 02:05:00",
-  "current_step": "S5",
-  "next_step": "S5：首页大号 AI 入口（HomeAIButton，彩色渐变，比工具栏按钮显著）→ aiConfigGate 门槛 → AIWritingView(action:.custom, context:nil, 生成整篇) → 接受则 FileStore 新建 .md 写入并导航进入编辑。挂在 FileBrowserView 根目录。注：S6 已先做（用户在测编辑器），S5 待做。",
+  "updated_at": "2026-07-14 02:30:00",
+  "current_step": "S7",
+  "next_step": "仅剩 S5『首页大号 AI 入口』：HomeAIButton（彩色渐变，比工具栏按钮显著）挂 FileBrowserView 根 → aiConfigGate 门槛 → AIWritingView(action:.custom, context:nil, 生成整篇) → 接受则 FileStore 新建 .md 写入并导航进入编辑。做完 S5 即闭合 M1 端到端、整个计划 overall 可置 done。S6/S7 已完成。",
   "overall_status": "in_progress",
-  "completion_rate": "74%",
+  "completion_rate": "89%",
   "all_steps": [
     {
       "id": "S1",
@@ -112,13 +112,20 @@
     {
       "id": "S7",
       "name": "异常与打磨",
-      "status": "pending",
-      "notes": [],
+      "status": "done",
+      "start_at": "2026-07-14 02:25:00",
+      "done_at": "2026-07-14 02:30:00",
+      "notes": [
+        "2026-07-14 02:30 复核发现 S7 大半已由 S4/S6 建成，本步只补真实缺口三处：（1）AIWritingSession 新增 interruptedReason——流式途中出错且已有内容时(断网核心场景)不再整屏报错丢内容，改为保留文本、标记中断、转 .done，让用户可接受已生成部分或重试；仅一无所获时才 .error 整屏。（2）AIWritingView：.done 顶部挂 interruptedBanner(橙色 warning+原因+重试)；loadingView 品牌化——Theme.aiGradient 的 sparkles + symbolEffect(.pulse) 替代裸 ProgressView；start() 复位 interruptedReason。（3）AIError.http 加 truncated(limit 300) 截断响应体，避免整页 HTML/JSON 塞进文案。",
+        "2026-07-14 02:30 S7.1 无需改动：AIConfigGate 已把『校验→alert→跳 AIConfigEditorView』串好，与锁定决策 no_config 一致（AIConfigEditorView 即 AI 配置页）。S7.3 空 prompt 由 AIAction.validationError 拦(custom)、非 custom 允许空 prompt；超长文档由 AIStreamingPreview ~60ms 节流+结束帧强制渲染兜住。S7.4 二次确认(showDiscardConfirm)+interactiveDismissDisabled 早已在。",
+        "2026-07-14 02:30 运行时验证（断网中途是否保留、错误截断文案、loading 动效、重试）交用户 Run（本机仅 CommandLineTools，SourceKit 跨文件报错为索引噪声）。",
+        "2026-07-14 02:30 注意：S5『首页大号 AI 入口』仍 pending，不在本次 S7 范围内——M1 端到端尚未闭合，编辑器内 AI(S6) 路径已完整可用。"
+      ],
       "sub_steps": [
-        { "id": "S7.1", "name": "无配置引导（去设置页 AI 配置）串起来", "status": "pending" },
-        { "id": "S7.2", "name": "错误分类文案 + 重试；取消中断干净", "status": "pending" },
-        { "id": "S7.3", "name": "空 prompt/超长文档/断网 边界", "status": "pending" },
-        { "id": "S7.4", "name": "二次确认、loading 骨架、整体一致性打磨", "status": "pending" }
+        { "id": "S7.1", "name": "无配置引导（去设置页 AI 配置）串起来", "status": "done" },
+        { "id": "S7.2", "name": "错误分类文案 + 重试；取消中断干净", "status": "done" },
+        { "id": "S7.3", "name": "空 prompt/超长文档/断网 边界", "status": "done" },
+        { "id": "S7.4", "name": "二次确认、loading 骨架、整体一致性打磨", "status": "done" }
       ],
       "verify": "各异常路径有反馈不崩；体验顺"
     }

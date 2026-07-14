@@ -1,0 +1,152 @@
+{
+  "version": "1.1.0",
+  "created_at": "2026-07-14 02:45:00",
+  "updated_at": "2026-07-14 04:02:00",
+  "current_step": "S7",
+  "next_step": "全部完成，待用户在 Xcode 真机/模拟器 Run 验收：真流式 tool_use/tool_calls 双格式反问、答题卡片(单选/多选/文字)、多轮精修/重新生成、首页大号入口建档打开、降级、断网中断保留。本机仅 CommandLineTools 无法编译，SourceKit 跨文件报错为索引噪声。",
+  "overall_status": "done",
+  "completion_rate": "100%",
+  "all_steps": [
+    {
+      "id": "S1",
+      "name": "模型层：结构化消息 + 工具定义",
+      "status": "done",
+      "start_at": "2026-07-14 02:48:00",
+      "done_at": "2026-07-14 02:55:00",
+      "notes": [
+        "2026-07-14 02:55 AIMessage.swift：Role 增 .tool；结构化增 toolCalls([AIToolCall])/toolCallId；便捷构造 assistant(text:toolCalls:)、toolResult(callId:content:)；AIToolCall{id,name,arguments(原始JSON)} 也放此文件。AITool.swift：JSONValue(可编码任意JSON，用于同时编码 OpenAI parameters 与 Anthropic input_schema，DRY)；AITool{name,description,parameters:JSONValue}；AIStreamEvent{.text/.toolCall}；ClarifyTool.definition(ask_clarifying_question schema：question/answer_type enum[single_select|multi_select|text]/options[{label,recommended}])；ClarifyRequest(argumentsJSON:) 用 JSONSerialization 解析，选择型无候选项/关键字段缺失即 return nil 供上层降级。"
+      ],
+      "sub_steps": [
+        { "id": "S1.1", "name": "AIMessage 改结构化(role/content/toolCalls/toolCallId)，兼容纯文本用法", "status": "done" },
+        { "id": "S1.2", "name": "AITool + AIToolCall；AIStreamEvent 事件枚举", "status": "done" },
+        { "id": "S1.3", "name": "反问工具 schema + ClarifyRequest/AnswerSpec/Option 解析(含空/无效兜底)", "status": "done" }
+      ],
+      "verify": "能构造带 tool 的消息序列；能把工具 arguments JSON 解析成 ClarifyRequest"
+    },
+    {
+      "id": "S2",
+      "name": "网络层：tool calling 双格式流式",
+      "status": "done",
+      "start_at": "2026-07-14 02:56:00",
+      "done_at": "2026-07-14 03:10:00",
+      "notes": [
+        "2026-07-14 03:10 拆三文件(工程用文件系统同步组，可自由加文件)。AIClient.swift：协议 stream(messages,tools)->AsyncThrowingStream<AIStreamEvent>；SSEEventParser 协议(有状态跨行累积)；SSEStream.pump(发请求/校验/逐行喂解析器/emit)；SSEStream.streamWithToolFallback(带 tools 且产出任何内容前报 4xx→无 tools 重试一次，emitted 标记防重复/防串)；aiEndpointURL 提到全局函数(两 client 共用)。ChatGPTClient.swift：body 用 JSONValue 统一拼(含 tools + assistant.tool_calls + role:tool 结果)；OpenAIStreamParser 按 index 累积 tool_calls，finish_reason=tool_calls 或 [DONE] flush(只一次)。ClaudeClient.swift：system 顶层、tools=input_schema、assistant tool_use blocks(input 由 arguments 字符串还原成对象)、tool_result 映射为 user 消息；AnthropicStreamParser：content_block_start(tool_use)→input_json_delta 累积→content_block_stop 产出，message_stop 结束。",
+        "2026-07-14 03:10 注意：本步改了 AIClient.stream 签名，旧 AIWritingSession(调 stream(messages:)) 会编译不过——由紧接的 S3 重写修复。运行时验证(真流式 tool_use/tool_calls 双格式、降级)交用户 Run。"
+      ],
+      "sub_steps": [
+        { "id": "S2.1", "name": "stream 改 (messages,tools)->AsyncThrowingStream<AIStreamEvent>；SSEStream 改有状态解析器", "status": "done" },
+        { "id": "S2.2", "name": "OpenAI：请求带 tools；累积 delta.tool_calls；assistant tool_calls 与 role:tool 结果序列化", "status": "done" },
+        { "id": "S2.3", "name": "Anthropic：请求带 tools；累积 tool_use+input_json_delta；tool_use 与 tool_result 序列化", "status": "done" },
+        { "id": "S2.4", "name": "降级：端点不支持 tools 时回退无 tools 直接生成，不阻断", "status": "done" }
+      ],
+      "verify": "两格式都能拿 text 增量并在诉求含糊时拿到 toolCall；回填 tool 结果能继续；无 tools 端点仍可生成"
+    },
+    {
+      "id": "S3",
+      "name": "会话状态机多轮化",
+      "status": "done",
+      "start_at": "2026-07-14 03:11:00",
+      "done_at": "2026-07-14 03:20:00",
+      "notes": [
+        "2026-07-14 03:20 AIAction 加 allowsClarify(仅 custom)。AIWritingSession 重写为多轮：init(config,tools)；持 messages 历史 + pendingToolCall；Phase 增 awaitingAnswer(ClarifyRequest)。runTurn() 统一一轮流式：.text 累积，.toolCall→handleToolCall(只认 ClarifyTool，解析成 ClarifyRequest→落 assistant(tool_use)+phase=awaitingAnswer；无法解析则降级：有内容当 done、否则 error)。start(messages) 首轮；answer(_)→落 toolResult→runTurn；refine(_)→追加 user→runTurn；regenerate()→丢最后一段 assistant→runTurn；stop/cancel 多轮下沿用 commitAssistantTurn(didCommit 防重复)+interruptedReason。accept 取 session.text(最新一轮正文)。",
+        "2026-07-14 03:20 tools 由 View 按 action.allowsClarify 注入([ClarifyTool.definition] 或 [])。运行时验证(反问一轮→答→续、done 后精修/重生成)随 S4/S5 UI 一起 Run。"
+      ],
+      "sub_steps": [
+        { "id": "S3.1", "name": "引入 messages 历史 + phase 增 awaitingAnswer；start 按动作决定是否带反问工具(仅 custom)", "status": "done" },
+        { "id": "S3.2", "name": "反问流程：收 toolCall→落 assistant→解析→awaitingAnswer；answer→落 tool 结果→继续流", "status": "done" },
+        { "id": "S3.3", "name": "精修/重生成：done 后 refine(prompt)/regenerate 追加消息再流；accept 取最新文本", "status": "done" },
+        { "id": "S3.4", "name": "取消/停止/中断在多轮下保持干净(沿用 interruptedReason)", "status": "done" }
+      ],
+      "verify": "一轮反问一轮生成可串起来；done 后可多次精修；各中断路径不残留"
+    },
+    {
+      "id": "S4",
+      "name": "反问答题 UI",
+      "status": "done",
+      "start_at": "2026-07-14 03:21:00",
+      "done_at": "2026-07-14 03:32:00",
+      "notes": [
+        "2026-07-14 03:32 抽 AIGradientButton(品牌渐变胶囊，居中不铺满，禁用去色降透明——避免长扁按钮；开始生成/确定/提交复用)。AIClarifyCard：ScrollView+24 留白；header『需要你确认一下』(渐变)+问题 title3 醒目可换行；单选=OptionRow 点选即 onSubmit；多选=MultiSelectAnswer(Set 选中+AIGradientButton『确定(n)』，按原顺序『、』连接)；文字=TextAnswer(多行输入+提交，空则禁用)。OptionRow 圆角行(secondarySystemBackground)+选中 accent 描边+RecommendedBadge(推荐=渐变胶囊白字)。工具内容不入正文——由 AIWritingView 在 awaitingAnswer 分支渲染卡片替代正文区。"
+      ],
+      "sub_steps": [
+        { "id": "S4.1", "name": "AIClarifyCard：问题 + 单选/多选/文字控件，推荐项高亮、留白得当(小屏友好)", "status": "done" },
+        { "id": "S4.2", "name": "单选点选即提交；多选+确定；文字输入+提交；空答校验", "status": "done" },
+        { "id": "S4.3", "name": "接入 AIWritingView：awaitingAnswer 展示卡片替代正文区，答完回 session.answer 继续", "status": "done" }
+      ],
+      "verify": "三种答题方式都能答并继续；推荐项明显；工具 JSON 从不出现在正文；手机端可操作性好"
+    },
+    {
+      "id": "S5",
+      "name": "精修/二次生成 UI",
+      "status": "done",
+      "start_at": "2026-07-14 03:32:00",
+      "done_at": "2026-07-14 03:40:00",
+      "notes": [
+        "2026-07-14 03:40 AIRefineBar：胶囊多行输入(1...4行)+圆形渐变发送按钮(不做长扁按钮，空则去色禁用)，下方轻量『重新生成』文字按钮；.background(.bar)，挂预览底部。AIWritingView 重写：init 按 action.allowsClarify 注入 tools；content 分支加 awaitingAnswer→AIClarifyCard、streaming/done→streamingArea(预览 + isDone 时 safeAreaInset 底部挂 AIRefineBar)；promptInput/loadingView/error/interruptedBanner 保留，promptInput 改用 AIGradientButton；detent onChange 改为 phase != idle 即转 .large(给答题/精修留空间)；toolbar streaming=停止/done=接受不变。",
+        "2026-07-14 03:40 运行时验证(精修多轮、重新生成、键盘避让、小屏留白)交用户 Run。S5.3 键盘避让依赖 safeAreaInset 默认行为，Run 时重点看。"
+      ],
+      "sub_steps": [
+        { "id": "S5.1", "name": "AIRefineBar：底部精修输入坞(输入+发送/重新生成)，生成中禁用、完成可用；不用长扁按钮", "status": "done" },
+        { "id": "S5.2", "name": "AIWritingView：done 后显示预览+精修坞+接受/关闭；精修时正文切回流式", "status": "done" },
+        { "id": "S5.3", "name": "小屏布局打磨：坞高度、键盘避让、留白与文案间距", "status": "done" }
+      ],
+      "verify": "生成完成后能输入新指令让 Agent 调整/重生成，多轮顺畅；小屏无贴边、无长扁按钮"
+    },
+    {
+      "id": "S6",
+      "name": "首页大号 AI 入口(承接旧计划遗留项)",
+      "status": "done",
+      "start_at": "2026-07-14 03:41:00",
+      "done_at": "2026-07-14 03:52:00",
+      "notes": [
+        "2026-07-14 03:52 抽 AILaunch 到 Features/AI/AILaunch.swift(原 DocumentView 私有，改共享 DRY)。HomeAIButton：品牌渐变+阴影的加厚胶囊(sparkles+『AI 写作』)，挂 FileBrowserView.safeAreaInset(.bottom) 仅 isRoot。FileBrowserView 加 onOpenDocument 回调 + aiConfigStore/aiTrigger/aiLaunch：aiConfigGate 门槛→aiLaunch=AILaunch(config,.custom)→sheet AIWritingView(context:nil,title『AI 写作』,允许反问)；接受→createDocument：suggestedName(取内容首行去 #/>/- 前缀限 40 字，兜底『AI 写作』)→store.createMarkdown+writeText→reload→onOpenDocument(node)。ContentView 根 FileBrowserView 尾随闭包 path.append(newDoc) 进入编辑/预览。",
+        "2026-07-14 03:52 运行时验证(首页大按钮→可反问→流式→接受建档打开；配置不全被拦截)交用户 Run。多 sheet 共存(sheet/settings/aiLaunch/gate内editor)沿用 DocumentView 既有模式，Run 时留意。"
+      ],
+      "sub_steps": [
+        { "id": "S6.1", "name": "HomeAIButton：首页大号醒目入口(彩色渐变)挂 FileBrowserView 根", "status": "done" },
+        { "id": "S6.2", "name": "aiConfigGate 门槛 → AIWritingView(action:.custom, context:nil, 带反问工具)", "status": "done" },
+        { "id": "S6.3", "name": "接受 → FileStore 新建 .md 写入并导航进入编辑", "status": "done" }
+      ],
+      "verify": "首页大按钮→(可反问)→流式→接受生成新文档并打开；配置不全被拦截并可跳配置页"
+    },
+    {
+      "id": "S7",
+      "name": "异常与打磨",
+      "status": "done",
+      "start_at": "2026-07-14 03:53:00",
+      "done_at": "2026-07-14 04:02:00",
+      "notes": [
+        "2026-07-14 04:02 修真实健壮性缺口：错误/中断的『重试』原来都调 start()→会重置整个多轮会话(丢反问/精修上下文)。改为 session.retry()(用现有 messages 重跑，纯错误路径未 commit 故安全) 与 session.regenerate()(中断已把部分入历史→丢弃后重来)。AIStreamingPreview 放进 VStack 后加 .frame(maxWidth/maxHeight:.infinity) 防与中断条同列塌陷。",
+        "2026-07-14 04:02 S7.1 工具解析失败兜底=handleToolCall(ClarifyRequest nil→有内容当 done/否则 error)。S7.2 空答校验=AIClarifyCard(多选『确定』空则禁用、文字空则禁用、单选点选即提交恒有效)；多轮取消=session cancel/stop 沿用 interruptedReason+didCommit。S7.4 一致性=AIGradientButton/RecommendedBadge/loading sparkles/中断条 统一品牌视觉，卡片与坞留白充足。",
+        "2026-07-14 04:02 偏离计划(记录)：S7.3『降级提示文案』——决定不弹打断式 toast，端点不支持 tools 时 streamWithToolFallback 静默无 tools 重试、用户照常拿到生成结果(可用性优先，体验更顺)；『tool 与文本混合时正文只收文本』由 AIStreamEvent(.text/.toolCall) 事件模型天然保证。"
+      ],
+      "sub_steps": [
+        { "id": "S7.1", "name": "工具 arguments JSON 不完整/解析失败兜底(跳过反问或提示)", "status": "done" },
+        { "id": "S7.2", "name": "空答/多选未选/文字空 校验与提示；多轮取消中断干净", "status": "done" },
+        { "id": "S7.3", "name": "降级提示文案；tool 与文本混合时正文只收文本", "status": "done" },
+        { "id": "S7.4", "name": "一致性：答题卡片/精修坞/loading/中断条 视觉统一，小屏留白复核", "status": "done" }
+      ],
+      "verify": "各异常路径有反馈不崩；多轮+反问+精修整体体验顺"
+    }
+  ],
+  "failures": [],
+  "decisions": {
+    "plan_org": "独立新计划；旧 AI 写作计划已归档 archive/ai-writing-streaming-preview（S1-S4/S6/S7 done、原 S5 首页入口 pending）；旧计划未完成的首页入口纳入本计划 S6",
+    "clarify_scope": "反问工具仅在 custom(自由创作/首页生成整篇)动作提供；续写/润色/整理不带工具，避免多余打断",
+    "clarify_form": "一次一个问题卡片(tool 单次一个问题)，模型可多轮追问；答题方式 单选/多选/文字，选择型带 options+推荐项",
+    "event_model": "AIClient.stream 产出 AIStreamEvent(text/toolCall)；tool 调用内容绝不进正文渲染区(正文只收 .text)",
+    "multi_turn": "会话保留 messages 历史；接受=应用最新 assistant 文本；精修=追加 user 指令再流式；反问=assistant(tool_use)+tool_result 回填继续",
+    "degrade": "端点不支持 function tools(报错/忽略)时优雅降级为无 tools 直接生成，不阻断",
+    "dual_format_tools": "OpenAI: tools=[{type:function,function:{name,description,parameters}}]，流 delta.tool_calls[] 按 index 累积 id/name/arguments，finish_reason=tool_calls；续对话 assistant tool_calls + {role:tool,tool_call_id,content}。Anthropic: tools=[{name,description,input_schema}]，流 content_block(tool_use)+input_json_delta.partial_json 累积，stop_reason=tool_use；续对话 assistant tool_use block + user tool_result block。因跨行累积，SSEStream 改有状态解析器",
+    "ux": "小屏优先；答题用卡片+留白，精修用底部输入坞；不要长扁按钮、不要贴边文案",
+    "build": "本机仅 CommandLineTools 无完整 Xcode，编译/Run 验证交用户；SourceKit 跨文件报错为索引噪声",
+    "reuse_base": "复用 AIConfig/AIConfigStore、AIConfigGate、AIStreamingPreview、AIAction、Theme.aiGradient、AIAssistButton"
+  },
+  "notes": [
+    "2026-07-14 02:45 新计划初始化：多轮二次生成 + function tool 反问挖掘诉求 + 首页入口(旧计划遗留)。旧 AI 写作计划(89%)已归档 archive/ai-writing-streaming-preview。",
+    "里程碑：M1=S1-S3 tool calling+多轮逻辑；M2=S4-S5 反问答题UI+精修UI；M3=S6 首页入口闭合；M4=S7 异常打磨。",
+    "用户三点定调：(1)反问仅 custom；(2)一问一卡(单选/多选/文字+推荐项)；(3)独立新计划、旧计划未完成的首页入口收编为 S6。",
+    "用户强调交互：手机小屏可操作性高优先；不要长扁按钮、不要贴边文案。",
+    "关键技术风险：SSEStream 需从纯逐行 parse 改为有状态解析器以跨行累积工具调用 arguments；双格式 tool_use/tool_calls 协议差异需严格对齐(见 decisions.dual_format_tools)。"
+  ]
+}
