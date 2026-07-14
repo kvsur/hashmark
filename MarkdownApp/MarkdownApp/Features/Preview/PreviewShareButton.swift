@@ -66,10 +66,10 @@ struct PreviewShareButton: View {
             Button("PDF") { sharePDF() }
         case .sourceFile:
             if let sourceURL {
-                Button("源文件（.md）") { shareItems = ShareItems(items: [sourceURL]) }
+                Button("源文件（.md）") { Haptics.success(); shareItems = ShareItems(items: [sourceURL]) }
             }
         case .sourceContent:
-            Button("源内容（Markdown）") { shareItems = ShareItems(items: [markdown]) }
+            Button("源内容（Markdown）") { Haptics.success(); shareItems = ShareItems(items: [markdown]) }
         }
     }
 
@@ -78,6 +78,7 @@ struct PreviewShareButton: View {
         handle.captureLongScreenshot { image in
             isBusy = false
             guard let image else { return }
+            Haptics.success()   // 长截图已就绪，给一下「内容取到」反馈
             shareItems = ShareItems(items: [image])
         }
     }
@@ -85,6 +86,7 @@ struct PreviewShareButton: View {
     /// 纯文本：分享去掉 Markdown 语法标记后的渲染可见文字；取不到时退回源内容。
     private func sharePlainText() {
         handle.extractPlainText { text in
+            Haptics.success()   // 纯文本已就绪，给一下「内容取到」反馈
             shareItems = ShareItems(items: [text ?? markdown])
         }
     }
@@ -99,6 +101,7 @@ struct PreviewShareButton: View {
             let url = FileManager.default.temporaryDirectory
                 .appendingPathComponent(base).appendingPathExtension("pdf")
             guard (try? data.write(to: url, options: .atomic)) != nil else { return }
+            Haptics.success()   // PDF 已导出，给一下「内容取到」反馈
             shareItems = ShareItems(items: [url])
         }
     }

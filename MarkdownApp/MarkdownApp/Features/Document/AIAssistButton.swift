@@ -15,7 +15,8 @@ struct AIAssistButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        // 点击先给一下触觉反馈，再执行真正动作（所有 AI 入口统一手感）。
+        Button(action: { Haptics.light(); action() }) {
             label
                 // AI 品牌渐变着色，让入口一眼可辨（图标与文字统一上色）。
                 .foregroundStyle(Theme.aiGradient)

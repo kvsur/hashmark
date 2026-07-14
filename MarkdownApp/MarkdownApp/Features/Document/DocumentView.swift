@@ -47,11 +47,17 @@ struct DocumentView: View {
 
     var body: some View {
         content
+            // 预览左滑 → 编辑；编辑右滑 → 预览。方向判定与滚动/选择冲突收敛在封装里。
+            .horizontalSwitch(
+                onSwipeLeft: { if mode == .preview { switchMode(to: .edit) } },
+                onSwipeRight: { if mode == .edit { switchMode(to: .preview) } }
+            )
             .navigationTitle(node.displayName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Picker("模式", selection: $mode) {
+                    // 走 switchMode 让「点分段控件」与「滑动切换」共用同一套过渡动画。
+                    Picker("模式", selection: Binding(get: { mode }, set: { switchMode(to: $0) })) {
                         ForEach(Mode.allCases) { Text($0.label).tag($0) }
                     }
                     .pickerStyle(.segmented)
@@ -60,14 +66,15 @@ struct DocumentView: View {
                     .frame(width: 200)
                 }
                 // 分享两态都有，但选项按模式区分：
-                // 预览态=长截图/纯文本/PDF（依赖已渲染 WebView）；编辑态=源文件/源内容（只依赖文本）。
+                // 预览态=长截图/纯文本/PDF（依赖已渲染 WebView）+ 源文件/源内容（预览时也常要拿源码）；
+                // 编辑态只给源文件/源内容（此时无已渲染 WebView，截图/PDF 无从生成）。
                 ToolbarItem(placement: .topBarTrailing) {
                     PreviewShareButton(
                         markdown: text,
                         sourceURL: node.url,
                         handle: previewHandle,
                         actions: mode == .preview
-                            ? [.longScreenshot, .plainText, .pdf]
+                            ? [.longScreenshot, .plainText, .pdf, .sourceFile, .sourceContent]
                             : [.sourceFile, .sourceContent]
                     )
                 }
@@ -120,6 +127,7 @@ struct DocumentView: View {
     /// 「切换文档」按钮：仅图标（rectangle.stack 表意「多篇文档间切换」），略放大。
     private var switchDocButton: some View {
         Button {
+            Haptics.light()   // 点击「切换文档」给一下反馈
             showSwitcher = true
         } label: {
             // 仅图标：直接用 Label，工具栏会自动呈现为 icon-only（accessibility 仍保留文字）。
@@ -155,9 +163,21 @@ struct DocumentView: View {
         case .preview:
             MarkdownPreviewView(markdown: text, handle: previewHandle)
                 .ignoresSafeArea(edges: .bottom)
+                // 预览在「编辑的左边」：切走时向左滑出、回来时从左侧滑入。
+                .transition(.move(edge: .leading))
         case .edit:
             EditorView(text: $text)
+                // 编辑在「预览的右边」：切走时向右滑出、进入时从右侧滑入。
+                .transition(.move(edge: .trailing))
         }
+    }
+
+    /// 带过渡动画地切换预览/编辑；同时驱动 content 的 move 过渡，形成左右分页观感。
+    /// 落盘仍由 onChange(of: mode) 负责（切到预览时先保存），这里只管动画与状态。
+    private func switchMode(to newMode: Mode) {
+        guard mode != newMode else { return }
+        Haptics.soft()   // 切换成功给一下细微反馈（点分段控件与滑动切换共用）
+        withAnimation(.easeInOut(duration: 0.25)) { mode = newMode }
     }
 
     // MARK: - AI
@@ -195,16 +215,10 @@ struct DocumentView: View {
     /// 不改导航栈，保持当前预览/编辑模式，标题随 node 自动更新。
     private func switchTo(_ newNode: DocumentNode) {
         guard newNode.url != node.url else { return }
+        Haptics.soft()                            // 切换成功给一下细微反馈
         save()                                    // 存旧文档
         node = newNode
         text = store.readText(at: newNode.url)    // 载入新文档
         savedText = text
     }
-}
-
-/// 驱动 AI 会话 sheet(item:) 的载荷：过完配置门槛后携带 config + 选中的动作。
-private struct AILaunch: Identifiable {
-    let id = UUID()
-    let config: AIConfig
-    let action: AIAction
 }
