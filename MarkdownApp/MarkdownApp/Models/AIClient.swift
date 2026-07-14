@@ -2,11 +2,11 @@
 //  AIClient.swift
 //  MarkdownApp
 //
-//  AI 流式请求层。格式完全由 AIConfig.responseFormat 决定、不假设 provider：
-//  - ChatGPT：OpenAI 兼容 /chat/completions，Bearer 鉴权，SSE 取 choices[].delta.content
-//  - Claude：Anthropic 兼容 /messages，x-api-key + anthropic-version，SSE 取 content_block_delta
-//  BaseURL 由用户自填（官方或任意兼容端点）。共享的 SSE 读流/错误处理收敛在 SSEStream（DRY），
-//  各 client 只负责「组请求」与「解析一行」。
+//  AI 流式请求层（协议 + 共享设施）。格式完全由 AIConfig.responseFormat 决定、不假设 provider。
+//  支持 function tool calling：stream 产出 AIStreamEvent(.text/.toolCall)，工具调用需跨行累积，
+//  故共享读流 SSEStream 采用「有状态解析器」（各 client 提供 SSEEventParser）。
+//  端点不支持 tools 时优雅降级：带 tools 的请求若在产出任何内容前报 4xx，则无 tools 重试一次。
+//  具体两格式实现见 ChatGPTClient / ClaudeClient。
 //
 
 import Foundation
@@ -14,8 +14,8 @@ import Foundation
 // MARK: - 协议与工厂
 
 protocol AIClient {
-    /// 发起流式请求，逐段吐出增量文本（delta）。Task 取消即断流。
-    func stream(messages: [AIMessage]) -> AsyncThrowingStream<String, Error>
+    /// 发起流式请求。tools 为空即普通生成；非空则允许模型发起工具调用。Task 取消即断流。
+    func stream(messages: [AIMessage], tools: [AITool]) -> AsyncThrowingStream<AIStreamEvent, Error>
 }
 
 enum AIClientFactory {
@@ -45,51 +45,89 @@ enum AIError: LocalizedError {
             switch status {
             case 401, 403: "鉴权失败（\(status)），请检查 API Key。"
             case 429: "请求过于频繁（429），请稍后再试。"
-            default: "服务返回错误（\(status)）\(body.map { "：\($0)" } ?? "")"
+            // 响应体可能是大段 HTML/JSON 错误页，截断后再展示，避免文案爆炸、影响可读性。
+            default: "服务返回错误（\(status)）\(body.map { "：\(Self.truncated($0))" } ?? "")"
             }
         case .network(let error):
             "网络错误：\(error.localizedDescription)"
         }
     }
+
+    /// 截断过长的错误体：只保留开头一段，避免把整页 HTML/JSON 堆进提示里。
+    private static func truncated(_ text: String, limit: Int = 300) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.count <= limit ? trimmed : String(trimmed.prefix(limit)) + "…"
+    }
 }
 
-// MARK: - 共享 SSE 读流
+// MARK: - 有状态 SSE 解析器
 
-/// 一行 SSE 的解析结果。
-enum SSELine {
-    case token(String)   // 增量文本
-    case done            // 明确结束
-    case ignore          // 空行/事件行/无内容
+/// 跨行累积的 SSE 事件解析器：每消费一行，产出零或多个事件；done 表示流应结束。
+/// 工具调用的 arguments 往往分散在多行，故解析器需持有累积状态（各 client 各自实现）。
+protocol SSEEventParser: AnyObject {
+    func consume(_ line: String) -> (events: [AIStreamEvent], done: Bool)
 }
+
+// MARK: - 共享读流与降级重试
 
 enum SSEStream {
-    /// 通用流式：发请求、校验状态码、逐行解析并 yield token。错误处理集中在此。
-    static func run(
+    /// 发请求、校验状态码、逐行喂给解析器并把事件交给 emit。HTTP/网络错误以 throw 抛出；取消经 Task 协作中断。
+    static func pump(
         request: URLRequest,
-        parse: @escaping (String) -> SSELine
-    ) -> AsyncThrowingStream<String, Error> {
+        parser: SSEEventParser,
+        emit: (AIStreamEvent) -> Void
+    ) async throws {
+        let (bytes, response) = try await URLSession.shared.bytes(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw AIError.network(URLError(.badServerResponse))
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            // 非 2xx：把响应体读出来当错误信息，便于定位。
+            var body = ""
+            for try await line in bytes.lines { body += line }
+            throw AIError.http(status: http.statusCode, body: body.isEmpty ? nil : body)
+        }
+        for try await line in bytes.lines {
+            try Task.checkCancellation()
+            let (events, done) = parser.consume(line)
+            for event in events { emit(event) }
+            if done { return }
+        }
+    }
+
+    /// 组织一次带「工具降级重试」的流式：先按给定 tools 请求；若带着 tools 且在产出任何内容前
+    /// 报 4xx（端点很可能不支持 function tools），则无 tools 重试一次，保证可用性。
+    /// makeRequest/makeParser 由各 client 提供（闭包注入，DRY）。
+    static func streamWithToolFallback(
+        tools: [AITool],
+        makeRequest: @escaping ([AITool]) throws -> URLRequest,
+        makeParser: @escaping () -> SSEEventParser
+    ) -> AsyncThrowingStream<AIStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
+                var emitted = false
+                let emit: (AIStreamEvent) -> Void = { event in
+                    emitted = true
+                    continuation.yield(event)
+                }
                 do {
-                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
-                    guard let http = response as? HTTPURLResponse else {
-                        throw AIError.network(URLError(.badServerResponse))
-                    }
-                    guard (200..<300).contains(http.statusCode) else {
-                        // 非 2xx：把响应体读出来当错误信息，便于定位。
-                        var body = ""
-                        for try await line in bytes.lines { body += line }
-                        throw AIError.http(status: http.statusCode, body: body.isEmpty ? nil : body)
-                    }
-                    for try await line in bytes.lines {
-                        if Task.isCancelled { break }
-                        switch parse(line) {
-                        case .token(let text): continuation.yield(text)
-                        case .done: continuation.finish(); return
-                        case .ignore: continue
-                        }
-                    }
+                    try await pump(request: try makeRequest(tools), parser: makeParser(), emit: emit)
                     continuation.finish()
+                } catch let error as AIError {
+                    if case .http(let status, _) = error,
+                       !tools.isEmpty, !emitted, (400..<500).contains(status) {
+                        // 降级：无 tools 重试一次。
+                        do {
+                            try await pump(request: try makeRequest([]), parser: makeParser(), emit: emit)
+                            continuation.finish()
+                        } catch is CancellationError {
+                            continuation.finish()
+                        } catch {
+                            continuation.finish(throwing: error)
+                        }
+                    } else {
+                        continuation.finish(throwing: error)
+                    }
                 } catch is CancellationError {
                     continuation.finish()
                 } catch {
@@ -100,7 +138,7 @@ enum SSEStream {
         }
     }
 
-    /// 取 SSE 行里 `data:` 后的载荷；非 data 行返回 nil。
+    /// 取 SSE 行里 `data:` 后的载荷；非 data 行（如 `event:`、空行）返回 nil。
     static func dataPayload(_ line: String) -> String? {
         guard line.hasPrefix("data:") else { return nil }
         return String(line.dropFirst(5)).trimmingCharacters(in: .whitespaces)
@@ -109,151 +147,24 @@ enum SSEStream {
 
 // MARK: - URL 拼接
 
-private func endpointURL(base: String, path: String) -> URL? {
+/// 由用户填写的 baseURL 推导最终请求端点，尽量兼容各种填法（关键：Anthropic 官方与多数三方代理的
+/// baseURL 都不带 /v1，所以默认要补上版本段，否则会拼成缺 /v1 的地址而 404）：
+/// - 只填到主机根（如 https://api.anthropic.com）→ 自动补 /v1/<endpoint>；
+/// - 填到版本根（如 .../v1）→ 只补 /<endpoint>，不重复 /v1；
+/// - 已填完整端点（如 .../v1/messages，或某些代理的 .../messages）→ 原样使用，
+///   既避免拼成 .../messages/messages，也尊重不带 /v1 的自定义代理。
+func aiEndpointURL(base: String, endpoint: String, version: String = "v1") -> URL? {
     var root = base.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !root.isEmpty else { return nil }
-    if root.hasSuffix("/") { root = String(root.dropLast()) }
-    // 兼容两种填法：用户填到 API 根（如 .../v1）则补 path；
-    // 已填完整端点（如 .../v1/messages）则直接用，避免拼成 .../messages/messages 而 404。
-    let full = root.hasSuffix(path) ? root : root + path
-    return URL(string: full)
-}
+    while root.hasSuffix("/") { root = String(root.dropLast()) }
 
-// MARK: - ChatGPT（OpenAI 兼容）
+    let endpointPath = "/" + endpoint   // "/messages"、"/chat/completions"
+    let versionPath = "/" + version     // "/v1"
 
-struct ChatGPTClient: AIClient {
-    let config: AIConfig
-
-    func stream(messages: [AIMessage]) -> AsyncThrowingStream<String, Error> {
-        do {
-            let request = try makeRequest(messages)
-            return SSEStream.run(request: request, parse: Self.parse)
-        } catch {
-            return AsyncThrowingStream { $0.finish(throwing: error) }
-        }
-    }
-
-    private func makeRequest(_ messages: [AIMessage]) throws -> URLRequest {
-        guard let url = endpointURL(base: config.baseURL, path: "/chat/completions") else {
-            throw AIError.invalidURL
-        }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(config.apiKey)", forHTTPHeaderField: "Authorization")
-
-        let body = Body(
-            model: config.model,
-            messages: messages.map { .init(role: $0.role.rawValue, content: $0.content) }
-        )
-        request.httpBody = try JSONEncoder().encode(body)
-        return request
-    }
-
-    /// 解析一行：`data: {json}` 取 choices[0].delta.content；`data: [DONE]` 结束。
-    private static func parse(_ line: String) -> SSELine {
-        guard let payload = SSEStream.dataPayload(line) else { return .ignore }
-        if payload == "[DONE]" { return .done }
-        guard let data = payload.data(using: .utf8),
-              let chunk = try? JSONDecoder().decode(Chunk.self, from: data),
-              let text = chunk.choices.first?.delta.content, !text.isEmpty
-        else { return .ignore }
-        return .token(text)
-    }
-
-    private struct Body: Encodable {
-        let model: String
-        let messages: [Msg]
-        let stream = true
-        struct Msg: Encodable { let role: String; let content: String }
-    }
-
-    private struct Chunk: Decodable {
-        let choices: [Choice]
-        struct Choice: Decodable {
-            let delta: Delta
-            struct Delta: Decodable { let content: String? }
-        }
-    }
-}
-
-// MARK: - Claude（Anthropic 兼容）
-
-struct ClaudeClient: AIClient {
-    let config: AIConfig
-    /// Anthropic 要求必填 max_tokens；给一个足够大的默认值。
-    private let maxTokens = 4096
-    private let anthropicVersion = "2023-06-01"
-
-    func stream(messages: [AIMessage]) -> AsyncThrowingStream<String, Error> {
-        do {
-            let request = try makeRequest(messages)
-            return SSEStream.run(request: request, parse: Self.parse)
-        } catch {
-            return AsyncThrowingStream { $0.finish(throwing: error) }
-        }
-    }
-
-    private func makeRequest(_ messages: [AIMessage]) throws -> URLRequest {
-        guard let url = endpointURL(base: config.baseURL, path: "/messages") else {
-            throw AIError.invalidURL
-        }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(config.apiKey, forHTTPHeaderField: "x-api-key")
-        request.setValue(anthropicVersion, forHTTPHeaderField: "anthropic-version")
-
-        // Anthropic：system 是顶层字段，messages 只含 user/assistant。
-        let system = messages.filter { $0.role == .system }
-            .map(\.content).joined(separator: "\n\n")
-        let turns = messages.filter { $0.role != .system }
-            .map { Body.Msg(role: $0.role.rawValue, content: $0.content) }
-
-        let body = Body(
-            model: config.model,
-            maxTokens: maxTokens,
-            system: system.isEmpty ? nil : system,
-            messages: turns
-        )
-        request.httpBody = try JSONEncoder().encode(body)
-        return request
-    }
-
-    /// 解析一行：只认 `data:` 里 type==content_block_delta 的 delta.text；message_stop 结束。
-    private static func parse(_ line: String) -> SSELine {
-        guard let payload = SSEStream.dataPayload(line),
-              let data = payload.data(using: .utf8),
-              let chunk = try? JSONDecoder().decode(Chunk.self, from: data)
-        else { return .ignore }
-        switch chunk.type {
-        case "content_block_delta":
-            if let text = chunk.delta?.text, !text.isEmpty { return .token(text) }
-            return .ignore
-        case "message_stop":
-            return .done
-        default:
-            return .ignore
-        }
-    }
-
-    private struct Body: Encodable {
-        let model: String
-        let maxTokens: Int
-        let system: String?
-        let messages: [Msg]
-        let stream = true
-        struct Msg: Encodable { let role: String; let content: String }
-
-        enum CodingKeys: String, CodingKey {
-            case model, system, messages, stream
-            case maxTokens = "max_tokens"
-        }
-    }
-
-    private struct Chunk: Decodable {
-        let type: String
-        let delta: Delta?
-        struct Delta: Decodable { let text: String? }
-    }
+    // 1) 已是完整端点（无论带不带版本段）：原样用。
+    if root.hasSuffix(endpointPath) { return URL(string: root) }
+    // 2) 已带版本段：只补端点，避免 .../v1/v1/messages。
+    if root.hasSuffix(versionPath) { return URL(string: root + endpointPath) }
+    // 3) 只到主机根或自定义前缀：补版本段 + 端点。
+    return URL(string: root + versionPath + endpointPath)
 }

@@ -183,11 +183,15 @@ struct FileStore {
         (try? String(contentsOf: url, encoding: .utf8)) ?? ""
     }
 
-    /// 判断某文件是否已在本 App 的 Documents 目录内（S11：据此决定是否显示「导入」）。
+    /// 判断某文件是否已是本 App 目录内的「真实文档」（S11：据此决定是否显示「导入」）。
     /// 先解析符号链接再比路径，避免 /var 与 /private/var 之类差异导致误判。
     func isInsideStore(_ url: URL) -> Bool {
         let root = rootURL.resolvingSymlinksInPath().standardizedFileURL.path
+        let inbox = inboxURL.resolvingSymlinksInPath().standardizedFileURL.path
         let target = url.resolvingSymlinksInPath().standardizedFileURL.path
+        // 系统 Inbox 是分享/「打开方式」的落点、暂存区，不算用户目录里的真实文档，
+        // 判否好让只读预览把「导入」按钮显示出来（否则分享进来的文件无法入库）。
+        if target == inbox || target.hasPrefix(inbox + "/") { return false }
         return target == root || target.hasPrefix(root + "/")
     }
 

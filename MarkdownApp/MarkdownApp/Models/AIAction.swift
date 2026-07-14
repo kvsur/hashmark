@@ -38,6 +38,10 @@ enum AIAction: String, CaseIterable, Identifiable {
     /// 是否必须有文档上下文：续写/润色/整理作用于已有内容；自定义可无（如首页新建）。
     var requiresContext: Bool { self != .custom }
 
+    /// 是否允许模型反问澄清诉求（仅 custom：自由创作/首页生成整篇最易含糊，最需要挖掘诉求）。
+    /// 续写/润色/整理有明确文档上下文、诉求清晰，不带反问工具，避免多余打断。
+    var allowsClarify: Bool { self == .custom }
+
     /// 在编辑器内接受结果时如何应用（S6）。
     /// 续写/自定义=追加到文末（不破坏原文，安全）；润色/整理=替换全文。
     enum ApplyMode { case append, replace }
@@ -127,6 +131,36 @@ enum AIAction: String, CaseIterable, Identifiable {
         let user = userContent(context: context, prompt: prompt.trimmingCharacters(in: .whitespacesAndNewlines))
         return [
             AIMessage(role: .system, content: systemPrompt),
+            AIMessage(role: .user, content: user)
+        ]
+    }
+
+    /// 二次精修的消息构造（动作无关）：把「当前已生成的完整内容」当作底稿、把用户的补充要求当作微调意见，
+    /// 重建成一次「单轮文档编辑」请求——而不是往多轮历史里追加一句话。
+    /// 这样复用同一套 outputContract 输出纪律，把 refine 从「聊天追问」扭回「编辑任务」，逼出「输出修订后的完整全文」，
+    /// 避免模型把补充要求理解成待回答的问题、只回一句提示（如"XXX 已经有了"）覆盖掉正确内容。
+    /// 精简、扩写等改动都在这一版全文上进行；不带旧多轮历史，靠文档本身承载累积状态（上一轮微调的效果已落在 current 里）。
+    static func refineMessages(current: String, instruction: String) -> [AIMessage] {
+        let system = """
+        你正在修改一份已经生成好的文档。用户会给出补充要求或微调意见，
+        请在保持文档原有主题、语气、人称、目标读者与整体风格的前提下把要求落实进去，
+        然后输出修订后的完整文档——不要只说明改了什么，也不要回答"是否已包含"之类的话。
+        - 这些要求通常只是微调：除非用户明确要求，不要推翻重写，也不改变文档的立场与结构。
+        - 无论改动多小，都必须输出修订后的完整内容全文（应用时会用它整体替换当前内容）。
+
+        \(Self.outputContract)
+        """
+        let user = """
+        这是当前的文档内容：
+        <document>
+        \(current)
+        </document>
+
+        请按下面的补充要求调整，并输出调整后的完整文档：
+        \(instruction)
+        """
+        return [
+            AIMessage(role: .system, content: system),
             AIMessage(role: .user, content: user)
         ]
     }

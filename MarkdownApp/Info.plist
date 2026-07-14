@@ -2,25 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- 桌面显示名（不要求 App Store 唯一；商店上架主名 S8 再定）。 -->
-	<key>CFBundleDisplayName</key>
-	<string>Hashmark</string>
-	<!--
-	  把 Documents 暴露给系统「文件」App（我的 iPhone → Hashmark）。
-	  这两个键必须同时为 YES 才会显示目录。原本用 INFOPLIST_KEY_ 构建设置生成，
-	  但引入自定义 INFOPLIST_FILE 后 UIFileSharingEnabled 未被合并进最终 plist，
-	  故在此显式声明，确保稳定生效。
-	-->
-	<key>UIFileSharingEnabled</key>
-	<true/>
-	<key>LSSupportsOpeningDocumentsInPlace</key>
-	<true/>
-	<!--
-	  仅声明「本 App 能打开哪些文档类型」，让我们出现在其它 App 的分享/「打开方式」里。
-	  其余 Info.plist 键仍由 Xcode 生成（GENERATE_INFOPLIST_FILE=YES）并合并进本文件。
-	  本文件放在 SRCROOT（外层 MarkdownApp/），刻意置于 FileSystemSynchronized 同步根之外，
-	  避免被当作 bundle 资源误拷贝。
-	-->
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -37,18 +18,19 @@
 			</array>
 		</dict>
 	</array>
-	<!-- 声明 Markdown UTI，把 .md/.markdown 扩展名映射到该类型（系统未内建时兜底）。 -->
+	<key>UIFileSharingEnabled</key>
+	<true/>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
 		<dict>
-			<key>UTTypeIdentifier</key>
-			<string>net.daringfireball.markdown</string>
-			<key>UTTypeDescription</key>
-			<string>Markdown Document</string>
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.plain-text</string>
 			</array>
+			<key>UTTypeDescription</key>
+			<string>Markdown Document</string>
+			<key>UTTypeIdentifier</key>
+			<string>net.daringfireball.markdown</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>

@@ -3,8 +3,9 @@
 //  MarkdownApp
 //
 //  AI 写作会话的核心 UI（通用）：首页「生成整篇」与编辑器内「续写/润色/整理/自定义」都用它。
-//  交互：prompt 半屏输入 → 开始返回立即转全屏流式预览 → 接受（回调应用）/ 放弃（二次确认）。
-//  用 AIWritingSession 驱动状态，用 AIStreamingPreview 边收边渲染。
+//  交互：prompt 半屏输入 → 返回后转全屏流式预览 → 诉求含糊时模型反问、弹答题卡片 → 生成完成后
+//  底部保留精修坞可继续调整/重新生成 → 接受（回调应用）/ 放弃（二次确认）。
+//  用 AIWritingSession 驱动多轮状态，用 AIStreamingPreview 边收边渲染，用 AIClarifyCard 答题。
 //
 
 import SwiftUI
@@ -29,7 +30,9 @@ struct AIWritingView: View {
         self.context = context
         self.title = title
         self.onAccept = onAccept
-        _session = State(initialValue: AIWritingSession(config: config))
+        // 仅 custom 动作允许模型反问澄清；其它动作不带工具。
+        let tools = action.allowsClarify ? [ClarifyTool.definition] : []
+        _session = State(initialValue: AIWritingSession(config: config, tools: tools))
     }
 
     var body: some View {
@@ -42,9 +45,12 @@ struct AIWritingView: View {
                 .interactiveDismissDisabled(session.hasContent)
         }
         .presentationDetents([.medium, .large], selection: $detent)
-        // 一开始返回（进入 streaming）立即转全屏；完成也保持全屏。
-        .onChange(of: session.phase) { _, phase in
-            if phase == .streaming || phase == .done { detent = .large }
+        // 一旦离开填 prompt 阶段（流式/反问/完成）就转全屏，给内容与答题足够空间。
+        // 同时在「开始产出正文」与「本轮结束」各给一次触觉反馈（精修/重新生成会再次经历这两态）。
+        .onChange(of: session.phase) { oldPhase, phase in
+            if phase != .idle { detent = .large }
+            if oldPhase != .streaming, phase == .streaming { Haptics.soft() }     // 开始生成
+            if oldPhase != .done, phase == .done { Haptics.success() }            // 结束生成
         }
         .confirmationDialog("放弃本次生成？", isPresented: $showDiscardConfirm, titleVisibility: .visible) {
             Button("放弃", role: .destructive) { session.cancel(); dismiss() }
@@ -60,17 +66,38 @@ struct AIWritingView: View {
         case .idle:
             promptInput
         case .loading:
-            statusView("正在生成…", systemImage: "sparkles", showsProgress: true)
+            loadingView
+        case .awaitingAnswer(let request):
+            // 反问：渲染答题卡片替代正文区，工具内容绝不进正文。
+            AIClarifyCard(request: request) { answer in
+                session.answer(answer)
+            }
         case .streaming, .done:
-            AIStreamingPreview(markdown: session.text, isFinal: session.isDone, colorScheme: colorScheme)
-                .ignoresSafeArea(edges: .bottom)
+            streamingArea
         case .error(let message):
-            ContentUnavailableView {
-                Label("生成失败", systemImage: "exclamationmark.triangle")
-            } description: {
-                Text(message)
-            } actions: {
-                Button("重试") { start() }
+            errorView(message)
+        }
+    }
+
+    /// 流式/完成区：正文预览 +（完成后）底部精修坞。
+    private var streamingArea: some View {
+        VStack(spacing: 0) {
+            // 流式途中断网等中断：保留已生成内容，顶部提示可接受部分或重试。
+            if let reason = session.interruptedReason {
+                interruptedBanner(reason)
+            }
+            // 流式中显示本轮实时缓冲；完成/中断态显示已确认全文，避免空缓冲盖掉已有内容。
+            AIStreamingPreview(markdown: session.isStreaming ? session.text : session.finalText,
+                               isFinal: session.isDone, colorScheme: colorScheme)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            // 生成完成后保留输入与按钮，可继续调整或重新生成。
+            if session.isDone {
+                AIRefineBar(
+                    onRefine: { session.refine($0) },
+                    onRegenerate: { session.regenerate() }
+                )
             }
         }
     }
@@ -99,33 +126,61 @@ struct AIWritingView: View {
                     .foregroundStyle(.secondary)
             }
 
-            // 品牌渐变胶囊按钮：居中、不铺满整行，加高触感更好；禁用时去色+降透明清晰可辨。
-            Button(action: start) {
-                Label("开始生成", systemImage: "sparkles")
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .frame(minWidth: 180)
-                    .padding(.vertical, 15)
-                    .padding(.horizontal, 40)
-                    .background(Theme.aiGradient, in: Capsule())
-            }
-            .buttonStyle(.plain)
-            .grayscale(disabledReason != nil ? 1 : 0)
-            .opacity(disabledReason != nil ? 0.5 : 1)
-            .disabled(disabledReason != nil)
-            .frame(maxWidth: .infinity)  // 让胶囊按钮在整行内居中
+            AIGradientButton(title: "开始生成", isEnabled: disabledReason == nil, action: start)
+                .frame(maxWidth: .infinity)  // 让胶囊按钮在整行内居中
 
             Spacer(minLength: 0)
         }
         .padding(20)
     }
 
-    private func statusView(_ text: String, systemImage: String, showsProgress: Bool) -> some View {
-        VStack(spacing: 12) {
-            if showsProgress { ProgressView() }
-            Text(text).foregroundStyle(.secondary)
+    /// 等待首个返回时的品牌化占位：渐变 sparkles + 呼吸动效，比裸 ProgressView 更贴合 AI 语境。
+    private var loadingView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 44))
+                .foregroundStyle(Theme.aiGradient)
+                .symbolEffect(.pulse, options: .repeating)
+            Text("正在生成…")
+                .font(.headline)
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func errorView(_ message: String) -> some View {
+        ContentUnavailableView {
+            Label("生成失败", systemImage: "exclamationmark.triangle")
+        } description: {
+            Text(message)
+        } actions: {
+            // 用现有历史重跑，不重置会话（保住反问/精修上下文）。
+            Button("重试") { session.retry() }
+        }
+    }
+
+    /// 流式中断提示条：说明原因，并提供「重试」重新生成（覆盖已有内容）。
+    private func interruptedBanner(_ reason: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("生成已中断")
+                    .font(.subheadline.weight(.semibold))
+                Text(reason)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            Spacer(minLength: 8)
+            // 已保留的部分内容已入历史，「重试」= 丢弃它并重新生成本轮。
+            Button("重试") { session.regenerate() }
+                .font(.subheadline.weight(.semibold))
+                .buttonStyle(.bordered)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(.orange.opacity(0.12))
     }
 
     // MARK: - 工具栏
@@ -133,14 +188,14 @@ struct AIWritingView: View {
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
-            Button("关闭") { attemptClose() }
+            Button("关闭") { Haptics.light(); attemptClose() }
         }
         ToolbarItem(placement: .confirmationAction) {
             if session.isStreaming {
                 Button("停止") { session.stop() }
             } else if session.isDone {
                 Button("接受") {
-                    onAccept(session.text)
+                    onAccept(session.finalText)
                     dismiss()
                 }
                 .bold()

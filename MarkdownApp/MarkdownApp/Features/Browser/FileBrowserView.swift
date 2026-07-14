@@ -13,6 +13,12 @@ struct FileBrowserView: View {
     let directory: URL
     /// 是否为根目录（根用「文档」作标题）。
     var isRoot: Bool = false
+    /// 外部导入刷新信号：值变化即重载本目录。用于「分享/打开方式」导入后刷新首页
+    /// （该预览由 ContentView 弹出，sheet 关闭不会触发本视图的 onAppear）。仅根目录接线。
+    /// 放在 onOpenDocument 之前，让闭包参数保持在末位，ContentView 可用尾随闭包传入。
+    var reloadToken: Int = 0
+    /// 生成新文档后请求打开它（导航栈由上层 ContentView 持有）。仅根目录使用。
+    var onOpenDocument: ((DocumentNode) -> Void)? = nil
 
     @State private var nodes: [DocumentNode] = []
     @State private var sheet: BrowserSheet?
@@ -20,6 +26,11 @@ struct FileBrowserView: View {
     @State private var errorMessage: String?
     /// 设置页开关（仅根目录露出入口）。
     @State private var showingSettings = false
+
+    // 首页 AI 写作入口（仅根目录）：过配置门槛后弹 AI 会话，接受即新建文档并打开。
+    private let aiConfigStore = AIConfigStore()
+    @State private var aiTrigger = false
+    @State private var aiLaunch: AILaunch?
 
     var body: some View {
         Group {
@@ -59,7 +70,26 @@ struct FileBrowserView: View {
         }
         .sheet(item: $sheet, content: sheetContent)
         .sheet(isPresented: $showingSettings) { SettingsView() }
+        // 首页大号 AI 入口：悬浮在底部（仅根目录），比工具栏按钮显著。
+        .safeAreaInset(edge: .bottom) {
+            if isRoot {
+                HomeAIButton { aiTrigger = true }
+                    .padding(.bottom, 8)
+            }
+        }
+        // AI 门槛：配置齐全才进入会话，否则提示并可跳配置页。
+        .aiConfigGate(trigger: $aiTrigger, store: aiConfigStore) { config in
+            aiLaunch = AILaunch(config: config, action: .custom)
+        }
+        .sheet(item: $aiLaunch) { launch in
+            // 首页生成整篇：无上下文、自由 prompt、允许反问。
+            AIWritingView(config: launch.config, action: launch.action, context: nil, title: "AI 写作") { result in
+                createDocument(from: result)
+            }
+        }
         .onAppear(perform: reload)
+        // 外部导入完成后由上层递增 reloadToken，触发首页列表刷新。
+        .onChange(of: reloadToken) { _, _ in reload() }
         .alert("操作失败", isPresented: errorBinding) {
             Button("好", role: .cancel) {}
         } message: {
@@ -191,6 +221,30 @@ struct FileBrowserView: View {
 
     private func reload() {
         nodes = store.contents(of: directory)
+    }
+
+    /// AI 生成整篇被接受：以内容首行推断文件名，新建 .md 写入并请求打开。
+    private func createDocument(from content: String) {
+        do {
+            let url = try store.createMarkdown(named: Self.suggestedName(from: content), in: directory)
+            try store.writeText(content, to: url)
+            reload()
+            onOpenDocument?(DocumentNode(url: url, kind: .markdown, modifiedAt: .now))
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// 从生成内容里取第一段有意义的文字作文件名（去掉 Markdown 标题/列表前缀，限长）；无则兜底。
+    private static func suggestedName(from content: String) -> String {
+        for raw in content.split(separator: "\n") {
+            var line = raw.trimmingCharacters(in: .whitespaces)
+            line = line.replacingOccurrences(of: "^[#>\\-\\*\\s]+", with: "", options: .regularExpression)
+            line = line.trimmingCharacters(in: .whitespaces)
+            guard !line.isEmpty else { continue }
+            return String(line.prefix(40))
+        }
+        return "AI 写作"
     }
 
     /// 执行一次会修改磁盘的操作，成功后刷新列表，失败则记录错误。

@@ -19,7 +19,7 @@ struct AIConfigEditorView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("接口") {
+                Section {
                     TextField("Base URL", text: $draft.baseURL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -27,6 +27,10 @@ struct AIConfigEditorView: View {
                     TextField("Model", text: $draft.model)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                } header: {
+                    Text("接口")
+                } footer: {
+                    Text("Base URL 填到主机根即可（如 https://api.anthropic.com），会自动补全版本与端点；也可直接填完整端点地址。")
                 }
 
                 Section("鉴权") {
