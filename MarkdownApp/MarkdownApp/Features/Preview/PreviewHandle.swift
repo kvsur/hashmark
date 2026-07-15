@@ -14,6 +14,11 @@ final class PreviewHandle {
     /// 由 MarkdownPreviewView 在 WebView 创建时回填；弱引用避免越权持有 WebView 生命周期。
     weak var webView: WKWebView?
 
+    /// 当前触点是否落在预览内「实际可横向滚动」的区域（宽代码块/表格）。
+    /// 由页面 touchstart/touchend 经消息通道实时回填；滑动切换手势结束时读它做避让，
+    /// 保证内部横滚优先于「预览 ↔ 编辑」切换。瞬时值、不驱动 UI，无需可观察。
+    var isTouchingHorizontalScroller = false
+
     /// 把整篇渲染内容导出为 PDF 数据。rect 默认 CGRectNull → 捕获整页内容。
     @MainActor
     func exportPDF(completion: @escaping (Data?) -> Void) {

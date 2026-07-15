@@ -53,6 +53,31 @@
       }
       window.scrollTo(0, document.body.scrollHeight);
     };
+
+    // 触点探测：手指落在「实际可横向滚动」的元素（宽代码块/表格）内时上报原生，
+    // 让原生的「滑动切换预览/编辑」手势避让，保证内部横滚优先。
+    // 只有注册了 touchScrollable handler 的宿主（编辑器预览）会收到；
+    // AI 流式预览共用本模板但未注册，需判空静默跳过。
+    function inHorizontalScroller(el) {
+      while (el && el !== document.body) {
+        var style = getComputedStyle(el);
+        if (/(auto|scroll)/.test(style.overflowX) && el.scrollWidth > el.clientWidth + 1) {
+          return true;
+        }
+        el = el.parentElement;
+      }
+      return false;
+    }
+    function postTouchScrollable(flag) {
+      var handler = window.webkit && window.webkit.messageHandlers
+                 && window.webkit.messageHandlers.touchScrollable;
+      if (handler) handler.postMessage(flag);
+    }
+    document.addEventListener('touchstart', function (e) {
+      postTouchScrollable(inHorizontalScroller(e.target));
+    }, { passive: true });
+    document.addEventListener('touchend',    function () { postTouchScrollable(false); }, { passive: true });
+    document.addEventListener('touchcancel', function () { postTouchScrollable(false); }, { passive: true });
   </script>
 </body>
 </html>

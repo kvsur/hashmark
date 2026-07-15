@@ -22,7 +22,8 @@ struct MarkdownPreviewView: View {
             markdown: markdown,
             colorScheme: colorScheme,
             onExternalLink: { url in externalLink = ExternalLink(url: url) },
-            onWebViewReady: { webView in handle?.webView = webView }
+            onWebViewReady: { webView in handle?.webView = webView },
+            onHorizontalTouch: { handle?.isTouchingHorizontalScroller = $0 }
         )
         .sheet(item: $externalLink) { link in
             SafariView(url: link.url)

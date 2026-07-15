@@ -48,8 +48,13 @@ struct DocumentView: View {
     var body: some View {
         content
             // 预览左滑 → 编辑；编辑右滑 → 预览。方向判定与滚动/选择冲突收敛在封装里。
+            // 触点落在预览内可横滚区（宽代码块/表格）时避让，保证内部横向滚动优先。
             .horizontalSwitch(
-                onSwipeLeft: { if mode == .preview { switchMode(to: .edit) } },
+                onSwipeLeft: {
+                    if mode == .preview, !previewHandle.isTouchingHorizontalScroller {
+                        switchMode(to: .edit)
+                    }
+                },
                 onSwipeRight: { if mode == .edit { switchMode(to: .preview) } }
             )
             .navigationTitle(node.displayName)

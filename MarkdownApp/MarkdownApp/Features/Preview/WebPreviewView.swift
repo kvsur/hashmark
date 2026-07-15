@@ -22,11 +22,20 @@ struct WebPreviewView: UIViewRepresentable {
     var onExternalLink: ((URL) -> Void)? = nil
     /// WebView 创建后回调，供上层拿到实例做「长截图」等命令式操作。
     var onWebViewReady: ((WKWebView) -> Void)? = nil
+    /// 触点进入/离开「可横向滚动区」（宽代码块/表格）时回调，供上层避让滑动切换手势。
+    var onHorizontalTouch: ((Bool) -> Void)? = nil
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeUIView(context: Context) -> WKWebView {
-        let webView = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
+        let configuration = WKWebViewConfiguration()
+        // 接收模板里 touchstart/touchend 上报的「触点是否在横滚区」。
+        // userContentController 会强持有 handler，包一层弱代理避免延长 Coordinator 生命周期。
+        configuration.userContentController.add(
+            WeakScriptMessageHandler(context.coordinator),
+            name: Coordinator.touchScrollableHandlerName
+        )
+        let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         onWebViewReady?(webView)
         webView.isOpaque = false                       // 透明背景，露出 SwiftUI 底色
@@ -43,6 +52,7 @@ struct WebPreviewView: UIViewRepresentable {
         webView.overrideUserInterfaceStyle = colorScheme == .dark ? .dark : .light
 
         context.coordinator.onExternalLink = onExternalLink
+        context.coordinator.onHorizontalTouch = onHorizontalTouch
         // 记住最新内容；页面还没加载完时先存起来，didFinish 后再渲染。
         context.coordinator.pendingMarkdown = markdown
         if context.coordinator.isLoaded {
@@ -52,10 +62,20 @@ struct WebPreviewView: UIViewRepresentable {
 
     // MARK: - Coordinator：桥接 WebView 加载状态与内容注入
 
-    final class Coordinator: NSObject, WKNavigationDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+        static let touchScrollableHandlerName = "touchScrollable"
+
         var isLoaded = false
         var pendingMarkdown: String = ""
         var onExternalLink: ((URL) -> Void)?
+        var onHorizontalTouch: ((Bool) -> Void)?
+
+        func userContentController(_ userContentController: WKUserContentController,
+                                   didReceive message: WKScriptMessage) {
+            guard message.name == Self.touchScrollableHandlerName,
+                  let inScroller = message.body as? Bool else { return }
+            onHorizontalTouch?(inScroller)
+        }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             isLoaded = true
@@ -92,5 +112,20 @@ struct WebPreviewView: UIViewRepresentable {
             let json = String(wrapped.dropFirst().dropLast())   // ["...\n..."] → "...\n..."
             webView.evaluateJavaScript("window.renderMarkdown(\(json));")
         }
+    }
+}
+
+/// WKUserContentController 会强持有注册的 handler；用弱代理转发，
+/// 避免它把 Coordinator 的生命周期绑到 WebView 配置上。
+private final class WeakScriptMessageHandler: NSObject, WKScriptMessageHandler {
+    private weak var target: WKScriptMessageHandler?
+
+    init(_ target: WKScriptMessageHandler) {
+        self.target = target
+    }
+
+    func userContentController(_ userContentController: WKUserContentController,
+                               didReceive message: WKScriptMessage) {
+        target?.userContentController(userContentController, didReceive: message)
     }
 }
