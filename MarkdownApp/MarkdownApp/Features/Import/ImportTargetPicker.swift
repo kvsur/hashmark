@@ -18,9 +18,9 @@ struct ImportTargetPicker: View {
     var body: some View {
         DirectoryPicker(
             store: store,
-            title: "选择目录",
-            promptPrefix: "导入「\(sourceURL.lastPathComponent)」到",
-            confirmLabel: "导入到此处"
+            title: "Choose Folder",
+            prompt: "Import “\(sourceURL.lastPathComponent)” to",
+            confirmLabel: "Import Here"
         ) { targetDir in
             let newURL = try store.importFile(from: sourceURL, to: targetDir)
             onImported(newURL)

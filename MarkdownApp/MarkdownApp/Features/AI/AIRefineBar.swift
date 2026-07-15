@@ -23,7 +23,7 @@ struct AIRefineBar: View {
     var body: some View {
         VStack(spacing: 10) {
             HStack(alignment: .bottom, spacing: 10) {
-                TextField("继续调整，如：更精简 / 换个角度…", text: $text, axis: .vertical)
+                TextField("Keep adjusting, e.g. more concise / another angle…", text: $text, axis: .vertical)
                     .lineLimit(1...4)
                     .focused($focused)
                     .padding(.horizontal, 16)
@@ -42,7 +42,7 @@ struct AIRefineBar: View {
 
             // 次要操作：轻量文字按钮，居中，不与主输入争夺注意力。
             Button(action: onRegenerate) {
-                Label("重新生成", systemImage: "arrow.clockwise")
+                Label("Regenerate", systemImage: "arrow.clockwise")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

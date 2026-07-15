@@ -41,7 +41,7 @@ struct ReadOnlyPreviewView: View {
                             Button {
                                 showImportPicker = true
                             } label: {
-                                Label("导入", systemImage: "square.and.arrow.down")
+                                Label("Import", systemImage: "square.and.arrow.down")
                             }
                         }
                     }
@@ -55,7 +55,7 @@ struct ReadOnlyPreviewView: View {
                         )
                     }
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button("完成") { dismiss() }
+                        Button("Done") { dismiss() }
                     }
                 }
                 .sheet(isPresented: $showImportPicker) {
@@ -66,5 +66,6 @@ struct ReadOnlyPreviewView: View {
                     }
                 }
         }
+        .rebuildsOnLanguageChange()
     }
 }

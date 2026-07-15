@@ -14,7 +14,7 @@ struct AIWritingView: View {
     let action: AIAction
     /// 文档上下文；首页生成整篇为 nil。
     let context: String?
-    let title: String
+    let title: LocalizedStringKey
     /// 接受时回调，交出最终生成文本（首页→新建文档；编辑器→应用到当前文档）。
     let onAccept: (String) -> Void
 
@@ -25,7 +25,7 @@ struct AIWritingView: View {
     @State private var detent: PresentationDetent = .medium
     @State private var showDiscardConfirm = false
 
-    init(config: AIConfig, action: AIAction, context: String? = nil, title: String, onAccept: @escaping (String) -> Void) {
+    init(config: AIConfig, action: AIAction, context: String? = nil, title: LocalizedStringKey, onAccept: @escaping (String) -> Void) {
         self.action = action
         self.context = context
         self.title = title
@@ -52,10 +52,11 @@ struct AIWritingView: View {
             if oldPhase != .streaming, phase == .streaming { Haptics.soft() }     // 开始生成
             if oldPhase != .done, phase == .done { Haptics.success() }            // 结束生成
         }
-        .confirmationDialog("放弃本次生成？", isPresented: $showDiscardConfirm, titleVisibility: .visible) {
-            Button("放弃", role: .destructive) { session.cancel(); dismiss() }
-            Button("继续", role: .cancel) {}
+        .confirmationDialog("Discard this generation?", isPresented: $showDiscardConfirm, titleVisibility: .visible) {
+            Button("Discard", role: .destructive) { session.cancel(); dismiss() }
+            Button("Keep Going", role: .cancel) {}
         }
+        .rebuildsOnLanguageChange()
     }
 
     // MARK: - 各阶段内容
@@ -126,7 +127,7 @@ struct AIWritingView: View {
                     .foregroundStyle(.secondary)
             }
 
-            AIGradientButton(title: "开始生成", isEnabled: disabledReason == nil, action: start)
+            AIGradientButton(title: "Start Generating", isEnabled: disabledReason == nil, action: start)
                 .frame(maxWidth: .infinity)  // 让胶囊按钮在整行内居中
 
             Spacer(minLength: 0)
@@ -141,7 +142,7 @@ struct AIWritingView: View {
                 .font(.system(size: 44))
                 .foregroundStyle(Theme.aiGradient)
                 .symbolEffect(.pulse, options: .repeating)
-            Text("正在生成…")
+            Text("Generating…")
                 .font(.headline)
                 .foregroundStyle(.secondary)
         }
@@ -150,12 +151,12 @@ struct AIWritingView: View {
 
     private func errorView(_ message: String) -> some View {
         ContentUnavailableView {
-            Label("生成失败", systemImage: "exclamationmark.triangle")
+            Label("Generation Failed", systemImage: "exclamationmark.triangle")
         } description: {
             Text(message)
         } actions: {
             // 用现有历史重跑，不重置会话（保住反问/精修上下文）。
-            Button("重试") { session.retry() }
+            Button("Retry") { session.retry() }
         }
     }
 
@@ -165,7 +166,7 @@ struct AIWritingView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
             VStack(alignment: .leading, spacing: 2) {
-                Text("生成已中断")
+                Text("Generation Interrupted")
                     .font(.subheadline.weight(.semibold))
                 Text(reason)
                     .font(.footnote)
@@ -174,7 +175,7 @@ struct AIWritingView: View {
             }
             Spacer(minLength: 8)
             // 已保留的部分内容已入历史，「重试」= 丢弃它并重新生成本轮。
-            Button("重试") { session.regenerate() }
+            Button("Retry") { session.regenerate() }
                 .font(.subheadline.weight(.semibold))
                 .buttonStyle(.bordered)
         }
@@ -188,13 +189,13 @@ struct AIWritingView: View {
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
-            Button("关闭") { Haptics.light(); attemptClose() }
+            Button("Close") { Haptics.light(); attemptClose() }
         }
         ToolbarItem(placement: .confirmationAction) {
             if session.isStreaming {
-                Button("停止") { session.stop() }
+                Button("Stop") { session.stop() }
             } else if session.isDone {
-                Button("接受") {
+                Button("Accept") {
                     onAccept(session.finalText)
                     dismiss()
                 }
@@ -205,8 +206,8 @@ struct AIWritingView: View {
 
     // MARK: - 逻辑
 
-    private var promptPlaceholder: String {
-        action == .custom ? "比如：帮我写一篇关于……的文章" : "补充要求（可选）…"
+    private var promptPlaceholder: LocalizedStringKey {
+        action == .custom ? "For example: write me an article about…" : "Extra requirements (optional)…"
     }
 
     private func start() {

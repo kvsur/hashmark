@@ -45,7 +45,7 @@ struct PreviewShareButton: View {
             }
         }
         .disabled(isBusy)
-        .confirmationDialog("分享", isPresented: $showDialog, titleVisibility: .visible) {
+        .confirmationDialog("Share", isPresented: $showDialog, titleVisibility: .visible) {
             ForEach(actions, id: \.self) { action in
                 button(for: action)
             }
@@ -59,17 +59,17 @@ struct PreviewShareButton: View {
     private func button(for action: ShareAction) -> some View {
         switch action {
         case .longScreenshot:
-            Button("长截图") { shareLongScreenshot() }
+            Button("Long Screenshot") { shareLongScreenshot() }
         case .plainText:
-            Button("纯文本") { sharePlainText() }
+            Button("Plain Text") { sharePlainText() }
         case .pdf:
             Button("PDF") { sharePDF() }
         case .sourceFile:
             if let sourceURL {
-                Button("源文件（.md）") { Haptics.success(); shareItems = ShareItems(items: [sourceURL]) }
+                Button("Source File (.md)") { Haptics.success(); shareItems = ShareItems(items: [sourceURL]) }
             }
         case .sourceContent:
-            Button("源内容（Markdown）") { Haptics.success(); shareItems = ShareItems(items: [markdown]) }
+            Button("Source Content (Markdown)") { Haptics.success(); shareItems = ShareItems(items: [markdown]) }
         }
     }
 
@@ -97,7 +97,8 @@ struct PreviewShareButton: View {
         handle.exportPDF { data in
             isBusy = false
             guard let data else { return }
-            let base = sourceURL?.deletingPathExtension().lastPathComponent ?? "文档"
+            // 无源文件时的兜底 PDF 文件名：用户会看到它，故按当前界面语言取词。
+            let base = sourceURL?.deletingPathExtension().lastPathComponent ?? LocalizationController.string("Document")
             let url = FileManager.default.temporaryDirectory
                 .appendingPathComponent(base).appendingPathExtension("pdf")
             guard (try? data.write(to: url, options: .atomic)) != nil else { return }

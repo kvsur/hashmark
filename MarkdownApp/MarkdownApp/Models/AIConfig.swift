@@ -39,4 +39,16 @@ struct AIConfig: Codable, Equatable {
             !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
     }
+
+    /// 由 baseURL 推断响应格式；推不出时为 nil。
+    ///
+    /// 只认 anthropic 这一个信号，且只往 .claude 一个方向推：
+    /// URL 里带 anthropic 基本可断定是 Anthropic 协议（官方域名，或如 .../anthropic 这类兼容前缀）；
+    /// 但「不带 anthropic」并不能反推是 OpenAI 协议——大量 Claude 兼容代理的域名里没有这个词，
+    /// 反向自动切会把正确配置改坏。故只在有正面证据时给建议，其余一律交回用户。
+    ///
+    /// 存在的理由：格式与端点不匹配时上游只回 404，没有任何线索指向「格式选错了」，排查成本很高。
+    var suggestedResponseFormat: ResponseFormat? {
+        baseURL.localizedCaseInsensitiveContains("anthropic") ? .claude : nil
+    }
 }

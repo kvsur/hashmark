@@ -24,9 +24,9 @@ struct DocumentSwitcherSheet: View {
             Group {
                 if roots.isEmpty {
                     ContentUnavailableView(
-                        "没有文档",
+                        "No Documents",
                         systemImage: "folder",
-                        description: Text("先在首页新建文档")
+                        description: Text("Create a document on the home screen first")
                     )
                 } else {
                     List {
@@ -36,15 +36,16 @@ struct DocumentSwitcherSheet: View {
                     }
                 }
             }
-            .navigationTitle("切换文档")
+            .navigationTitle("Switch Document")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("完成") { dismiss() }
+                    Button("Done") { dismiss() }
                 }
             }
             .onAppear { roots = store.tree(of: store.rootURL) }
         }
+        .rebuildsOnLanguageChange()
     }
 
     @ViewBuilder

@@ -35,21 +35,30 @@ enum AIError: LocalizedError {
     case http(status: Int, body: String?)
     case network(Error)
 
+    /// 这些文案会经 AIWritingSession 的 error 阶段直达用户，属界面文案，需本地化。
+    /// 必须走 LocalizationController.string 而非 Foundation 的 String(localized:)——
+    /// 后者绕过取词拦截、只认系统语言，App 内切了语言也不会变（原因见 LocalizationController）。
     var errorDescription: String? {
         switch self {
         case .notConfigured:
-            "尚未配置 AI，请先在设置中填写。"
+            LocalizationController.string("AI is not configured yet. Fill it in under Settings first.")
         case .invalidURL:
-            "BaseURL 无效，请检查 AI 配置。"
+            LocalizationController.string("The base URL is invalid. Check your AI configuration.")
         case .http(let status, let body):
             switch status {
-            case 401, 403: "鉴权失败（\(status)），请检查 API Key。"
-            case 429: "请求过于频繁（429），请稍后再试。"
+            case 401, 403: LocalizationController.string("Authentication failed (\(status)). Check your API key.")
+            case 429: LocalizationController.string("Too many requests (429). Try again shortly.")
             // 响应体可能是大段 HTML/JSON 错误页，截断后再展示，避免文案爆炸、影响可读性。
-            default: "服务返回错误（\(status)）\(body.map { "：\(Self.truncated($0))" } ?? "")"
+            // 有无响应体分成两个独立句子，而不是拼一段可选后缀——拼接会把标点和语序写死。
+            default:
+                if let body {
+                    LocalizationController.string("The service returned an error (\(status)): \(Self.truncated(body))")
+                } else {
+                    LocalizationController.string("The service returned an error (\(status)).")
+                }
             }
         case .network(let error):
-            "网络错误：\(error.localizedDescription)"
+            LocalizationController.string("Network error: \(error.localizedDescription)")
         }
     }
 

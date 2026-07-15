@@ -31,11 +31,11 @@ private struct AIConfigGateModifier: ViewModifier {
                     showNotConfigured = true
                 }
             }
-            .alert("尚未配置 AI", isPresented: $showNotConfigured) {
-                Button("去配置") { showEditor = true }
-                Button("取消", role: .cancel) {}
+            .alert("AI Not Configured", isPresented: $showNotConfigured) {
+                Button("Configure") { showEditor = true }
+                Button("Cancel", role: .cancel) {}
             } message: {
-                Text("请先填写 BaseURL、Model 与 API Key 才能使用 AI 写作。")
+                Text("Fill in the base URL, model, and API key to use AI writing.")
             }
             .sheet(isPresented: $showEditor) {
                 AIConfigEditorView(store: store)

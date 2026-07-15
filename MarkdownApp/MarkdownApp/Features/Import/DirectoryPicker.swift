@@ -15,11 +15,11 @@ import SwiftUI
 struct DirectoryPicker: View {
     let store: FileStore
     /// 导航标题。
-    let title: String
-    /// 头部提示前缀，如「导入「x」到」「移动「x」到」；实际路径由本组件拼接。
-    let promptPrefix: String
+    let title: LocalizedStringKey
+    /// 头部提示短语，如「移动「x」到」「导入「x」到」；当前路径由本组件另起一行显示。
+    let prompt: LocalizedStringKey
     /// 确认按钮文案，如「导入到此处」「移动到此处」。
-    let confirmLabel: String
+    let confirmLabel: LocalizedStringKey
     /// 判断某目录是否禁止进入/选为目标（移动文件夹时排除自身及其子目录）。默认全部可选。
     let isDisabled: (URL) -> Bool
     /// 确认时执行的操作（导入/移动）：抛错则内部弹「操作失败」提示并保持打开；成功后自动关闭。
@@ -33,15 +33,15 @@ struct DirectoryPicker: View {
 
     init(
         store: FileStore,
-        title: String,
-        promptPrefix: String,
-        confirmLabel: String,
+        title: LocalizedStringKey,
+        prompt: LocalizedStringKey,
+        confirmLabel: LocalizedStringKey,
         isDisabled: @escaping (URL) -> Bool = { _ in false },
         confirm: @escaping (URL) throws -> Void
     ) {
         self.store = store
         self.title = title
-        self.promptPrefix = promptPrefix
+        self.prompt = prompt
         self.confirmLabel = confirmLabel
         self.isDisabled = isDisabled
         self.confirm = confirm
@@ -61,11 +61,11 @@ struct DirectoryPicker: View {
                         Button {
                             stack.removeLast()
                         } label: {
-                            Label("上一级", systemImage: "arrow.up.left")
+                            Label("Up One Level", systemImage: "arrow.up.left")
                         }
                     }
                     if subfolders.isEmpty {
-                        Text("没有子文件夹")
+                        Text("No subfolders")
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(subfolders) { folder in
@@ -79,14 +79,19 @@ struct DirectoryPicker: View {
                         }
                     }
                 } header: {
-                    Text("\(promptPrefix)：\(currentPathText)")
+                    // 提示短语与当前路径分两行渲染，而不是拼成一个「%@：%@」的 key——
+                    // 拼接会把语序和标点写死（「：」是中文标点，德/俄该用「: 」），无法正确翻译。
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(prompt)
+                        Text(verbatim: currentPathText)
+                    }
                 }
             }
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("取消") { dismiss() }
+                    Button("Cancel") { dismiss() }
                 }
                 // 新建文件夹：没有合适目录时可当场建一个（建完自动进入）。
                 ToolbarItem(placement: .topBarTrailing) {
@@ -103,24 +108,25 @@ struct DirectoryPicker: View {
                 }
             }
             .sheet(isPresented: $showNewFolder) {
-                NameInputSheet(title: "新建文件夹", placeholder: "文件夹名称") { name in
+                NameInputSheet(title: "New Folder", placeholder: "Folder name") { name in
                     createFolder(named: name)
                 }
             }
-            .alert("操作失败", isPresented: errorBinding) {
-                Button("好", role: .cancel) {}
+            .alert("Action Failed", isPresented: errorBinding) {
+                Button("OK", role: .cancel) {}
             } message: {
                 Text(errorMessage ?? "")
             }
         }
+        .rebuildsOnLanguageChange()
     }
 
     // MARK: - 逻辑
 
-    /// 当前目录的可读路径：根显示「文档」，其余用目录名以「/」连接。
+    /// 当前目录的可读路径：根显示本地化的「文档」，其余是用户自己的目录名（不翻译），以「/」连接。
     private var currentPathText: String {
         let names = stack.enumerated().map { index, url in
-            index == 0 ? "文档" : url.lastPathComponent
+            index == 0 ? LocalizationController.string("Documents") : url.lastPathComponent
         }
         return names.joined(separator: " / ")
     }

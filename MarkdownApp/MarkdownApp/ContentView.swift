@@ -37,6 +37,7 @@ struct ContentView: View {
                     }
                 }
         }
+        .rebuildsOnLanguageChange()
         // 其它 App 分享/「打开方式」传入文件时触发：先只读预览，不直接落盘。
         // 读入文本后进预览；读不出（非文本/无权限）则忽略。与应用内「打开文件预览」同一路径。
         .onOpenURL { url in
@@ -64,6 +65,9 @@ struct ContentView: View {
         .onChange(of: settings.theme, initial: true) { _, newTheme in
             InterfaceStyleController.apply(newTheme)
         }
+        // 语言无需在此处理：取词由 LocalizationController 的取词拦截统一负责，
+        // 语言包在 SettingsStore 写入偏好时即同步就位（onChange 太晚，会慢一帧），
+        // Locale 的环境注入则在 App 根部完成（见 MarkdownAppApp）。
     }
 }
 

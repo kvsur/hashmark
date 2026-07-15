@@ -6,7 +6,7 @@
 //  custom 则完全放开由用户自由输入。把「怎么组装请求消息」收敛在这里，UI 只管选动作/填 prompt。
 //
 
-import Foundation
+import SwiftUI
 
 enum AIAction: String, CaseIterable, Identifiable {
     case continueWriting   // 续写
@@ -16,12 +16,14 @@ enum AIAction: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var label: String {
+    /// 供 Text/Label 等视图直接使用。取 LocalizedStringKey 而非 String——
+    /// String 会被当作字面量原样显示、绕过本地化。
+    var label: LocalizedStringKey {
         switch self {
-        case .continueWriting: "续写"
-        case .polish: "润色改写"
-        case .format: "整理格式"
-        case .custom: "自由创作"
+        case .continueWriting: "Continue Writing"
+        case .polish: "Polish"
+        case .format: "Clean Up Formatting"
+        case .custom: "Free Writing"
         }
     }
 
@@ -54,54 +56,71 @@ enum AIAction: String, CaseIterable, Identifiable {
 
     /// 所有动作共用的「输出纪律」：约束模型别加寒暄前言、别把整篇塞进代码块、别擅自换语言。
     /// 抽成常量复用，避免四段 prompt 各写一遍（DRY）。
+    ///
+    /// 用英文写而非中文：模型对英文指令的遵循度更好、token 更省，且只需维护这一份
+    /// （见 AIPromptLocale）。其中「与原文保持同一种语言」一条不是可有可无的翻译腔——
+    /// 它正是「AI 输出跟随文档语言而非界面语言」这一产品决策的载体，必须保留。
     private static let outputContract = """
-    输出要求：
-    - 直接输出正文，不要"好的""以下是"之类的开场白，也不要结尾的说明或总结。
-    - 不要用 ``` 代码块把整篇内容包起来（正文中本就属于代码的片段除外）。
-    - 与原文、用户输入保持同一种语言，不要擅自翻译或切换语言。
-    - 只使用标准 Markdown 语法，保证在预览中能正确渲染。
-    - 不要滥用 emoji：除非用户明确要求，标题、列表项、小标题 不是特殊情况 不加 emoji 点缀，正文也克制使用。
-    - 避免"AI 腔"：不写空洞的套话与排比、不给每段硬凑加粗小标题、不在结尾强行升华或总结拔高；
-      像专业作者那样，用具体、克制、自然的语言把事情说清楚。
+    Output requirements:
+    - Output the text itself. No opening pleasantries like "Sure" or "Here is", and no closing notes or summary.
+    - Do not wrap the whole response in a ``` code block (fragments that genuinely are code are fine).
+    - Write in the same language as the existing text and the user's input. Never translate or switch languages on your own.
+    - Use standard Markdown only, so that it renders correctly in the preview.
+    - Do not overuse emoji: unless the user explicitly asks for them, never decorate headings, list items,
+      or subheadings with emoji, and use them sparingly in body text.
+    - Avoid "AI voice": no hollow filler or padded parallel structures, no forcing a bold subheading onto every
+      paragraph, no grand closing that inflates the point. Write like a professional author would —
+      concrete, restrained, natural language that simply makes the point clearly.
     """
 
-    /// 各动作的角色设定与做法；最终发送时会统一追加 `outputContract`。
+    /// 各动作的角色设定与做法；最终发送时会统一追加 `outputContract` 与区域上下文。
     private var role: String {
         switch self {
         case .continueWriting:
             """
-            你是一位资深写作者，正与用户接力完成同一篇 Markdown 文档。
-            先揣摩已有内容的主题、语气、人称与详略节奏，再自然地承接着往下写，让新旧文字读来出自同一人之手。
-            - 只写"接下来"的内容，绝不重复或改写已有段落。
-            - 顺着上文的思路推进，不要另起炉灶或生硬转折。
-            - 沿用原文的 Markdown 风格（标题层级、列表与强调样式等）。
+            You are an experienced writer, picking up a Markdown document the user has already started.
+            First read the existing text for its topic, tone, grammatical person, and pacing, then carry it \
+            forward naturally, so that old and new read as if written by the same hand.
+            - Write only what comes next. Never repeat or rewrite paragraphs that are already there.
+            - Follow the existing train of thought. Do not start over or make an abrupt turn.
+            - Keep the document's Markdown style (heading levels, list and emphasis conventions).
             """
         case .polish:
             """
-            你是一位严谨的文字编辑，负责润色用户提供的 Markdown。
-            在完全保留原意与事实的前提下，让表达更准确通顺、更有节奏：删去啰嗦与重复、理顺逻辑、统一术语与语气。
-            - 这是润色而非重写：不增删观点、不改变作者的立场与整体风格。
-            - 保留原有的 Markdown 结构（标题、列表、代码、链接、表格等）。
-            - 输出润色后的完整内容，而非改动清单。
+            You are a rigorous copy editor polishing the Markdown the user provides.
+            Keeping the meaning and the facts completely intact, make the writing more precise, fluent, and \
+            better paced: cut wordiness and repetition, straighten out the logic, unify terminology and tone.
+            - This is polishing, not rewriting: do not add or remove points, and do not change the author's \
+            stance or overall style.
+            - Preserve the existing Markdown structure (headings, lists, code, links, tables).
+            - Output the complete polished text, not a list of changes.
             """
         case .format:
             """
-            你是一位一丝不苟的 Markdown 排版师，只调整格式、绝不改动文字含义。
-            逐项规范：标题层级是否连贯、列表与缩进是否统一、代码块是否标注语言、表格是否对齐、段落空行是否得当、中英文与数字间距、以及多余的空白。
-            - 一个字都不增删、不改写正文，只动排版。
-            - 输出整理后的完整 Markdown。
+            You are a meticulous Markdown typesetter. You adjust formatting only and never change what the \
+            words mean.
+            Go through it point by point: are heading levels consistent, are lists and indentation uniform, \
+            are code blocks tagged with a language, are tables aligned, are blank lines between paragraphs \
+            appropriate, is the spacing between CJK and Latin text or numbers correct, and is there stray \
+            whitespace.
+            - Do not add, remove, or reword a single word of the text. Formatting only.
+            - Output the complete tidied Markdown.
             """
         case .custom:
             """
-            你是一位全能的 Markdown 写作助手。
-            准确理解用户的要求并高质量地完成，产出结构清晰、层次分明、格式规范的 Markdown。
-            - 优先满足用户明确提出的要求；要求未覆盖的细节，按对读者最有帮助的方式合理补全。
+            You are a versatile Markdown writing assistant.
+            Understand the user's request precisely and deliver it at a high standard, producing Markdown \
+            with clear structure and clean formatting.
+            - Satisfy what the user explicitly asked for first; for details their request does not cover, \
+            fill them in the way that serves the reader best.
             """
         }
     }
 
+    /// system prompt = 角色设定 + 输出纪律 + 用户区域上下文与语言规则。
+    /// 区域上下文放在最后：它是对前面所有规则的补充约束（尤其「正文语言 vs 反问语言」的区分）。
     private var systemPrompt: String {
-        role + "\n\n" + Self.outputContract
+        role + "\n\n" + Self.outputContract + "\n\n" + AIPromptLocale.contextBlock
     }
 
     /// 组装用户消息：把文档上下文与用户 prompt 按动作语义拼起来。
@@ -110,19 +129,23 @@ enum AIAction: String, CaseIterable, Identifiable {
         let ctx = context?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let document = "<document>\n\(ctx)\n</document>"
         // 用户在文档之外的额外要求，单独标注、明确优先级，避免与文档正文混为一谈。
-        let note = prompt.isEmpty ? "" : "\n\n用户的额外要求（请在完成上述任务时一并满足）：\n\(prompt)"
+        let note = prompt.isEmpty
+            ? ""
+            : "\n\nAdditional requirements from the user (satisfy these as well):\n\(prompt)"
         switch self {
         case .continueWriting:
-            return "以下是文档目前的内容：\n\(document)\n\n请紧接着最后一段，自然地续写下去。\(note)"
+            return "Here is the document as it stands:\n\(document)\n\n"
+                + "Continue naturally from the last paragraph.\(note)"
         case .polish:
-            return "请润色下面这份文档：\n\(document)\(note)"
+            return "Polish the document below:\n\(document)\(note)"
         case .format:
-            return "请整理下面这份 Markdown 文档的排版：\n\(document)\(note)"
+            return "Tidy up the formatting of the Markdown document below:\n\(document)\(note)"
         case .custom:
             // 有上下文（编辑器内自定义）则带上参考；无上下文（首页从零生成）则只发用户要求。
             return ctx.isEmpty
                 ? prompt
-                : "以下是供你参考的文档内容：\n\(document)\n\n请按下面的要求处理：\n\(prompt)"
+                : "Here is the document for your reference:\n\(document)\n\n"
+                    + "Handle it according to the following request:\n\(prompt)"
         }
     }
 
@@ -142,21 +165,28 @@ enum AIAction: String, CaseIterable, Identifiable {
     /// 精简、扩写等改动都在这一版全文上进行；不带旧多轮历史，靠文档本身承载累积状态（上一轮微调的效果已落在 current 里）。
     static func refineMessages(current: String, instruction: String) -> [AIMessage] {
         let system = """
-        你正在修改一份已经生成好的文档。用户会给出补充要求或微调意见，
-        请在保持文档原有主题、语气、人称、目标读者与整体风格的前提下把要求落实进去，
-        然后输出修订后的完整文档——不要只说明改了什么，也不要回答"是否已包含"之类的话。
-        - 这些要求通常只是微调：除非用户明确要求，不要推翻重写，也不改变文档的立场与结构。
-        - 无论改动多小，都必须输出修订后的完整内容全文（应用时会用它整体替换当前内容）。
+        You are revising a document that has already been generated. The user will give additional \
+        requirements or small adjustments.
+        Apply them while keeping the document's original topic, tone, grammatical person, target reader, and \
+        overall style, then output the complete revised document — do not merely describe what you changed, \
+        and do not answer with remarks like "that is already covered".
+        - These requirements are usually minor adjustments: unless the user explicitly asks for it, do not \
+        rewrite from scratch, and do not change the document's stance or structure.
+        - However small the change, you must output the full revised text (it will replace the current \
+        content wholesale).
 
         \(Self.outputContract)
+
+        \(AIPromptLocale.contextBlock)
         """
         let user = """
-        这是当前的文档内容：
+        Here is the current document:
         <document>
         \(current)
         </document>
 
-        请按下面的补充要求调整，并输出调整后的完整文档：
+        Adjust it according to the following additional requirements, and output the complete adjusted \
+        document:
         \(instruction)
         """
         return [
@@ -166,15 +196,26 @@ enum AIAction: String, CaseIterable, Identifiable {
     }
 
     /// 发起前校验：返回非 nil 即不满足条件的原因（供 UI 提示、禁用开始按钮）。
-    func validationError(context: String?, prompt: String) -> String? {
+    func validationError(context: String?, prompt: String) -> LocalizedStringKey? {
         let hasContext = !(context?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
         let hasPrompt = !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         if requiresContext && !hasContext {
-            return "当前文档没有内容，无法\(label)。"
+            return emptyContextMessage
         }
         if self == .custom && !hasPrompt {
-            return "请先说说你想要什么。"
+            return "Tell me what you want first."
         }
         return nil
+    }
+
+    /// 「文档为空」的提示按动作各写一句完整的话，而不是把动作名插进同一个句式里
+    /// （「无法\(label)」这类拼接在德语/日语里语序完全不同，翻译必然别扭）。
+    private var emptyContextMessage: LocalizedStringKey? {
+        switch self {
+        case .continueWriting: "This document is empty — there is nothing to continue from."
+        case .polish: "This document is empty — there is nothing to polish."
+        case .format: "This document is empty — there is nothing to clean up."
+        case .custom: nil   // custom 不要求上下文，走不到这里；返回 nil 而非 ""，免得空串被抽成 catalog 里的空 key
+        }
     }
 }

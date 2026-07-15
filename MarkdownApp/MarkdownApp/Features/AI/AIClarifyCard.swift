@@ -28,7 +28,7 @@ struct AIClarifyCard: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("需要你确认一下", systemImage: "questionmark.bubble")
+            Label("Just checking one thing", systemImage: "questionmark.bubble")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.aiGradient)
             // 问题醒目、可换行、行距舒展，不贴边。
@@ -98,7 +98,7 @@ private struct OptionRow: View {
 
 private struct RecommendedBadge: View {
     var body: some View {
-        Text("推荐")
+        Text("Recommended")
             .font(.caption2.weight(.bold))
             .foregroundStyle(.white)
             .padding(.horizontal, 8)
@@ -124,11 +124,14 @@ private struct MultiSelectAnswer: View {
                     }
                 }
             }
-            AIGradientButton(title: selected.isEmpty ? "确定" : "确定（\(selected.count)）",
+            AIGradientButton(title: selected.isEmpty ? "Confirm" : "Confirm (\(selected.count))",
                              systemImage: "checkmark",
                              isEnabled: !selected.isEmpty) {
-                // 按选项原顺序拼接，读起来自然。
-                let answer = options.map(\.label).filter(selected.contains).joined(separator: "、")
+                // 按选项原顺序拼接，读起来自然。这段答案会发给模型，
+                // 故用当前界面语言的列表格式（中/日为「、」，德/俄为「, … und/и …」），
+                // 不写死顿号。
+                let answer = options.map(\.label).filter(selected.contains)
+                    .formatted(.list(type: .and).locale(LocalizationController.current))
                 onSubmit(answer)
             }
             .frame(maxWidth: .infinity)
@@ -150,7 +153,7 @@ private struct TextAnswer: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            TextField("在此输入你的回答…", text: $text, axis: .vertical)
+            TextField("Type your answer here…", text: $text, axis: .vertical)
                 .lineLimit(3...8)
                 .font(.body)
                 .padding(12)
@@ -162,7 +165,7 @@ private struct TextAnswer: View {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .strokeBorder(Color(.separator), lineWidth: 1)
                 )
-            AIGradientButton(title: "提交", systemImage: "paperplane.fill",
+            AIGradientButton(title: "Submit", systemImage: "paperplane.fill",
                              isEnabled: !trimmed.isEmpty) {
                 onSubmit(trimmed)
             }

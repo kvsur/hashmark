@@ -26,7 +26,7 @@ struct DocumentView: View {
     enum Mode: String, CaseIterable, Identifiable {
         case preview, edit
         var id: String { rawValue }
-        var label: String { self == .preview ? "预览" : "编辑" }
+        var label: LocalizedStringKey { self == .preview ? "Preview" : "Edit" }
     }
 
     @State private var text: String = ""
@@ -62,7 +62,7 @@ struct DocumentView: View {
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     // 走 switchMode 让「点分段控件」与「滑动切换」共用同一套过渡动画。
-                    Picker("模式", selection: Binding(get: { mode }, set: { switchMode(to: $0) })) {
+                    Picker("Mode", selection: Binding(get: { mode }, set: { switchMode(to: $0) })) {
                         ForEach(Mode.allCases) { Text($0.label).tag($0) }
                     }
                     .pickerStyle(.segmented)
@@ -136,7 +136,7 @@ struct DocumentView: View {
             showSwitcher = true
         } label: {
             // 仅图标：直接用 Label，工具栏会自动呈现为 icon-only（accessibility 仍保留文字）。
-            Label("切换文档", systemImage: "rectangle.stack")
+            Label("Switch Document", systemImage: "rectangle.stack")
         }
         .controlSize(.large)
     }

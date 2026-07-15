@@ -36,9 +36,9 @@ struct FileBrowserView: View {
         Group {
             if nodes.isEmpty {
                 ContentUnavailableView(
-                    "空目录",
+                    "Empty Folder",
                     systemImage: "folder",
-                    description: Text("点击右上角 + 新建文件夹或文档")
+                    description: Text("Tap + in the top right to create a folder or document")
                 )
             } else {
                 List {
@@ -48,14 +48,17 @@ struct FileBrowserView: View {
                 }
             }
         }
-        .navigationTitle(isRoot ? "文档" : directory.lastPathComponent)
+        // 根标题是本地化文案、子目录标题是用户自己的文件夹名（绝不可翻译），
+        // 两者要走同一个 String 参数，故根标题需显式取词——必须用 LocalizationController.string，
+        // 直接用 String(localized:) 会绕过取词拦截、永远显示系统语言。
+        .navigationTitle(isRoot ? LocalizationController.string("Documents") : directory.lastPathComponent)
         .navigationBarTitleDisplayMode(isRoot ? .large : .inline)
         .toolbar {
             // 设置入口：全局动作，只在根目录左上角露出。
             if isRoot {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { showingSettings = true } label: {
-                        Label("设置", systemImage: "gearshape").labelStyle(.iconOnly)
+                        Label("Settings", systemImage: "gearshape").labelStyle(.iconOnly)
                     }
                 }
             }
@@ -83,15 +86,15 @@ struct FileBrowserView: View {
         }
         .sheet(item: $aiLaunch) { launch in
             // 首页生成整篇：无上下文、自由 prompt、允许反问。
-            AIWritingView(config: launch.config, action: launch.action, context: nil, title: "AI 写作") { result in
+            AIWritingView(config: launch.config, action: launch.action, context: nil, title: "AI Writing") { result in
                 createDocument(from: result)
             }
         }
         .onAppear(perform: reload)
         // 外部导入完成后由上层递增 reloadToken，触发首页列表刷新。
         .onChange(of: reloadToken) { _, _ in reload() }
-        .alert("操作失败", isPresented: errorBinding) {
-            Button("好", role: .cancel) {}
+        .alert("Action Failed", isPresented: errorBinding) {
+            Button("OK", role: .cancel) {}
         } message: {
             Text(errorMessage ?? "")
         }
@@ -110,31 +113,31 @@ struct FileBrowserView: View {
         // allowsFullSwipe:false 避免整行全滑直接触发删除确认。
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button { pendingDelete = node } label: {
-                Label("删除", systemImage: "trash").labelStyle(.iconOnly)
+                Label("Delete", systemImage: "trash").labelStyle(.iconOnly)
             }
             .tint(.red)
             Button { sheet = .rename(node) } label: {
-                Label("重命名", systemImage: "square.and.pencil").labelStyle(.iconOnly)
+                Label("Rename", systemImage: "square.and.pencil").labelStyle(.iconOnly)
             }
             .tint(.blue)
             Button { sheet = .move(node) } label: {
-                Label("移动", systemImage: "folder.fill").labelStyle(.iconOnly)
+                Label("Move", systemImage: "folder.fill").labelStyle(.iconOnly)
             }
             .tint(.indigo)
         }
         // 确认框挂在「行」上而非整个 List：以 popover 呈现时（iPad）才能锚定到被滑动的这一行，
         // 否则会固定锚在列表顶部。用「当前行是否为待删除项」控制各行自己的弹出。
         .confirmationDialog(
-            "确定删除「\(node.displayName)」？",
+            "Delete “\(node.displayName)”?",
             isPresented: deleteBinding(for: node),
             titleVisibility: .visible
         ) {
-            Button("删除", role: .destructive) {
+            Button("Delete", role: .destructive) {
                 perform { try store.delete(node) }
             }
         } message: {
             if node.isFolder {
-                Text("文件夹及其中所有内容都会被删除。")
+                Text("The folder and everything inside it will be deleted.")
             }
         }
     }
@@ -162,10 +165,10 @@ struct FileBrowserView: View {
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
                 Button { sheet = .newFolder } label: {
-                    Label("新建文件夹", systemImage: "folder.badge.plus")
+                    Label("New Folder", systemImage: "folder.badge.plus")
                 }
                 Button { sheet = .newMarkdown } label: {
-                    Label("新建文档", systemImage: "doc.badge.plus")
+                    Label("New Document", systemImage: "doc.badge.plus")
                 }
             } label: {
                 Image(systemName: "plus")
@@ -179,23 +182,23 @@ struct FileBrowserView: View {
     private func sheetContent(_ sheet: BrowserSheet) -> some View {
         switch sheet {
         case .newFolder:
-            NameInputSheet(title: "新建文件夹", placeholder: "文件夹名称") { name in
+            NameInputSheet(title: "New Folder", placeholder: "Folder name") { name in
                 perform { _ = try store.createFolder(named: name, in: directory) }
             }
         case .newMarkdown:
-            NameInputSheet(title: "新建文档", placeholder: "文档名称") { name in
+            NameInputSheet(title: "New Document", placeholder: "Document name") { name in
                 perform { _ = try store.createMarkdown(named: name, in: directory) }
             }
         case .rename(let node):
-            NameInputSheet(title: "重命名", placeholder: "新名称", initialName: node.displayName) { name in
+            NameInputSheet(title: "Rename", placeholder: "New name", initialName: node.displayName) { name in
                 perform { _ = try store.rename(node, to: name) }
             }
         case .move(let node):
             DirectoryPicker(
                 store: store,
-                title: "移动到",
-                promptPrefix: "移动「\(node.displayName)」到",
-                confirmLabel: "移动到此处",
+                title: "Move To",
+                prompt: "Move “\(node.displayName)” to",
+                confirmLabel: "Move Here",
                 isDisabled: moveDisabled(for: node)
             ) { targetDir in
                 // 移到原目录 = 无操作，避免 move() 因重名把自己复制成「name 2」。
@@ -244,7 +247,8 @@ struct FileBrowserView: View {
             guard !line.isEmpty else { continue }
             return String(line.prefix(40))
         }
-        return "AI 写作"
+        // 兜底文件名：会落到用户的文档库里，故按当前界面语言取词。
+        return LocalizationController.string("AI Writing")
     }
 
     /// 执行一次会修改磁盘的操作，成功后刷新列表，失败则记录错误。

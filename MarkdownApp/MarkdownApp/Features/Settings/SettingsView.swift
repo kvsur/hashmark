@@ -22,8 +22,8 @@ struct SettingsView: View {
 
         NavigationStack {
             Form {
-                Section("外观") {
-                    Picker("主题", selection: $settings.theme) {
+                Section("Appearance") {
+                    Picker("Theme", selection: $settings.theme) {
                         ForEach(ThemePreference.allCases) { pref in
                             Text(pref.label).tag(pref)
                         }
@@ -31,27 +31,28 @@ struct SettingsView: View {
                     .tallSegmentedPicker()
                 }
 
-                Section("语言") {
-                    disclosureRow("切换语言", systemImage: "globe") { sheet = .language }
+                Section("Language") {
+                    disclosureRow("Switch Language", systemImage: "globe") { sheet = .language }
                 }
 
                 Section("AI") {
-                    disclosureRow("AI 接口配置", systemImage: "sparkles") { sheet = .aiConfig }
+                    disclosureRow("AI Endpoint", systemImage: "sparkles") { sheet = .aiConfig }
                 }
 
                 Section {
-                    disclosureRow("关于", systemImage: "info.circle") { sheet = .about }
+                    disclosureRow("About", systemImage: "info.circle") { sheet = .about }
                 }
             }
-            .navigationTitle("设置")
+            .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") { dismiss() }
+                    Button("Done") { dismiss() }
                 }
             }
             .sheet(item: $sheet, content: sheetContent)
         }
+        .rebuildsOnLanguageChange()
     }
 
     // MARK: - 二级弹层
@@ -59,7 +60,7 @@ struct SettingsView: View {
     @ViewBuilder
     private func sheetContent(_ sheet: SettingsSheet) -> some View {
         switch sheet {
-        case .language: LanguagePlaceholderSheet()
+        case .language: LanguagePickerSheet()
         case .about: AboutView()
         case .aiConfig: AIConfigEditorView(store: aiConfigStore)
         }
@@ -68,8 +69,9 @@ struct SettingsView: View {
     // MARK: - 复用行
 
     /// 可点的「标题 + 尾部箭头」披露行，语言/AI/关于三处共用（DRY）。
+    /// title 取 LocalizedStringKey 而非 String —— String 会被 Label 当作字面量原样显示、绕过本地化。
     private func disclosureRow(
-        _ title: String,
+        _ title: LocalizedStringKey,
         systemImage: String,
         action: @escaping () -> Void
     ) -> some View {
@@ -90,27 +92,4 @@ struct SettingsView: View {
 enum SettingsSheet: Int, Identifiable {
     case language, about, aiConfig
     var id: Int { rawValue }
-}
-
-/// 语言切换占位：功能未上线时给一个清晰、不崩的反馈（沿用 App 内占位弹层风格）。
-private struct LanguagePlaceholderSheet: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            ContentUnavailableView {
-                Label("多语言", systemImage: "globe")
-            } description: {
-                Text("语言切换将在后续版本提供。")
-            }
-            .navigationTitle("切换语言")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") { dismiss() }
-                }
-            }
-        }
-        .presentationDetents([.medium])
-    }
 }

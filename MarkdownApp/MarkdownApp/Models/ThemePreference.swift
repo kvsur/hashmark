@@ -16,12 +16,13 @@ enum ThemePreference: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    /// 设置页 Picker 显示用标签。
-    var label: String {
+    /// 设置页 Picker 显示用标签。取 LocalizedStringKey 而非 String——
+    /// String 会被 Text 当作字面量原样显示、绕过本地化。
+    var label: LocalizedStringKey {
         switch self {
-        case .system: "跟随系统"
-        case .light: "浅色"
-        case .dark: "深色"
+        case .system: "Follow System"
+        case .light: "Light"
+        case .dark: "Dark"
         }
     }
 }

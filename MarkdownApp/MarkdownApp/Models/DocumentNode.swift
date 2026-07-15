@@ -53,39 +53,31 @@ struct DocumentNode: Identifiable, Hashable {
     var metadataText: String {
         let date = DocumentNode.relativeDateText(modifiedAt)
         if isFolder {
-            return "\(date) · \(childCount ?? 0) 项"
+            // 子项数走复数变体（catalog 里按语言配 one/other，俄语还有 few/many），不手拼量词。
+            return "\(date) · \(LocalizationController.string("\(childCount ?? 0) items"))"
         }
         guard let fileSize else { return date }
-        return "\(date) · \(DocumentNode.byteFormatter.string(fromByteCount: fileSize))"
+        return "\(date) · \(fileSize.formatted(.byteCount(style: .file).locale(LocalizationController.current)))"
     }
 
-    // MARK: - 格式化（静态复用，避免每行重建 Formatter）
+    // MARK: - 格式化
 
-    /// 相对日期：今天显示时间，昨天/前天用中文，更早显示 yyyy/M/d（近似系统「文件」App）。
+    /// 相对日期：今天显示时间，昨天/前天用文字，更早显示短日期（近似系统「文件」App）。
+    ///
+    /// 日期/时间格式一律交给 FormatStyle 按 locale 决定，不写死 "yyyy/M/d" / "HH:mm"——
+    /// 各地区的日期顺序与 12/24 小时制并不相同（德语 d.M.yyyy、英语区习惯 12 小时制）。
+    /// 也不再用 static let 缓存 Formatter：那样切换语言后会永久停留在启动时的语言。
     private static func relativeDateText(_ date: Date) -> String {
+        let locale = LocalizationController.current
         let cal = Calendar.current
-        if cal.isDateInToday(date) { return timeFormatter.string(from: date) }
-        if cal.isDateInYesterday(date) { return "昨天" }
+        if cal.isDateInToday(date) {
+            return date.formatted(.dateTime.hour().minute().locale(locale))
+        }
+        if cal.isDateInYesterday(date) { return LocalizationController.string("Yesterday") }
         let dayBeforeYesterday = cal.date(byAdding: .day, value: -2, to: cal.startOfDay(for: Date()))
-        if let dby = dayBeforeYesterday, cal.isDate(date, inSameDayAs: dby) { return "前天" }
-        return dateFormatter.string(from: date)
+        if let dby = dayBeforeYesterday, cal.isDate(date, inSameDayAs: dby) {
+            return LocalizationController.string("Day before yesterday")
+        }
+        return date.formatted(.dateTime.year().month().day().locale(locale))
     }
-
-    private static let timeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm"
-        return f
-    }()
-
-    private static let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy/M/d"
-        return f
-    }()
-
-    private static let byteFormatter: ByteCountFormatter = {
-        let f = ByteCountFormatter()
-        f.countStyle = .file
-        return f
-    }()
 }

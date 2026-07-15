@@ -155,7 +155,7 @@ final class AIWritingSession {
                 commitAssistantTurn()
                 phase = .done
             } else {
-                phase = .error("AI 返回了无法识别的内容，请重试或换种说法。")
+                phase = .error(LocalizationController.string("The AI returned something unrecognizable. Try again or rephrase your request."))
             }
             return
         }

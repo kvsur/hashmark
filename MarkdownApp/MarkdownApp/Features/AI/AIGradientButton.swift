@@ -9,7 +9,7 @@
 import SwiftUI
 
 struct AIGradientButton: View {
-    let title: String
+    let title: LocalizedStringKey
     var systemImage: String = "sparkles"
     var isEnabled: Bool = true
     let action: () -> Void

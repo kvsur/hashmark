@@ -54,42 +54,63 @@ enum AIStreamEvent {
 
 /// 本 App 提供给模型的唯一工具：诉求含糊时反问用户以挖掘诉求。
 /// 一次只问一个问题；回答方式为 单选/多选/文字，选择型带候选项与推荐项。
+///
+/// 工具描述同样是 prompt，故与 AIAction 一致用英文写。
+/// definition 是计算属性而非常量：问题与候选项必须用**当前界面语言**书写
+/// （它们是说给用户听的界面文本，不同于正文跟随文档语言——见 AIPromptLocale 的双语义说明），
+/// 而界面语言可在运行时切换，描述需随之重新生成。
 enum ClarifyTool {
     static let name = "ask_clarifying_question"
 
     static var definition: AITool {
-        AITool(
+        let uiLanguage = AIPromptLocale.uiLanguageName
+        return AITool(
             name: name,
             description: """
-            当用户的写作诉求含糊、缺少关键信息（如主题范围、目标读者、篇幅、语气、必须包含的要点等）时，
-            调用本工具向用户提出一个澄清问题，而不是凭空猜测就生成。一次只问最关键的一个问题；
-            若信息已足够，请直接开始写作，不要调用本工具。
+            When the user's writing request is vague or missing key information (topic scope, target reader, \
+            length, tone, points that must be covered, and so on), call this tool to ask the user one \
+            clarifying question instead of guessing and generating anyway. Ask only the single most important \
+            question. If you already have enough information, start writing and do not call this tool.
+
+            The question and every option label MUST be written in \(uiLanguage). They are shown in the app's \
+            interface and are what the user reads, so they follow the interface language — which is \
+            independent of the language of the document being written.
             """,
             parameters: .object([
                 "type": .string("object"),
                 "properties": .object([
                     "question": .object([
                         "type": .string("string"),
-                        "description": .string("要向用户提出的澄清问题，简洁、具体、一次只问一件事。")
+                        "description": .string(
+                            "The clarifying question to ask the user. Concise, specific, one thing at a time. "
+                                + "Must be written in \(uiLanguage)."
+                        )
                     ]),
                     "answer_type": .object([
                         "type": .string("string"),
                         "enum": .array([.string("single_select"), .string("multi_select"), .string("text")]),
-                        "description": .string("期望的回答方式：single_select 单选、multi_select 多选、text 自由文字。")
+                        "description": .string(
+                            "How the user should answer: single_select, multi_select, or text (free input)."
+                        )
                     ]),
                     "options": .object([
                         "type": .string("array"),
-                        "description": .string("当 answer_type 为 single_select 或 multi_select 时提供 2 个以上候选项；text 时省略。"),
+                        "description": .string(
+                            "Provide more than 2 options when answer_type is single_select or multi_select; "
+                                + "omit for text."
+                        ),
                         "items": .object([
                             "type": .string("object"),
                             "properties": .object([
                                 "label": .object([
                                     "type": .string("string"),
-                                    "description": .string("候选项文案")
+                                    "description": .string("Option text, written in \(uiLanguage).")
                                 ]),
                                 "recommended": .object([
                                     "type": .string("boolean"),
-                                    "description": .string("是否为推荐项；最多标记一个推荐项")
+                                    "description": .string(
+                                        "Whether this is the recommended option; mark at most one."
+                                    )
                                 ])
                             ]),
                             "required": .array([.string("label")])

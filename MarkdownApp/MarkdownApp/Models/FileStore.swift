@@ -230,6 +230,7 @@ struct FileStore {
         let trimmed = name
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "/", with: "-")
-        return trimmed.isEmpty ? "未命名" : trimmed
+        // 兜底文件名会落进用户的文档库，按当前界面语言取词。
+        return trimmed.isEmpty ? LocalizationController.string("Untitled") : trimmed
     }
 }

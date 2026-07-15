@@ -17,7 +17,7 @@ struct HomeAIButton: View {
             HStack(spacing: 10) {
                 Image(systemName: "sparkles")
                     .font(.title3)
-                Text("AI 写作")
+                Text("AI Writing")
                     .font(.headline)
             }
             .foregroundStyle(.white)

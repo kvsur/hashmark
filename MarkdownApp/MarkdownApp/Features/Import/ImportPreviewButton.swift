@@ -23,7 +23,7 @@ struct ImportPreviewButton: View {
         Button {
             importing = true
         } label: {
-            Label("打开文件预览", systemImage: "doc.text.magnifyingglass")
+            Label("Open File Preview", systemImage: "doc.text.magnifyingglass")
         }
         .fileImporter(
             isPresented: $importing,
@@ -35,8 +35,8 @@ struct ImportPreviewButton: View {
         .sheet(item: $document) { doc in
             ReadOnlyPreviewView(store: store, sourceURL: doc.url, title: doc.title, markdown: doc.markdown, onImported: onImported)
         }
-        .alert("无法打开文件", isPresented: errorBinding) {
-            Button("好", role: .cancel) {}
+        .alert("Cannot Open File", isPresented: errorBinding) {
+            Button("OK", role: .cancel) {}
         } message: {
             Text(errorMessage ?? "")
         }
@@ -51,7 +51,7 @@ struct ImportPreviewButton: View {
         case .success(let urls):
             guard let url = urls.first else { return }
             guard let text = store.readExternalText(at: url) else {
-                errorMessage = "读取文件内容失败，可能没有访问权限或不是文本文件。"
+                errorMessage = LocalizationController.string("Could not read the file. It may not be a text file, or access was denied.")
                 return
             }
             document = ImportedDocument(

@@ -9,15 +9,15 @@
 import SwiftUI
 
 struct NameInputSheet: View {
-    let title: String
-    let placeholder: String
+    let title: LocalizedStringKey
+    let placeholder: LocalizedStringKey
     let onConfirm: (String) -> Void
 
     @State private var name: String
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focused: Bool
 
-    init(title: String, placeholder: String, initialName: String = "", onConfirm: @escaping (String) -> Void) {
+    init(title: LocalizedStringKey, placeholder: LocalizedStringKey, initialName: String = "", onConfirm: @escaping (String) -> Void) {
         self.title = title
         self.placeholder = placeholder
         self.onConfirm = onConfirm
@@ -40,15 +40,16 @@ struct NameInputSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("完成", action: confirm).disabled(trimmed.isEmpty)
+                    Button("Done", action: confirm).disabled(trimmed.isEmpty)
                 }
             }
             .onAppear { focused = true }
         }
         .presentationDetents([.height(180)])
+        .rebuildsOnLanguageChange()
     }
 
     private func confirm() {

@@ -15,7 +15,7 @@ struct AIActionPopover: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("AI 辅助")
+            Text("AI Assist")
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, Theme.spacing)

@@ -15,21 +15,22 @@ struct AboutView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("开发者") {
-                    LabeledContent("联系邮箱") {
+                Section("Developer") {
+                    LabeledContent("Contact Email") {
                         // mailto 链接：点击唤起系统邮件；URL 常量固定，强解包安全。
                         Link(email, destination: URL(string: "mailto:\(email)")!)
                     }
                 }
             }
-            .navigationTitle("关于")
+            .navigationTitle("About")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") { dismiss() }
+                    Button("Done") { dismiss() }
                 }
             }
         }
         .presentationDetents([.medium])
+        .rebuildsOnLanguageChange()
     }
 }
