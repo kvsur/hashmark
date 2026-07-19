@@ -58,6 +58,13 @@ struct AIConfigEditorView: View {
                     }
                     .tallSegmentedPicker()
                 }
+
+                Section {
+                    Toggle("Allow image and PDF attachments", isOn: $draft.supportsImages)
+                } footer: {
+                    // App 无法可靠判断任意 provider/模型是否支持视觉/文档，交由用户自行确认。
+                    Text("Turn this on only if the endpoint and model you configured support image and PDF input. If unsure, leave it off — you can still reference text documents as context.")
+                }
             }
             .navigationTitle("AI Endpoint")
             .navigationBarTitleDisplayMode(.inline)

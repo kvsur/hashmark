@@ -133,7 +133,7 @@ final class AIWritingSession {
             } catch is CancellationError {
                 // 用户取消，静默
             } catch {
-                let message = (error as? AIError)?.errorDescription ?? error.localizedDescription
+                let message = userFacingMessage(for: error)
                 // 已生成部分内容（如流式途中断网）：保留内容、标记中断、转 done，可接受或重试；
                 // 只有一无所获时才整屏报错。
                 if hasContent {
@@ -145,6 +145,27 @@ final class AIWritingSession {
                 }
             }
         }
+    }
+
+    /// 本轮请求是否带了图片（用于给带图请求的失败补更贴切的提示）。
+    private var hasImageInRequest: Bool {
+        messages.contains { !$0.imageAttachments.isEmpty }
+    }
+
+    /// 把错误映射成面向用户的文案。带图请求遇到 4xx（端点/模型很可能不支持视觉，
+    /// 上游只回一个笼统状态码、没有别的线索）时，补一句可读提示，指向「所选模型可能不支持图片」，
+    /// 而不是把裸的状态码错误直接抛给用户、让其无从判断。
+    private func userFacingMessage(for error: Error) -> String {
+        var message = (error as? AIError)?.errorDescription ?? error.localizedDescription
+        if hasImageInRequest,
+           let aiError = error as? AIError,
+           case .http(let status, _) = aiError,
+           (400..<500).contains(status) {
+            message += "\n" + LocalizationController.string(
+                "If this keeps failing, the model you selected may not support image attachments."
+            )
+        }
+        return message
     }
 
     /// 收到工具调用：只认反问工具并可视化；无法解析则降级（有内容当完成、否则报错）。

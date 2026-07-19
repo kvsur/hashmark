@@ -59,8 +59,34 @@ struct ChatGPTClient: AIClient {
     /// 把一条中立消息翻译成 OpenAI 消息对象。
     private static func serialize(_ msg: AIMessage) -> JSONValue {
         switch msg.role {
-        case .system, .user:
+        case .system:
             return .object(["role": .string(msg.role.rawValue), "content": .string(msg.content)])
+        case .user:
+            // 图片用 image_url(data URI)，PDF 用 file(file_data data URI)。
+            let mediaBlocks: [JSONValue] =
+                msg.imageAttachments.map { data in
+                    .object([
+                        "type": .string("image_url"),
+                        "image_url": .object([
+                            "url": .string("data:image/jpeg;base64,\(data.base64EncodedString())")
+                        ])
+                    ])
+                }
+                + msg.pdfAttachments.map { pdf in
+                    .object([
+                        "type": .string("file"),
+                        "file": .object([
+                            "filename": .string(pdf.name),
+                            "file_data": .string("data:application/pdf;base64,\(pdf.data.base64EncodedString())")
+                        ])
+                    ])
+                }
+            // 无富媒体附件：保持旧的纯字符串 content 形状（向后兼容，逐字节不变）。
+            guard !mediaBlocks.isEmpty else {
+                return .object(["role": .string("user"), "content": .string(msg.content)])
+            }
+            let content = MultimodalContent.userContent(text: msg.content, mediaBlocks: mediaBlocks)
+            return .object(["role": .string("user"), "content": content])
         case .assistant where !msg.toolCalls.isEmpty:
             return .object([
                 "role": .string("assistant"),

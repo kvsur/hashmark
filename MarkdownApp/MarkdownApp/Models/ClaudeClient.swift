@@ -66,7 +66,37 @@ struct ClaudeClient: AIClient {
     /// 把一条中立消息翻译成 Anthropic 消息（tool 结果映射为带 tool_result block 的 user 消息）。
     private static func serialize(_ msg: AIMessage) -> JSONValue {
         switch msg.role {
-        case .user, .system:
+        case .user:
+            // 图片用 image(source base64)，PDF 用 document(source base64 application/pdf)。
+            let mediaBlocks: [JSONValue] =
+                msg.imageAttachments.map { data in
+                    .object([
+                        "type": .string("image"),
+                        "source": .object([
+                            "type": .string("base64"),
+                            "media_type": .string("image/jpeg"),
+                            "data": .string(data.base64EncodedString())
+                        ])
+                    ])
+                }
+                + msg.pdfAttachments.map { pdf in
+                    .object([
+                        "type": .string("document"),
+                        "source": .object([
+                            "type": .string("base64"),
+                            "media_type": .string("application/pdf"),
+                            "data": .string(pdf.data.base64EncodedString())
+                        ])
+                    ])
+                }
+            // 无富媒体附件：保持旧的纯字符串 content 形状（向后兼容，逐字节不变）。
+            guard !mediaBlocks.isEmpty else {
+                return .object(["role": .string("user"), "content": .string(msg.content)])
+            }
+            let content = MultimodalContent.userContent(text: msg.content, mediaBlocks: mediaBlocks)
+            return .object(["role": .string("user"), "content": content])
+        case .system:
+            // system 在 body() 里已被过滤，不会走到这；保留防御性映射。
             return .object(["role": .string("user"), "content": .string(msg.content)])
         case .assistant where !msg.toolCalls.isEmpty:
             // 同一条 assistant 可能既有文本又有 tool_use，用 content blocks 数组表达。

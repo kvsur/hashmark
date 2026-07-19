@@ -69,6 +69,23 @@ enum AIError: LocalizedError {
     }
 }
 
+// MARK: - 多模态 user 消息装配（两家共用）
+
+/// 把「文本 + 富媒体块（图片/PDF）」的 user 消息拼成 content blocks 数组：文本块在前、媒体块在后。
+/// 各类媒体块结构两家不同（图片：ChatGPT image_url / Claude image source；PDF：ChatGPT file / Claude document），
+/// 故由各 client 自行把附件映射成 mediaBlocks 交进来，这里只负责统一的「文本块 + 媒体块」装配（DRY）。
+enum MultimodalContent {
+    static func userContent(text: String, mediaBlocks: [JSONValue]) -> JSONValue {
+        var blocks: [JSONValue] = []
+        // 仅在有正文时加文本块，避免多余空块。
+        if !text.isEmpty {
+            blocks.append(.object(["type": .string("text"), "text": .string(text)]))
+        }
+        blocks.append(contentsOf: mediaBlocks)
+        return .array(blocks)
+    }
+}
+
 // MARK: - 有状态 SSE 解析器
 
 /// 跨行累积的 SSE 事件解析器：每消费一行，产出零或多个事件；done 表示流应结束。
@@ -125,7 +142,8 @@ enum SSEStream {
                 } catch let error as AIError {
                     if case .http(let status, _) = error,
                        !tools.isEmpty, !emitted, (400..<500).contains(status) {
-                        // 降级：无 tools 重试一次。
+                        // 降级：无 tools 重试一次。makeRequest 用同一份 messages 重建请求，
+                        // 只去掉 tools、不动消息内容——故带图请求在降级重试时仍带上图片块。
                         do {
                             try await pump(request: try makeRequest([]), parser: makeParser(), emit: emit)
                             continuation.finish()

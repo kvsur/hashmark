@@ -35,13 +35,24 @@ struct AIMessage: Equatable {
     let toolCalls: [AIToolCall]
     /// 仅 tool 结果消息：对应被回答的那次调用 id。
     let toolCallId: String?
+    /// 仅 user：随本条消息发送的图片附件（多模态）。默认空——空时两家 client 保持旧的纯字符串
+    /// content 形状不变（向后兼容），非空才升级为 content blocks。documentReference 类附件不在这里，
+    /// 它已在 AIAction 装配阶段拼进 content 文本。
+    let attachments: [AIAttachment]
 
-    init(role: Role, content: String, toolCalls: [AIToolCall] = [], toolCallId: String? = nil) {
+    init(role: Role, content: String, toolCalls: [AIToolCall] = [], toolCallId: String? = nil, attachments: [AIAttachment] = []) {
         self.role = role
         self.content = content
         self.toolCalls = toolCalls
         self.toolCallId = toolCallId
+        self.attachments = attachments
     }
+
+    /// 本条 user 消息携带的图片 JPEG（供 client 序列化图片块）。
+    var imageAttachments: [Data] { attachments.compactMap(\.imageJPEG) }
+    /// 本条 user 消息携带的 PDF（文件名, 数据）（供 client 序列化文档块）。
+    /// 从 attachments 派生而非另存元组数组——元组不满足 Equatable，会破坏 AIMessage 的合成实现。
+    var pdfAttachments: [(name: String, data: Data)] { attachments.compactMap(\.pdfPayload) }
 
     /// 便捷构造：assistant 发起工具调用（可带同轮已产出的文本）。
     static func assistant(text: String, toolCalls: [AIToolCall]) -> AIMessage {
