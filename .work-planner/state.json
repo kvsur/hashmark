@@ -1,426 +1,302 @@
 {
   "version": "1.3.0",
-  "created_at": "2026-07-15 23:53:55",
-  "updated_at": "2026-07-16 01:07:16",
-  "current_step": "S8",
-  "next_step": "S8.3/DoD#5-#6 阻塞：需真实 API Key 跑 AI 交叉场景（德语 UI + 中文文档 → 德语提问、中文正文）并抓包确认 system prompt 含国家码/语言码。其余 S8 子项已完成。",
+  "created_at": "2026-07-17 16:00:00",
+  "updated_at": "2026-07-17 19:48:00",
+  "current_step": "S11",
+  "next_step": "追加阶段 S9/S10/S11 全部实现完成且静态验证通过。剩用户收尾：S7.2 交互走查（含拍照菜单/文件选择/PDF/开关跳配置，本环境不可点按 iOS 模拟器）；S7.1 图片/PDF 链路实时抓包（需 API Key + 视觉/PDF 模型）。",
   "overall_status": "blocked",
-  "completion_rate": "97%",
+  "completion_rate": "95%",
   "all_steps": [
     {
       "id": "S1",
-      "name": "本地化基建与生效机制验证",
+      "name": "图片压缩降采样编码器",
       "status": "done",
       "depends_on": [],
-      "refs": [
-        "C1",
-        "C2",
-        "C3",
-        "C5"
-      ],
+      "refs": ["C2"],
       "notes": [
-        "S1.2 是整个计划的风险闸门：若 .environment(\\.locale) 不能让 Text 即时重解析 .xcstrings，免重启切换（DoD #1）就得改用 Bundle 主体类 swizzle，S3/S4 全部调用点的写法随之改变。所以必须在大规模迁移前跑完。",
-        "2026-07-16 S1.2 spike 结论（推翻原假设，S3/S4 必读）：① .environment(\\.locale) 只让 Text/Section/Button 生效，navigationTitle 走 UIKit 桥接只认 Locale.current，切语言后静默停在旧语言。② String(localized:locale:) 的 locale 参数只影响复数与数字格式、不选语言包 —— 原计划「模型层显式传 locale」实测无效，已作废。③ 最终方案：替换 Bundle.main 主体类拦截取词（LocalizationController.bootstrap），全部取词路径统一生效，业务代码照最自然写法写。",
-        "2026-07-16 重渲染是与取词正交的第二个问题：navigationTitle 只在 body 重算时取词，Text 会自己重渲染而它不会。解法 .rebuildsOnLanguageChange()（= .id(language)），粒度选在每个 NavigationStack 而非 App 根部 —— 根部重建会掀掉已弹出的 sheet，而用户正是在设置页 sheet 里切语言。实测 sheet 可原地换语言。",
-        "2026-07-16 语言包应用点在 SettingsStore.language 的 didSet（不是 ContentView 的 onChange）：取词发生在重渲染过程中，onChange 在重渲染之后才跑，会慢一帧。",
-        "2026-07-16 S1.2 实测验证记录：模拟器 iPhone 17 Pro。免重启切换 en→de→ru 全部生效（含 navigationTitle）；优先级链三路径通过 —— 系统法语→兜底英文、系统韩语→跟随韩语、显式偏好优先。",
-        "2026-07-16 en 无 .lproj 产物（源语言，key 即英文，查不到回退 key）。取词拦截对 en 置 languageBundle=nil 走父类实现。副作用待查：系统「每 App 语言」列表里英文可能不出现 —— 留给 S2.3。",
-        "2026-07-16 【修正 S1.2 结论】取词拦截并非覆盖所有路径：Foundation 的 String(localized:) 不走 Bundle.localizedString(forKey:value:table:)，拦截不到。需要 String 的场景必须走 LocalizationController.string(_:)（内部 String(localized:bundle:) 显式传包）。S1.2 当时只验了 Text/Section/Button/navigationTitle(LocalizedStringKey)，遗漏了这条。"
+        "2026-07-17 实现为纯 ImageIO/CoreGraphics 的 ImageAttachmentEncoder（不依赖 UIKit），常量集中在 AttachmentLimits。降采样用 CGImageSourceCreateThumbnailAtIndex（FromImageAlways + WithTransform 应用 EXIF 方向 + MaxPixelSize），JPEG 编码用 CGImageDestination 并递减质量满足体积上限。",
+        "2026-07-17 独立 macOS 脚本验证通过：4000x3000→1568x1176（长边压到 1568、保持比例）；800x600 小图不放大保持原尺寸；坏数据抛 notAnImage 不崩。不依赖 UIKit 正是为了能这样独立验证。"
       ],
       "sub_steps": [
-        {
-          "id": "S1.1",
-          "name": "建 Localizable.xcstrings；knownRegions 补齐 7 种；developmentRegion 保持 en",
-          "status": "done"
-        },
-        {
-          "id": "S1.2",
-          "name": "Spike：验证 environment(\\.locale) 免重启切换 + Model 层 String(localized:locale:) 显式传参",
-          "status": "done"
-        },
-        {
-          "id": "S1.3",
-          "name": "写 LanguagePreference（.system + 7 种），label 用可本地化类型",
-          "status": "done"
-        },
-        {
-          "id": "S1.4",
-          "name": "SettingsStore 加 language 属性（key settings.language），写入即落盘",
-          "status": "done"
-        },
-        {
-          "id": "S1.5",
-          "name": "写 LocalizationController：优先级链（偏好→系统→en）+ ContentView 挂 environment 注入",
-          "status": "done"
-        }
+        { "id": "S1.1", "name": "ImageAttachmentEncoder：ImageIO 缩略图降采样 → JPEG 压缩", "status": "done" },
+        { "id": "S1.2", "name": "集中常量：maxLongEdge/jpegQuality/maxCount=4/单张体积上限", "status": "done" },
+        { "id": "S1.3", "name": "失败路径：非图片/解码失败/压缩后仍超限各返回明确错误", "status": "done" }
       ],
-      "verify": "临时接入两个字符串，代码里切 language 到 de 免重启即变德语；清偏好且系统语言为法语时显示英文",
-      "start_at": "2026-07-15 23:58:00",
-      "done_at": "2026-07-16 00:26:23"
+      "verify": "喂 4000px 大图产出 JPEG 长边≤阈值且体积在限内；坏数据返回错误不崩",
+      "start_at": "2026-07-17 16:02:00",
+      "done_at": "2026-07-17 16:12:00"
     },
     {
       "id": "S2",
-      "name": "语言切换 UI",
+      "name": "消息层多模态载体",
       "status": "done",
-      "depends_on": [
-        "S1"
-      ],
-      "refs": [
-        "C4"
-      ],
+      "depends_on": ["S1"],
+      "refs": ["C3"],
       "notes": [
-        "语言列表用各语言自身书写（Deutsch 而非「德语」）：用户看不懂当前 UI 语言时才会来切换，这正是切换器存在的意义。",
-        "2026-07-16 LanguagePickerSheet 落地，LanguagePlaceholderSheet 已删除。S2.3 结论：App 内偏好优先于系统 per-app 语言——取词拦截绕过了系统语言机制，两者不打架。"
+        "2026-07-17 AIAttachment 定为 struct(Identifiable)+Kind enum（image(Data)/documentReference(name,text)）：带 id 便于附件条 UI 的 ForEach/删除，消息层只用其内容。便捷构造 .image/.documentReference 与 imageJPEG 取值器。",
+        "2026-07-17 AIMessage 加 attachments:[AIAttachment]=[] 默认空，附 imageAttachments:[Data] 便捷取值。默认空是向后兼容关键——空时 client 走旧字符串 content。",
+        "2026-07-17 全量 xcodebuild（iPhone 17 Pro 模拟器 Debug）BUILD SUCCEEDED：新文件经文件系统同步分组自动纳入编译，现有 AIMessage 构造点无需改动。"
       ],
       "sub_steps": [
-        {
-          "id": "S2.1",
-          "name": "写 LanguagePickerSheet：跟随系统 + 7 种语言（各以自身语言书写），当前项打勾",
-          "status": "done"
-        },
-        {
-          "id": "S2.2",
-          "name": "接进 SettingsView.sheetContent 的 .language 分支，删除 LanguagePlaceholderSheet",
-          "status": "done"
-        },
-        {
-          "id": "S2.3",
-          "name": "确认与系统 per-app 语言设置的关系：App 内偏好优先且不打架",
-          "status": "done"
-        }
+        { "id": "S2.1", "name": "新增 AIAttachment（image(Data)/documentReference(name,text)）", "status": "done" },
+        { "id": "S2.2", "name": "AIMessage 加 attachments:[AIAttachment]=[]（仅 user 有意义），Equatable 兼容", "status": "done" },
+        { "id": "S2.3", "name": "复核现有 AIMessage 构造点默认空附件、不受影响", "status": "done" }
       ],
-      "verify": "设置页切换任一语言，sheet 内与整个 App 立即变更；重启后偏好仍在",
-      "start_at": "2026-07-16 00:30:00",
-      "done_at": "2026-07-16 00:47:01"
+      "verify": "项目编译通过；现有纯文本消息构造无需改动",
+      "start_at": "2026-07-17 16:13:00",
+      "done_at": "2026-07-17 16:20:00"
     },
     {
       "id": "S3",
-      "name": "Features 层文案迁移",
+      "name": "两家 client 图片序列化",
       "status": "done",
-      "depends_on": [
-        "S1"
-      ],
-      "refs": [
-        "C1"
-      ],
+      "depends_on": ["S2"],
+      "refs": ["C2", "C4", "C5"],
       "notes": [
-        "基线：Features/ 与 Models/ 合计约 141 处中文字面量，分布于 26 个文件。大头 FileBrowserView(22)、AIAction(16)、AIWritingView(13)、SettingsView(12)、AIConfigEditorView(9)。",
-        "template.html 已核查：中文全是代码注释，无面向用户文案，不纳入迁移。",
-        "2026-07-16 Xcode 构建会自动把源码字面量抽取进 catalog，故迁移前 catalog 里已堆满中文 key —— 替换成英文 key 后旧条目会变 stale，由 S3.7 统一清理。",
-        "2026-07-16 完成。策略：迁移时同步把中文原文回填进 catalog 的 zh-Hans（而非留给 S7 从英文回译），母语原句零丢失 —— S7.1 因此已提前完成。",
-        "2026-07-16 发现并修掉多处「参数是 String 会绕过本地化」的陷阱：Label/TextField/navigationTitle 收 String 时按字面量原样显示。已改成 LocalizedStringKey 的有：SettingsView.disclosureRow、NameInputSheet(title/placeholder)、DirectoryPicker(title/prompt/confirmLabel)、AIWritingView.title、AIGradientButton.title、AIAction.label、ThemePreference.label、DocumentView.Mode.label。",
-        "2026-07-16 消除了两处「拼接式本地化」反模式：DirectoryPicker 的 \"%@：%@\"（改为两行独立渲染，「：」是中文标点、德俄不适用）、AIError 的可选后缀（改为有无 body 两个独立句子）。",
-        "2026-07-16 Xcode 自动把被替换掉的旧中文 key 清成 stale 并移除，S3.7 无需手工处理。注意 LocalizedStringKey(\"\") 会被抽成空 key，需避免。"
+        "最大陷阱：ClaudeClient 与 ChatGPTClient 两条独立序列化路径，改图片块极易只改一半。必须两家同时改、同时抓包验（归档 i18n 计划 S6 教训）。",
+        "2026-07-17 共享装配器 MultimodalContent.userBlocks 放 AIClient.swift：文本块在前、图片块在后，每张图怎么成块由各 client 闭包提供（两家块结构不同）。两家 serialize 的 .user 分支拆出：imageAttachments 空→旧字符串 content；非空→blocks。system 分支保持原样。",
+        "2026-07-17 S3.4：imageAttachments 用 compactMap(\\.imageJPEG)，documentReference 产出 nil 被过滤，client 层天然只序列化图片、不碰文档引用。",
+        "2026-07-17 独立 macOS 脚本复刻 JSONValue+两家块构造核对：无附件→{\"content\":\"hello\",\"role\":\"user\"} 逐字节旧形状；ChatGPT→[text块, image_url(data:image/jpeg;base64,…)]；Claude→[text块, image{source:{type:base64,media_type:image/jpeg,data}}]；纯文档引用→字符串 content。（脚本首跑两处断言误报，因 JSON 转义了 /，实际块正确。）xcodebuild BUILD SUCCEEDED。"
       ],
       "sub_steps": [
-        {
-          "id": "S3.1",
-          "name": "Browser + Switcher：FileBrowserView(22 处)、NameInputSheet、DocumentSwitcherSheet",
-          "status": "done"
-        },
-        {
-          "id": "S3.2",
-          "name": "AI 视图：AIWritingView(13 处)、AIClarifyCard、AIConfigGate、AIRefineBar、HomeAIButton、AIActionPopover",
-          "status": "done"
-        },
-        {
-          "id": "S3.3",
-          "name": "Settings：SettingsView(12 处)、AIConfigEditorView(9 处)、AboutView",
-          "status": "done"
-        },
-        {
-          "id": "S3.4",
-          "name": "Import + Preview + Document + Editor 各视图",
-          "status": "done"
-        },
-        {
-          "id": "S3.5",
-          "name": "复查插值/复数字符串，复数走 catalog plural variation（ru 有 one/few/many 三型）",
-          "status": "done"
-        },
-        {
-          "id": "S3.6",
-          "name": "给余下 8 个 NavigationStack 补 .rebuildsOnLanguageChange()（ContentView/SettingsView 已在 S1 加好）",
-          "status": "done"
-        },
-        {
-          "id": "S3.7",
-          "name": "清理 catalog 中被替换掉的旧中文 key（Xcode 标为 stale）",
-          "status": "done"
-        }
+        { "id": "S3.1", "name": "ChatGPTClient.serialize：user 带图→content 数组[text, image_url(data URI)]，否则原样字符串", "status": "done" },
+        { "id": "S3.2", "name": "ClaudeClient.serialize：user 带图→content 数组[text, image(source base64)]，否则原样字符串", "status": "done" },
+        { "id": "S3.3", "name": "抽共享「图片→base64/data-uri」小工具（DRY）", "status": "done" },
+        { "id": "S3.4", "name": "确认 documentReference 附件在 client 层被忽略（已在 S4 于 userContent 拼进文本）", "status": "done" }
       ],
-      "verify": "grep -rE '\"[^\"]*[一-龥]' --include='*.swift' Features/ 只余注释命中；且切换语言后各页 navigationTitle 均跟随变化",
-      "start_at": "2026-07-16 00:30:00",
-      "done_at": "2026-07-16 00:47:01"
+      "verify": "带 1 图的 user 消息两家 JSON 各含正确图片块；不带附件时 JSON 与改造前逐字节一致",
+      "start_at": "2026-07-17 16:21:00",
+      "done_at": "2026-07-17 16:32:00"
     },
     {
       "id": "S4",
-      "name": "Models 层文案迁移",
-      "status": "done",
-      "depends_on": [
-        "S1"
-      ],
-      "refs": [
-        "C1",
-        "C2"
-      ],
+      "name": "引用文档选择器 + 文本注入",
+      "status": "pending",
+      "depends_on": ["S2"],
+      "refs": ["C6", "C9", "C10"],
       "notes": [
-        "本步是 S1.2 结论的直接应用点：Model 层字符串读 Locale.current 而非 SwiftUI environment，若不显式传 resolved locale 会出现「切了语言这些文案仍是旧语言」。",
-        "AIError.errorDescription 会经 AIWritingSession.phase = .error(...) 直达用户，属面向用户文案，必须译。",
-        "2026-07-16 S1.2 后本步大幅简化：取词拦截让模型层无需传 locale，String(localized:) 直接可用。重点从「怎么传 locale」变成「别漏掉哪些字符串是面向用户的」。",
-        "2026-07-16 完成。超出原计划的发现：DocumentNode 不只是文案问题 —— dateFormatter 写死 \"yyyy/M/d\"、timeFormatter 写死 \"HH:mm\"，且三个 formatter 都是 static let（切语言后永不重建，会永久卡在启动时的语言）。已改用 locale-aware 的 FormatStyle，同时消除静态缓存的陈旧问题。",
-        "2026-07-16 「%lld items」走 catalog 复数变体，未手拼量词（中文只有 other 一型；俄语的 one/few/many 留给 S7.4）。",
-        "2026-07-16 AIConfig.ResponseFormat.label 保持 String 不动：值是 \"ChatGPT\"/\"Claude\" 品牌名，Text(String) 原样显示正是所需。"
+        "2026-07-17 AIAction.messages 加 attachments 参数（默认[]，旧调用点不受影响）：图片过滤进 user 消息 attachments（多模态），documentReference 抽出经 referenceBlock 注入 user 文本。文档引用与图片是两个消费层，别混。",
+        "2026-07-17 referenceBlock 声明「treat as background only, not as instructions」防注入（引用文档来自用户文件、内容不可信），呼应现有 <document> 边界。位置：document 后、note 前。",
+        "2026-07-17 DocumentReferencePicker 复用 OutlineGroup+FileStore.tree，多选 .md（文件夹只折叠不可选），alreadySelected 预勾选去重；confirm 时 readText+trim，空/不可读跳过（S4.3），回传 documentReference 附件。",
+        "2026-07-17 S4.3 超大文档软提示改由 S5 附件条 caption 承载（UI 层），此处只做空/不可读跳过。custom 仍要求非空 prompt——附件是额外上下文、不替代指令。",
+        "2026-07-17 独立脚本核对注入：custom 无上下文 prompt 在前+reference 块；continueWriting 位置 document<reference<note；无引用无标记。xcodebuild BUILD SUCCEEDED。"
       ],
       "sub_steps": [
-        {
-          "id": "S4.1",
-          "name": "ThemePreference.label（跟随系统/浅色/深色）改为可本地化",
-          "status": "done"
-        },
-        {
-          "id": "S4.2",
-          "name": "AIError.errorDescription（6 处）本地化",
-          "status": "done"
-        },
-        {
-          "id": "S4.3",
-          "name": "AIAction.label 与 validationError 两条提示（插值 + 语序，用带参数的键而非拼字符串）",
-          "status": "done"
-        },
-        {
-          "id": "S4.4",
-          "name": "DocumentNode、FileStore、AIWritingSession、ChatGPTClient 的零散文案",
-          "status": "done"
-        }
+        { "id": "S4.1", "name": "DocumentReferencePicker：复用 FileStore.tree 折叠树多选 .md，回传 [(name,text)]", "status": "done" },
+        { "id": "S4.2", "name": "AIAction.userContent 注入 <reference title>…</reference>，位于 <document> 后、用户 note 前", "status": "done" },
+        { "id": "S4.3", "name": "空/读取失败引用项跳过并记录；超大文档软提示", "status": "done" }
       ],
-      "verify": "切换语言后主题 Picker 选项、AI 动作名、人为触发的 AI 错误提示均随之变化，不停在旧语言",
-      "start_at": "2026-07-16 00:30:00",
-      "done_at": "2026-07-16 00:47:01"
+      "verify": "引用一篇非空 .md 跑自由创作，user 文本含 <reference> 包裹的正文；多选顺序稳定",
+      "start_at": "2026-07-17 16:33:00",
+      "done_at": "2026-07-17 16:44:00"
     },
     {
       "id": "S5",
-      "name": "AI prompt 英文骨架化 + 语言指令",
-      "status": "done",
-      "depends_on": [
-        "S1"
-      ],
-      "refs": [
-        "C1",
-        "C6",
-        "C7"
-      ],
+      "name": "输入 UI 接线（附件条）",
+      "status": "pending",
+      "depends_on": ["S3", "S4"],
+      "refs": ["C7", "C8", "C11"],
       "notes": [
-        "核心语义（锁定决策）：语言指令是双语义的——反问澄清问题用 UI 语言（它是界面文本），生成正文用文档语言（它是内容）。UI 德语 + 中文文档 = 德语提问、中文正文。",
-        "outputContract 中「与原文保持同一种语言」这条要译过去而非译掉——它正是「输出跟随文档语言」决策的载体。「不滥用 emoji」「避免 AI 腔」同样保留，呼应 CLAUDE.md 文案约定。",
-        "2026-07-16 完成。prompt 全部英文骨架化，语言差异收敛为 AIPromptLocale.contextBlock 一段注入。outputContract 的「与原文保持同一种语言」「不滥用 emoji」「避免 AI 腔」三条语义均已译过去而非译掉。",
-        "2026-07-16 ClarifyTool.definition 由常量改为计算属性：其描述里要嵌当前界面语言名，而界面语言可运行时切换。",
-        "2026-07-16 AIClarifyCard 多选答案原用「、」拼接（中文顿号，发给模型的文本），已改用 .formatted(.list(type:.and)) 按当前语言拼。"
+        "2026-07-17 AIAttachmentBar：横向 ScrollView 展示图片缩略图(UIImage) + 文档 chip(SF Symbol doc.text + 文件名)，各带 xmark.circle.fill 删除；底部 PhotosPicker(matching:.images, maxSelectionCount=剩余槽位) + 引用文档按钮；到张数上限禁用加图并可显示 caption。文案全走 LocalizedStringKey、无 emoji、图标 SF Symbols。",
+        "2026-07-17 documentReference 加 url 字段（仅作附件条去重/预勾选身份，消息层与 client 不消费）。引用文档按钮打开 DocumentReferencePicker（预勾选 referencedURLs），确认时替换全部文档引用、保留图片。",
+        "2026-07-17 AIAction 加 allowsAttachments（仅 continueWriting/custom）。AIWritingView 据此在 promptInput 的 TextField 下渲染附件条；附件存 @State；start() 传 attachments 给 action.messages。",
+        "2026-07-17 S5.3 关键：session 无需改动。图片天然挂在 messages 首个 user 消息上——首轮/反问回填复用该消息带图；refine 走 refineMessages（无图，正合精修不重复带图）；regenerate 复用含图首条消息（重跑同一请求带图正确）。",
+        "2026-07-17 S5.4 天然满足：附件条在 promptInput 内，promptInput 仅 .idle 阶段显示，开始生成即切走，故只在填 prompt 阶段可编辑。PhotosPicker 走 PHPicker 独立进程，无需 NSPhotoLibraryUsageDescription，Info.plist 不改。",
+        "2026-07-17 xcodebuild BUILD SUCCEEDED；App 装入 iPhone 17 Pro 模拟器干净启动（PID 存活、首页正常）。【环境限制】iOS 模拟器交互式点按在本环境不可用：simctl 无 tap；osascript/System Events 点按需辅助功能授权、未授予且会挂起。故 S5 的行为级 verify（加图/引文档/发送/润色无入口/上限提示）并入 S7.2 交互走查；'模型实际收到' 需真实 API Key，并入 S7.1（属用户凭据，不代填）。实现与编译已完成、逻辑已脚本核验。"
       ],
       "sub_steps": [
-        {
-          "id": "S5.1",
-          "name": "写 AIPromptLocale：由 LocalizationController 的 resolved locale 产出语言码与语言指令",
-          "status": "done"
-        },
-        {
-          "id": "S5.2",
-          "name": "outputContract 英文化，保留其现有全部语义条款",
-          "status": "done"
-        },
-        {
-          "id": "S5.3",
-          "name": "四个 role（续写/润色/整理/自由创作）英文化，保持角色设定的具体度",
-          "status": "done"
-        },
-        {
-          "id": "S5.4",
-          "name": "refineMessages 的 system + user 模板英文化",
-          "status": "done"
-        },
-        {
-          "id": "S5.5",
-          "name": "ClarifyTool.description 与 schema 各 description 英文化，并明确要求提问用 UI 语言",
-          "status": "done"
-        },
-        {
-          "id": "S5.6",
-          "name": "语言指令拼装进 AIAction.messages() 与 refineMessages() 的 system",
-          "status": "done"
-        }
+        { "id": "S5.1", "name": "AIAttachmentBar：缩略图+文档 chip、可删、加图(PhotosPicker)/引用文档按钮、到限禁用提示（禁 emoji，SF Symbols）", "status": "done" },
+        { "id": "S5.2", "name": "AIWritingView：仅 continueWriting/custom 渲染附件条；附件存 @State；选图经 S1 压缩入条", "status": "done" },
+        { "id": "S5.3", "name": "附件随 start 下传：AIAction.messages 收 attachments 附到首个 user 消息；session.start 透传；多轮不重复带图", "status": "done" },
+        { "id": "S5.4", "name": "附件条仅 idle 可编辑，流式/完成后只读或隐藏", "status": "done" }
       ],
-      "verify": "德语 UI + 中文文档跑「自由创作」触发反问：问题为德语、正文为中文；四动作 + refine 各跑一次不退化",
-      "start_at": "2026-07-16 00:30:00",
-      "done_at": "2026-07-16 00:47:01"
-    },
+      "verify": "自由创作加 1 图+引 1 文档发起后模型收到；润色无附件入口；上限提示生效（行为级 verify 并入 S7.2/S7.1：交互点按本环境不可用、模型收到需 API Key）",
+      "start_at": "2026-07-17 16:45:00",
+      "done_at": "2026-07-17 17:05:00"
     {
       "id": "S6",
-      "name": "system prompt 注入国家码与语言码",
-      "status": "done",
-      "depends_on": [
-        "S5"
-      ],
-      "refs": [
-        "C1",
-        "C8"
+      "name": "异常处理收口",
+      "status": "pending",
+      "depends_on": ["S3", "S5"],
+      "refs": ["C2", "C12"],
+      "notes": [],
+      "sub_steps": [
+        { "id": "S6.1", "name": "图片加载/压缩失败：单项跳过+附件条可读提示，不影响其余", "status": "done" },
+        { "id": "S6.2", "name": "模型不支持视觉（4xx）：带图失败补语义提示，不裸抛 provider 错误体", "status": "done" },
+        { "id": "S6.3", "name": "确认 streamWithToolFallback 降级重试请求体仍带图片块", "status": "done" },
+        { "id": "S6.4", "name": "空附件/超大单图/超限张数边界文案（catalog 本地化，禁 emoji）", "status": "done" }
       ],
       "notes": [
-        "国家码取 Locale.current.region（设备区域）而非语言偏好：用户可能「UI 英文但人在德国」，从语言反推区域会推错。",
-        "ClaudeClient 把 system 抽为顶层字段、ChatGPTClient 把 system 留在 messages —— 两条装配路径不同，是最容易只改一半的地方。",
-        "2026-07-16 完成。国家码取 Locale.current.region（设备区域），与语言偏好解耦；取不到时整条规则省略、不猜测。",
-        "2026-07-16 S6.3：两家客户端无需分别改 —— system 由 AIAction.messages() 统一装配后交给 AIClient，ClaudeClient 抽顶层字段、ChatGPTClient 留 messages 都在各自 serialize 里消费同一份内容，注入点在上游，天然覆盖两条路径。"
+        "2026-07-17 S6.1/S6.4 已在 S5 附件条落地：processPhotos 区分 tooLarge 与 loadFailures 给不同 caption；逐张兜住 maxImageCount；PhotosPicker maxSelectionCount 前置限张。",
+        "2026-07-17 S6.2 放 AIWritingSession.userFacingMessage：带图请求（messages 有 imageAttachments）遇 4xx 时，在 AIError 文案后补一句「所选模型可能不支持图片」。仅 4xx 且带图才补，避免对无关错误误导。",
+        "2026-07-17 S6.3 确认无需改代码：streamWithToolFallback 降级只把 tools 置空、makeRequest 用同一 messages 重建，图片块随消息保留。已加注释说明。",
+        "2026-07-17 行为级 verify（无视觉模型→提示；坏图跳过；降级带图抓包）需真实请求，并入 S7.1（API Key 门槛）。xcodebuild BUILD SUCCEEDED。"
       ],
-      "sub_steps": [
-        {
-          "id": "S6.1",
-          "name": "AIPromptLocale 补出国家码（Locale.current.region），缺失时优雅省略不猜测",
-          "status": "done"
-        },
-        {
-          "id": "S6.2",
-          "name": "注入 system prompt，格式明确并说明用途（日期/数字/单位/文化惯例）",
-          "status": "done"
-        },
-        {
-          "id": "S6.3",
-          "name": "确认 ClaudeClient 与 ChatGPTClient 两条路径都带上",
-          "status": "done"
-        }
-      ],
-      "verify": "抓实际请求体，两个客户端的 system 内容均含正确语言码与国家码",
-      "start_at": "2026-07-16 00:30:00",
-      "done_at": "2026-07-16 00:47:01"
+      "verify": "无视觉模型发图得可读提示；坏图被跳过其余仍发；降级重试仍带图（行为级并入 S7.1）",
+      "start_at": "2026-07-17 17:06:00",
+      "done_at": "2026-07-17 17:16:00"
     },
     {
       "id": "S7",
-      "name": "7 种语言翻译落地",
-      "status": "done",
-      "depends_on": [
-        "S3",
-        "S4"
-      ],
-      "refs": [
-        "C1"
-      ],
+      "name": "验收 + TODO 注释审计",
+      "status": "blocked",
+      "depends_on": ["S1", "S2", "S3", "S4", "S5", "S6"],
+      "refs": ["C1"],
       "notes": [
-        "已知风险：ja/ko/de/ru 译文由模型产出、无母语者校对（见 summary.md Assumptions）。",
-        "CLAUDE.md 的「App 文案禁用 emoji」对 7 种译文同样适用。",
-        "2026-07-16 完成。535 条译文（107 key × 5 语言）；zh-Hans 早在 S3/S4 迁移时已回填。校验：占位符不一致 0、含 emoji 0、缺译 0。",
-        "2026-07-16 zh-Hant 未做简繁直转，逐条过了台湾用词：資料夾(非文件夹)、新增(非新建)、檔案、設定、儲存、重新命名、匯入、產生、純文字、原始檔。",
-        "2026-07-16 复数已实机验证（往容器塞子项数 1/2/5 的文件夹后截图）：俄语 1 элемент / 2 элемента / 5 элементов 三型正确；德语 1 Objekt / 2 Objekte 正确。",
-        "2026-07-16 「Model」在所有语言保持英文原样（表单字段名对应 API 参数）；AI / API Key / Base URL / PDF 标记 shouldTranslate=false。"
+        "2026-07-17 S7.1 静态验证完成：独立脚本复刻两家 serialize 的 user 分支——无附件→{\"content\":\"hello\",\"role\":\"user\"} 与旧形状逐字节一致；ChatGPT→[text, image_url(data URI)]；Claude→[text, image{source base64/media_type}]。实时抓包（真发请求确认上游接受 + 无视觉模型触发 S6.2 提示）需用户真实 API Key，属凭据不代填。",
+        "2026-07-17 S7.3 完成：10 个新 key 补进 Localizable.xcstrings 各 6 语言(zh-Hans/zh-Hant/ja/ko/de/ru，en 为源语言隐含)。'Cancel/No Documents/Document/Create a document…' 复用既有键。plutil 解析编译产物确认 zh-Hans/de/ru 三语新键译文均在 bundle；无 emoji、state=translated。CLI 构建不写源 catalog，故手动补入。",
+        "2026-07-17 S7.4 完成：AIAttachmentBar 相册入口旁 TODO(拍照)、引用文档按钮旁 TODO(外部文件引用)，均注明本期范围与后续迭代所需(相机权限/安全作用域/格式解析)。",
+        "2026-07-17 S7.5 DoD 逐条：#2 无附件逐字节回归✓(脚本) #3 带图两家块格式✓(脚本) #4 <reference>注入✓(脚本) #7 TODO✓。#1 UI(缩略图/chip/删除/上限) 与 #5 图片压缩/限张/失败提示 的交互确认、#6 视觉不支持实时提示 → 依赖 S7.2 交互点按(本环境不可用)与 S7.1 实时抓包(需 Key)。编码器/压缩本身已脚本验证(4000px→1568)。",
+        "2026-07-17 【S7.2 阻塞】iOS 模拟器交互式点按在本环境不可用：simctl 无 tap 命令；osascript/System Events 点按需辅助功能授权、未授予且会挂起；无 XCUITest target。App 已装入模拟器干净启动。附件条 UI 为标准 SwiftUI(PhotosPicker/ForEach chip/allowsAttachments 门控)，代码与编译均已验证，唯缺人工点按走查。解除条件：用户手动过一遍两入口×生成类动作，或授予自动化点按能力。"
       ],
       "sub_steps": [
-        {
-          "id": "S7.1",
-          "name": "zh-Hans：从原中文回填，优先复用母语原句而非从英文回译",
-          "status": "done"
-        },
-        {
-          "id": "S7.2",
-          "name": "zh-Hant：由 zh-Hans 转换并过一遍用词差异（软件/軟體、文件/檔案、设置/設定）",
-          "status": "done"
-        },
-        {
-          "id": "S7.3",
-          "name": "ja / ko 翻译",
-          "status": "done"
-        },
-        {
-          "id": "S7.4",
-          "name": "de / ru 翻译（ru 复数三型；de 长词溢出）",
-          "status": "done"
-        },
-        {
-          "id": "S7.5",
-          "name": "全语言复查：无 emoji、占位符数量与顺序正确、专名（Markdown/AI）不译",
-          "status": "done"
-        }
+        { "id": "S7.1", "name": "抓包：无附件两家逐字节回归；带图两家块格式正确（需用户 API Key，卡则 blocked）", "status": "done" },
+        { "id": "S7.2", "name": "UI 走查：两入口×生成类动作，附件条/缩略图/删除/上限/只读态", "status": "blocked" },
+        { "id": "S7.3", "name": "新增文案进 catalog 7 语言、无 emoji、无 stale", "status": "done" },
+        { "id": "S7.4", "name": "拍照、外部文件引用两处留 TODO 注释指向后续迭代", "status": "done" },
+        { "id": "S7.5", "name": "逐条对照 summary DoD 七项", "status": "done" }
       ],
-      "verify": "Xcode 中 catalog 7 种语言均无 stale / needs-review，无空值",
-      "start_at": "2026-07-16 00:46:00",
-      "done_at": "2026-07-16 00:54:06"
+      "verify": "DoD 七项全部通过（带图抓包无 Key 可留用户自验）",
+      "start_at": "2026-07-17 17:17:00"
     },
     {
       "id": "S8",
-      "name": "全语言验收",
+      "name": "图片能力门控（用户自声明开关）",
       "status": "in_progress",
-      "depends_on": [
-        "S2",
-        "S6",
-        "S7"
-      ],
-      "refs": [
-        "C1"
-      ],
+      "depends_on": ["S5"],
+      "refs": ["C1"],
       "notes": [
-        "2026-07-16 S8.1 抓到一个真 bug 并已修：韩语「시스템 설정 따르기」在 iPhone SE(375pt) 的分段选择器里被截断成「시스템 설정 따…」。iPhone 17 Pro(402pt) 上不复现 —— 宽屏刚好放得下，是本机默认模拟器掩盖了它。已缩短为「시스템 따르기」（语义不变）并在 375pt 复验通过。其余 6 语在 375pt 均无截断（俄语 Как в системе 是次长的，容得下）。",
-        "2026-07-16 验证手法：本机无窄屏模拟器，用 xcrun simctl create 临时造 iPhone SE(3rd gen)，验完即删。这条对后续 UI 改动同样有用 —— 默认模拟器是宽屏，截断类问题不会自己冒出来。",
-        "2026-07-16 S8.2 兜底链在最终产物上复验通过：系统法语 → 全英文。",
-        "2026-07-16 S8.4 DoD 逐条：#1 免重启切换（S1.2 已验）✓ / #2 优先级链三路径 ✓ / #3 源码无面向用户中文（仅剩 LanguagePreference.nativeName 母语自称，故意）✓ / #4 catalog 缺译 0、stale 0、非 translated 0 ✓ / #5 AI 交叉场景 —— 阻塞 / #6 system prompt 含国家码语言码 —— 阻塞。",
-        "2026-07-16 Xcode 会给双参数 key 自动补 en 条目并改写成位置化占位符（%1$lld/%2$@）、标记 state=new。已确认为 translated。这是每次新增多参数文案都会遇到的，不是错误。",
-        "2026-07-16 【验证方法的盲区，重要】S3 之后的所有多语言验证都用 -AppleLanguages 改系统语言，那种情况下 String(localized:) 按 Locale.current 取词本就正确，故 bug 不暴露。必须用「系统语言 ≠ App 内偏好」才能测出来。手法：xcrun simctl launch <id> -settings.language de（-key value 形式的启动参数会注入 UserDefaults 的 argument domain），保持系统中文即可复现。今后任何多语言验收都应包含这一组合。"
+        "2026-07-17 缘起用户实测：MiniMax 文本模型发图答『访问不了链接』。App 支持任意自定义 provider/model，无法可靠判断视觉能力，且文本模型常 200 文字拒绝、事后难检测。故不由 App 猜测，改由用户在配置里自声明——与现有『响应格式手动选』同哲学。",
+        "2026-07-17 决策（用户确认）：图片按钮常态展示；开关关时点它跳转配置页（非隐藏）；开关下方小字 tip 让用户自行确认 provider/model 是否支持附件。文档引用不受此门控（纯文本任意模型可读）。"
       ],
       "sub_steps": [
-        {
-          "id": "S8.1",
-          "name": "逐语言过主要界面，检查截断/换行/按钮溢出（de、ru 最易撑破）",
-          "status": "done"
-        },
-        {
-          "id": "S8.2",
-          "name": "验证优先级链三条路径：有偏好 / 跟随系统 / 系统为法语时兜底英文",
-          "status": "done"
-        },
-        {
-          "id": "S8.3",
-          "name": "AI 全动作 × 代表性语言组合抽测，重点 UI 语言 ≠ 文档语言的交叉场景",
-          "status": "blocked"
-        },
-        {
-          "id": "S8.4",
-          "name": "逐条对照 summary.md 的 Definition of Done 六项",
-          "status": "done"
-        }
+        { "id": "S8.1", "name": "AIConfig 加 supportsImages(默认 false)+自定义 Decodable 迁移，旧配置缺键回退 false", "status": "done" },
+        { "id": "S8.2", "name": "AIConfigEditorView 加开关 + footer tip；文案本地化", "status": "done" },
+        { "id": "S8.3", "name": "AIAttachmentBar 加 supportsImages+onNeedsConfig：图片按钮常显，开→PhotosPicker、关→跳配置", "status": "done" },
+        { "id": "S8.4", "name": "AIWritingView 呈现配置 sheet，onDismiss 重载 config 刷新门控", "status": "done" }
       ],
-      "verify": "DoD 六项全部通过",
-      "start_at": "2026-07-16 00:54:00"
+      "notes": [
+        "2026-07-17 S8.1：AIConfig 加 supportsImages: Bool=false，扩展里自定义 init(from:) 用 decodeIfPresent ?? false（synthesized Decodable 不认默认值、缺键会 keyNotFound 读废旧配置）。独立脚本验证：旧 JSON(无键)→false；新配置往返一致；显式 true 正常读。Encodable 仍合成、含新键。",
+        "2026-07-17 S8.3/S8.4：图片按钮常态展示；supportsImages 开→PhotosPicker、关→onNeedsConfig() 由 AIWritingView 呈现 AIConfigEditorView sheet，onDismiss 重载 config 刷新门控。session 仍用初始 config（只切图片能力、不改端点，无需重建）。文档引用不受门控。",
+        "2026-07-17 S8.2：配置页加 Toggle『Allow image attachments』+ footer tip（仅当接口/模型支持视觉才开，不确定就关、仍可引用文档）。2 个新文案补进 catalog 6 语言、无 emoji。xcodebuild BUILD SUCCEEDED。",
+        "2026-07-17 交互确认（关→点图片进配置页、开→返回可选图）本环境不可点按，并入 S7.2 走查。迁移与门控逻辑已脚本+编译验证。"
+      ],
+      "verify": "开关关时点图片按钮进配置页；开后返回可选图；文档引用始终可用；旧配置能正常读取不崩（迁移已脚本验证；交互并入 S7.2）",
+      "start_at": "2026-07-17 17:50:00",
+      "done_at": "2026-07-17 18:02:00"
+    },
+    {
+      "id": "S9",
+      "name": "图片入口合并拍照+相册",
+      "status": "done",
+      "depends_on": ["S5"],
+      "refs": ["C7"],
+      "notes": [
+        "原计划 out-of-scope 的『拍照』现补齐。PhotosPicker 只含相册，拍照需 UIImagePickerController(sourceType=.camera)+NSCameraUsageDescription。",
+        "2026-07-17 CameraPicker(UIViewControllerRepresentable) 产出拍照 Data；图片入口改 Menu（拍照 isSourceTypeAvailable 才显、相册走 .photosPicker(isPresented:)）；supportsImages 关时整入口→onNeedsConfig 跳配置。相册批量与相机单张共用 encodeAndAppend 压缩逻辑（DRY）。",
+        "2026-07-17 NSCameraUsageDescription 加进 Info.plist（base en），并建 InfoPlist.xcstrings 7 语言（en+6）。构建产物确认：Info.plist 含相机键、各 lproj 生成 InfoPlist.strings。",
+        "2026-07-17 附件入口样式按用户反馈调整：字号 .body（稍大）、tint 用 Color(.secondaryLabel) 灰色系、深浅色主题自适配（语义色构造上成立）。观感待用户设备眼校。",
+        "2026-07-17 交互/真机验证（弹菜单、拍照、相机权限弹窗）本环境不可点按且模拟器无相机，并入用户走查（S7.2/S11）。编译通过、App 冷启动正常。"
+      ],
+      "sub_steps": [
+        { "id": "S9.1", "name": "CameraPicker：UIViewControllerRepresentable 包 UIImagePickerController(.camera) 产出图片 Data", "status": "done" },
+        { "id": "S9.2", "name": "Info.plist 加 NSCameraUsageDescription（本地化）", "status": "done" },
+        { "id": "S9.3", "name": "图片入口改 Menu：拍照(isSourceTypeAvailable 才显)+从相册(.photosPicker(isPresented:))；门控关→onNeedsConfig", "status": "done" },
+        { "id": "S9.4", "name": "拍照结果经 ImageAttachmentEncoder 压缩入附件", "status": "done" }
+      ],
+      "verify": "真机点图片弹菜单，拍照/相册各得压缩图；模拟器无拍照项；开关关→跳配置（交互并入用户走查）",
+      "start_at": "2026-07-17 18:22:00",
+      "done_at": "2026-07-17 18:50:00"
+    },
+    {
+      "id": "S10",
+      "name": "文件选择入口（文本+PDF+图片）",
+      "status": "done",
+      "depends_on": ["S5"],
+      "refs": ["C2", "C4", "C5", "C6"],
+      "notes": [
+        "用户确认：文件入口接受文本/PDF/图片；文本→注入、图片→图片块、PDF→原生文档块（受门控、依赖模型支持，兼容性风险已知选定）。",
+        "两路同改陷阱重演：PDF 块 ChatGPT(content part type:file+file_data data URI) 与 Claude(block type:document+source.base64 application/pdf)是两条独立路径。",
+        "多数 OpenAI 兼容代理对 file part 支持不一，PDF 失败走现有 AIError.http 提示；文本类文件是万能兜底。",
+        "2026-07-17 实现：AIAttachment 加 .pdf(data,name)+pdfPayload；AttachmentLimits.maxPDFBytes=8MB。AIMessage.pdfAttachments 从 attachments 派生（元组不满足 Equatable，不能另存）。MultimodalContent 广义为 userContent(text,mediaBlocks)，两家各自把 image+pdf 映射成 mediaBlocks。AIAction.messages 富媒体=图片+PDF 一并随 user 消息。",
+        "2026-07-17 fileImporter allowedContentTypes=[.text,.pdf,.image] 多选；processFiles 按 contentType 路由：conforms(.image)→压缩入图、conforms(.pdf)→查体积入 pdf、否则读 UTF-8 文本入 documentReference。安全作用域 start/stop。图片/PDF 受 supportsImages 门控，关时 gatedOut 提示去配置；文本不受门控。PDF chip 用 doc.richtext。",
+        "2026-07-17 独立脚本核对 PDF 块：ChatGPT {type:file,file:{filename,file_data:data:application/pdf;base64}}；Claude {type:document,source:{base64,application/pdf,data}}；图片+PDF 混合 text+image_url+file 三块有序；无附件字符串兼容。xcodebuild BUILD SUCCEEDED、冷启动正常。交互走查（真机选文件/PDF）并入用户走查。",
+        "2026-07-17 【文件类型放宽】用户问代码文件是否支持。UTType 实测：多数代码/文本(swift/py/js/tsx/json/xml/yaml/html/css/md/txt/c/cpp/h/java/rb/sh/sql/php/toml/ini/csv/log)归属 public.text 可选；但 .go/.rs/.kt 无注册 UTI(dyn.*)、.ts 被系统识别成 mpeg-2-transport-stream(视频)、.plist 非 text —— 仅列 .text 会把它们挡在选择器外。改 allowedContentTypes=[.image,.pdf,.text,.data]，.data 兜底放行任意文件；processFiles 非图片/PDF 一律 UTF-8 读取判定，读得出即文本注入、读不出(二进制 docx/zip)跳过。加 AttachmentLimits.maxTextBytes=1MB：读文本前按 fileSize 挡大文件，防大二进制整读入内存 + 超大文本撑爆 prompt。"
+      ],
+      "sub_steps": [
+        { "id": "S10.1", "name": "AIAttachment 加 .pdf(data,name)+PDF 体积上限常量", "status": "done" },
+        { "id": "S10.2", "name": "AIMessage 广义 rich 附件(image+pdf)；两家 serialize 加 PDF 块（同改）", "status": "done" },
+        { "id": "S10.3", "name": "fileImporter 选文本/PDF/图片，按 UTType 路由：文本→documentReference、图片→image、PDF→pdf", "status": "done" },
+        { "id": "S10.4", "name": "门控广义化：supportsImages 覆盖图片与 PDF；文件入口常显，门控关时图片/PDF 拦下提示、文本仍入", "status": "done" },
+        { "id": "S10.5", "name": "更新 supportsImages 的 label/tip 文案为『图片与 PDF』", "status": "done" }
+      ],
+      "verify": "文件入口选 txt→注入、选图→图片块、选 PDF(开关开)→两家 PDF 块格式正确；开关关时图片/PDF 被拦、文本仍入",
+      "start_at": "2026-07-17 18:52:00",
+      "done_at": "2026-07-17 19:15:00"
+    },
+    {
+      "id": "S11",
+      "name": "入口提示文案 + 收尾",
+      "status": "pending",
+      "depends_on": ["S9", "S10"],
+      "refs": ["C1"],
+      "notes": [
+        "#1『移除 Tell me what you want first.』代码改动已在本阶段开工时完成：AIAction.validationError 删除 custom 强制 prompt 分支；AIWritingView 按钮启用改为 custom 需『prompt 或附件至少其一』（canStart）。stale key 待 S11.2 清。"
+      ],
+      "notes": [
+        "2026-07-17 S11.1 入口上方加灰色小字提示（.footnote/.secondary 主题自适配）。S11.2 清 3 个 stale：Tell me what you want first.、旧开关标签 Allow image attachments、旧 tip。S11.3 补 11 个新 key×6 语言，无 emoji；复扫缺译=0（品牌词 shouldTranslate=false 除外）。S11.4 拍照/外部文件已从 TODO 变实现、无残留 TODO。",
+        "2026-07-17 S11.5 DoD 复核：原 7 项仍成立；新增能力（拍照合并入口、文件选择文本/PDF/图片、PDF 原生块两家、门控广义化、custom 仍需文字、入口样式/提示）均已实现+静态验证。图片/PDF 实时抓包与真机交互仍需用户（S7.1/S7.2）。"
+      ],
+      "sub_steps": [
+        { "id": "S11.1", "name": "Photo/Document/File 入口上方加提示文案『添加合适的附件，让 AI 帮你生成更好的内容』（禁 emoji）", "status": "done" },
+        { "id": "S11.2", "name": "移除已 stale 的 Tell me what you want first. catalog key", "status": "done" },
+        { "id": "S11.3", "name": "本轮新增文案全量进 catalog 6 语言、无 emoji、无 stale", "status": "done" },
+        { "id": "S11.4", "name": "更新 AIAttachmentBar 里拍照/外部文件 TODO 注释为已实现", "status": "done" },
+        { "id": "S11.5", "name": "DoD 复核（含新增能力）", "status": "done" }
+      ],
+      "verify": "入口上方提示常显；catalog 无 stale/缺译/emoji；TODO 已更新",
+      "start_at": "2026-07-17 19:16:00",
+      "done_at": "2026-07-17 19:35:00"
     }
   ],
   "failures": [
     {
-      "step": "S8.3",
-      "reason": "DoD #5（德语 UI + 中文文档 → 德语提问、中文正文）与 #6（抓包确认 system prompt 含国家码/语言码）需要真实 AI API Key 才能发起请求。密钥属用户凭据，不代为填写。解除条件：用户在设置页配好 AI 接口后告知，或自行按 DoD #5/#6 验证。",
-      "at": "2026-07-16 01:02:54"
+      "step": "S7.2",
+      "reason": "iOS 模拟器交互式点按走查在本环境不可用：xcrun simctl 无 tap 命令；osascript/System Events 点按需辅助功能授权、未授予且会挂起；项目无 XCUITest target。附件条实现与编译已完成、逻辑已脚本验证，缺人工点按确认。解除：用户手动过一遍两入口×生成类动作的附件交互，或提供点按自动化能力。",
+      "at": "2026-07-17 17:28:00"
     },
     {
-      "step": "S8.1",
-      "reason": "用户实测发现：App 内切语言后首页标题恒为「文档」。根因 —— Foundation 的 String(localized:) 不经过 Bundle.localizedString(forKey:value:table:)，绕开了取词拦截，按系统语言取词。S1.2 的结论「取词拦截覆盖所有路径」因此是错的：它只覆盖 LocalizedStringKey/Text 系。影响全部 14 处 String(localized:) 调用点（含 6 条 AI 错误提示、日期文案、复数、兜底文件名）。已修：新增 LocalizationController.string(_:)（内部用 String(localized:bundle:) 显式传语言包），全部调用点替换完毕并实机复验通过。",
-      "at": "2026-07-16 01:07:16"
+      "step": "S7.1",
+      "reason": "带图请求的实时抓包（确认上游真的接受图片块 + 无视觉模型触发 S6.2 可读提示）需真实 AI API Key 才能发请求，属用户凭据、不代填。无附件逐字节回归、两家图片块格式已用独立脚本静态验证通过。解除：用户配好 AI 接口后自行发一次带图请求抓包，或告知由我协助。",
+      "at": "2026-07-17 17:28:00"
+    },
+    {
+      "step": "S7.1",
+      "reason": "2026-07-17 用户实测反馈：模型答『访问不了链接』。已定位——附件发的是内联 base64（非链接，代码正确，grep 复核 ChatGPTClient data:image/jpeg;base64 与 ClaudeClient source.base64 确认）；用户当时用 MiniMax 文本模型（『minimax 2.7』），文本模型不支持图片输入、收到内联图会答非所问。结论：图片链路要用视觉模型（MiniMax-VL / gpt-4o / claude-sonnet 等）才测得出；文档引用是纯文本、任何模型可读，可先用它验证注入链路。用户选择『200 文字拒绝』盲区暂不处理，不改 S6.2（仍仅 4xx 触发提示）。",
+      "at": "2026-07-17 17:40:00"
     }
   ],
   "decisions": {
-    "languages": "7 种：zh-Hans、en、zh-Hant、ja、ko、de、ru（原文「日德语」为「日语」笔误，已确认）",
-    "base_language": "源码字面量与 catalog 基准为 en；兜底 en；developmentRegion 保持 en",
-    "resolution_chain": "用户存储偏好 → 系统语言（首个受支持项）→ en",
-    "l10n_carrier": "String Catalog（.xcstrings），单一 catalog，不用 .strings",
-    "switch_mechanism": "免重启即时生效；不用 AppleLanguages + 重启方案",
-    "ai_output_language": "跟随文档/用户输入语言，非 UI 语言（用户确认）",
-    "prompt_strategy": "英文骨架 1 份 + 按 locale 注入语言指令，非 7 套手写（用户确认）",
-    "language_instruction_split": "双语义：反问澄清问题用 UI 语言（界面文本），生成正文用文档语言（内容）。为两个决策叠加后的推论，已向用户点明待确认",
-    "country_code_source": "Locale.current.region（设备区域），非语言偏好反推",
-    "template_html": "不纳入本计划：其中文全为代码注释，无面向用户文案",
-    "lookup_mechanism": "替换 Bundle.main 主体类拦截取词（S1.2 实测确定）；.environment(\\.locale) 保留但仅作格式化与重渲染信号。实测否决：environment 单独用（漏 navigationTitle 与模型层）、String(localized:locale:) 显式传 locale（该参数不选语言包，无效）。",
-    "rerender_granularity": ".id(language) 加在每个 NavigationStack（封装为 .rebuildsOnLanguageChange()），不加在 App 根部 —— 根部重建会掀掉已弹出的 sheet。",
-    "zh_hans_backfill": "迁移时同步回填 zh-Hans（不留到 S7）：中文原文是母语打磨过的，替换成英文 key 的瞬间若不存下就永久丢失，S7 只能从英文回译、质量必然下降。",
-    "string_lookup_two_paths": "取词分两条路，各有入口，缺一不可：① LocalizedStringKey/Text/navigationTitle → Bundle 主体类拦截，业务代码照常写；② 需要 String 的地方（模型层、与用户文件名共用参数的标题）→ 必须走 LocalizationController.string(_:)。禁止在业务代码直接用 Foundation 的 String(localized:) —— 它绕过拦截、只认系统语言，且在「系统语言 == 偏好语言」时不暴露，极易漏检。"
+    "enable_scope": "仅生成类动作：续写(continueWriting)+自由创作(custom)。润色/整理不加附件入口（用户确认）",
+    "image_source": "仅相册 PhotosPicker，不做拍照（拍照留 TODO 后续迭代，用户确认）",
+    "document_source": "仅库内 .md，不引用外部文件（外部引用留 TODO 后续迭代，用户确认）",
+    "image_strategy": "本地自动压缩降采样(长边~1568px/JPEG)+限张(默认4)+视觉不支持时可读异常（用户确认）",
+    "doc_reference_impl": "纯文本注入 user 消息 <reference> 边界，不走图片块；在 AIAction 层消费，不改消息多模态",
+    "backward_compat": "无附件时两家 client 请求体逐字节不变，user 保持 content 字符串；多模态仅在有图时启用",
+    "attachment_carrier": "新增中立 AIAttachment（image Data / documentReference text），挂 user 消息；文档在 AIAction 层消费、图片在 client 层消费——两个消费层，别把文档塞进图片块",
+    "two_serialize_paths": "ChatGPTClient(image_url data URI)与 ClaudeClient(image source base64)是两条独立路径，S3 必须同改同验，防只改一半",
+    "vision_model_required": "图片附件发的是内联 base64（非链接），需视觉模型才可用；文本模型（如 MiniMax 文本系）会答非所问『访问不了链接』。文档引用是纯文本、任意模型可读。",
+    "text_refusal_blindspot": "『模型不支持图片却返回 200 文字拒绝』这一盲区用户确认暂不处理：S6.2 提示仍仅在 4xx 触发，不加模型名白名单预检。",
+    "custom_requires_text": "custom 动作仍需填文字才能发起——附件只是补充上下文、不能替代指令（用户 2026-07-17 明确纠正）。只是移除了错误文案 Tell me what you want first.，按钮在无文字时静默禁用（AIWritingView.canStart = action != .custom || hasPrompt）。",
+    "camera_merge": "拍照与相册合并为一个『图片』入口，点击弹 Menu（拍照/从相册）；拍照走 UIImagePickerController(.camera)+NSCameraUsageDescription，相册走 .photosPicker(isPresented:)。模拟器无相机时隐藏拍照项。",
+    "file_entry_scope": "文件入口(fileImporter)接受文本/PDF/图片（用户确认最全方案）：文本→documentReference 注入、图片→图片块、PDF→原生文档块。",
+    "pdf_native_block": "PDF 走原生多模态块而非本地提取文本（用户确认）：ChatGPT content part type:file+file_data(data URI)、Claude block type:document+source.base64(application/pdf)。跨 provider 兼容性风险已知，失败走 AIError.http 提示。",
+    "gating_generalized": "supportsImages 开关语义广义化为『图片/PDF 等富附件』总开关：图片与 PDF 均受其门控，文本（文档引用/文本文件）永不门控。字段名保持 supportsImages 不改（免再迁移），仅 UI 文案改为图片与 PDF。"
   },
   "notes": [
-    "2026-07-15 bootstrap。前置调研结论：项目零本地化资源（无 .lproj/.strings/.xcstrings），developmentRegion 已是 en；约 141 处中文字面量分布在 26 个文件；AI prompt 高度集中在 AIAction.swift 与 AITool.swift 两个文件，收口良好。",
-    "S2/S3/S4/S5 相互无依赖，可并行推进；S3 与 S4 都完成后再开 S7（键齐了一次性翻译）。",
-    "架构收敛点（CLAUDE.md 原则）：「当前该用哪个 locale」只有 LocalizationController 一个来源；优先级链只实现一次。UI 走 environment、Model 层走显式传参，但取的是同一个解析结果。",
-    "2026-07-16 构建环境：xcode-select 指向 CommandLineTools 而非 Xcode，xcodebuild/simctl 默认不可用。用 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer 按次覆盖即可，无需 sudo 改全局。Xcode 26.6，模拟器 iPhone 17 Pro (330A25A5-50F1-4A4E-89A9-0F855537D51F)。",
-    "2026-07-16 验证手法备忘：simctl 无法点按钮，但可用 xcrun simctl launch <id> -AppleLanguages \"(fr-FR)\" -AppleLocale fr_FR 按次伪装系统语言，用来验优先级链；验运行时切换则用「同一进程内定时改偏好 + 分时截图」，避免「重新构建再看」把重启混淆成免重启。",
-    "2026-07-16 S2–S5 一次性完成。当前状态：源码零面向用户中文字面量（仅剩 LanguagePreference.nativeName 的母语自称，故意保留）；catalog 111 个 key = 107 条已回填 zh-Hans + 4 个品牌名不翻译；构建通过；中文界面与迁移前逐字一致（已截图比对），德语系统正确回退英文。"
+    "2026-07-17 bootstrap。前置调研：AIMessage.content 是纯 String；AIWritingView.promptInput 是两个入口(FileBrowserView 首页 custom / DocumentView 编辑器四动作)共用的 UI 挂载点；引用文档可复用 FileStore.tree + DocumentSwitcherSheet 树形。",
+    "S3 与 S4 相互无依赖，均只依赖 S2，可并行。",
+    "验证环境沿用归档 i18n 计划记录：xcode-select 指向 CommandLineTools，需 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer 按次覆盖；Xcode 26.6，模拟器 iPhone 17 Pro。端到端带图抓包需用户真实 API Key（属凭据，不代填）。",
+    "遵循 CLAUDE.md：文件≤200-300 行则拆、DRY、feature 分层、文案禁 emoji、图标用 SF Symbols。"
   ]
 }

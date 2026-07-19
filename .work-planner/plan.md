@@ -1,140 +1,184 @@
-# Plan — 多语言 i18n 落地
+# Plan — AI 输入附件（图片 + 引用文档）
 
 ## Target architecture
 
+新增/改动（按 CLAUDE.md feature 分层归位）：
+
 ```
-MarkdownApp/MarkdownApp/
-├── Models/
-│   ├── LanguagePreference.swift     # 新增：语言偏好枚举（.system + 7 种显式），照 ThemePreference 形状
-│   ├── SettingsStore.swift          # 扩展：新增 language 属性，写入即落盘（其注释已预告此扩展）
-│   └── AIAction.swift / AITool.swift # 改造：prompt 英文骨架化 + 语言指令注入
-├── DesignSystem/
-│   ├── LocalizationController.swift # 新增：locale 解析 + 取词拦截（Bundle.main 主体类替换）的唯一收敛点
-│   │                                # （与 InterfaceStyleController 并列——同为「偏好 → 全局生效」的封装层）
-│   └── LanguageRebuild.swift        # 新增：.rebuildsOnLanguageChange() —— 每个 NavigationStack 必加
-├── Features/Settings/
-│   └── LanguagePickerSheet.swift    # 新增：替换 SettingsView 里的 LanguagePlaceholderSheet
-├── Models/AIPromptLocale.swift      # 新增：注入给模型的区域上下文（语言码 + 国家码 + 语言指令）
-└── Resources/
-    └── Localizable.xcstrings        # 新增：唯一 String Catalog，7 种语言
+Models/
+├── AIAttachment.swift        # 新增：中立附件模型（image / documentReference）+ 图片压缩编码
+├── AIMessage.swift           # 改：user 消息可携带 [AIAttachment]（多模态载体）
+├── AIAction.swift            # 改：userContent 注入 <reference> 文档引用；messages() 透传附件
+├── ChatGPTClient.swift       # 改：user 消息带附件时序列化成 content blocks（text + image_url）
+├── ClaudeClient.swift        # 改：user 消息带附件时序列化成 content blocks（text + image source）
+Features/AI/
+├── AIAttachmentBar.swift     # 新增：附件条（缩略图/文档 chip、删除、加图/加文档按钮、计数）
+├── DocumentReferencePicker.swift  # 新增：库内 .md 多选选择器（复用 FileStore.tree 树形）
+├── AIWritingView.swift       # 改：promptInput 下方挂 AIAttachmentBar；附件随 start 带下去
+├── AIWritingSession.swift    # 改：start 接收附件，附着到首个 user 消息；多轮不重复带图
+├── AILaunch.swift            # （视需要）无需改：附件是 View 内部状态，不进 launch 载荷
 ```
 
-**关键收敛点**（对应 CLAUDE.md「可用性判断/差异收敛到一处」）：
-- 「当前该用哪个语言」只有 `LocalizationController` 一个答案来源；取词经 `Bundle.main` 主体类拦截统一导向选定语言包。
-- 「语言解析优先级链」（偏好 → 系统 → en）只实现一次，不散落。
-
-**S1.2 实测确立的三条硬规则**（写 S3/S4 代码时必须遵守，来由见 summary.md 的 Assumptions）：
-1. **取词分两条路，各有入口**：`Text("Key")` / `navigationTitle("Key")` 等 LocalizedStringKey 照最自然的写法写（Bundle 主体类拦截已在底层解决）；
-   但**需要 `String` 的地方必须走 `LocalizationController.string("Key")`** —— Foundation 的 `String(localized:)` 不经过 `Bundle.localizedString(forKey:value:table:)`，
-   绕开拦截、只认系统语言。**危险在于它在「系统语言 == 偏好语言」时表现正常**，只有 App 内切到不同语言才暴露（首页标题曾因此恒显中文）。
-2. **绝不用 `String(localized:locale:)` 传 locale 来切语言**——该参数只影响复数与数字格式，不选语言包，实测无效。
-3. **每个 `NavigationStack` 必须加 `.rebuildsOnLanguageChange()`**，否则其 `navigationTitle` 在切换语言后静默停留在旧语言（`Text` 会自己更新而它不会，最易漏检）。
+设计要点：
+- **`AIAttachment`（中立）**：`enum { case image(Data /*已压缩 JPEG*/) ; case documentReference(name: String, text: String) }`。
+  图片在加入附件条时就地压缩降采样成 JPEG Data（S1 的编码器），入模型即「可直接发」的形态。
+- **文档引用不是多模态**：它在 `AIAction.userContent` 里以 `<reference title="...">...</reference>` 注入文本，
+  与 `<document>` 上下文并列。因此 documentReference 其实**不需要进图片块**——但为「附件条 UI 统一展示」
+  仍作为一种 `AIAttachment` 存在，只是序列化时图片走块、文档在 userContent 阶段就已拼进文本。
+  → 关键分工：**文档引用在 AIAction 层消费（拼进 user 文本）；图片在 client 层消费（拼成 image block）**。
+- **向后兼容**：`AIMessage` 加 `attachments: [AIAttachment] = []`，默认空。两家 client `serialize` 里：
+  user 消息 `attachments` 为空 → 走旧的 `"content": "<string>"`；非空 → 走 content blocks 数组。
+  纯文本路径一行不改行为。
 
 ## Dependency graph
 
 ```
-S1 ──┬──> S2 ──────────────┐
-     ├──> S3 ──┬──> S7 ──> S8
-     ├──> S4 ──┘           │
-     └──> S5 ──> S6 ───────┘
+S1 ──> S2 ──> S3 ──> S6 ──> S7
+        │              ^
+        └──> S4 ──┐    │
+                  ├──> S5 ──┘
+        (S4 也依赖 S2 的附件模型)
 ```
 
-S2 / S3 / S4 / S5 之间无依赖路径，可并行推进。S3 与 S4 都必须完成后才开 S7（键齐了才好一次性翻译）。
+- S1 图片压缩编码器（叶子工具，先行，S3 要用其产物）
+- S2 消息层多模态载体（AIAttachment + AIMessage 扩展）
+- S3 两家 client 图片序列化（依赖 S2 载体、S1 产物格式）
+- S4 引用文档选择器 + 文本注入（依赖 S2 附件模型；与 S3 并行）
+- S5 输入 UI 接线（依赖 S2 载体、S3 能发图、S4 能选文档）
+- S6 异常处理收口（依赖 S3/S5 主链路可用）
+- S7 验收 + TODO 注释审计（依赖全部）
 
 ## Phases / Steps
 
-### S1 — 本地化基建与生效机制验证
-- Goal: 有一个能跑通的最小闭环——两三个字符串走 `.xcstrings`，切换偏好后**免重启**变化；并且明确 Model 层字符串该怎么写。
+### S1 — 图片压缩降采样编码器
+- Goal：给定相册项的原始 Data/`PhotosPickerItem`，产出 provider 安全尺寸的 JPEG Data（长边 ≤~1568px、质量可控），失败返回可区分的错误。
 - Depends on: none
-- Refs: C1（优先级链）、C2/C3（要匹配的既有模式）、C5（免重启生效的既有范例）
-- Resolves: 「SwiftUI Text 能否随 environment locale 即时重解析」「Model 层 String(localized:) 不读 environment」两个 open question
+- Refs: C2 — 压缩参数与 media_type 约定
 - Sub-steps:
-  - S1.1 建 `Localizable.xcstrings`；`knownRegions` 加齐 7 种；确认 `developmentRegion = en` 保持不变
-  - S1.2 **Spike（先做，它决定后面所有调用点的写法）**：验证 `.environment(\.locale, resolved)` 能否让 `Text` 即时切换语言。同时验证 Model 层 `String(localized:locale:)` 显式传 locale 的效果。若 environment 方案不成立 → 记录到 `failures`，改用 Bundle 主体类 swizzle 方案并**回来更新本步的架构描述**再往下走
-  - S1.3 写 `LanguagePreference`（`.system` + 7 种；`label` 用可本地化类型而非 `String`——注意 `ThemePreference.label` 目前是硬编码中文，是 S4 的活）
-  - S1.4 `SettingsStore` 加 `language` 属性（key `settings.language`，与 `settings.theme` 同风格），写入即落盘
-  - S1.5 写 `LocalizationController`：实现优先级链（偏好 → 系统首个受支持 → en），暴露 resolved locale；在 `ContentView` 挂上 environment 注入（参照 ContentView.swift:64 主题的 `onChange(initial: true)` 写法）
-- Verify: 临时把设置页某两个字符串接入 catalog，代码里切换 `settings.language` 到 de，**不重启**即变德语；清空偏好 + 设备系统语言设为法语时显示英文。
+  - S1.1 写 `ImageAttachmentEncoder`（或作为 `AIAttachment` 的静态方法）：`UIImage` 降采样（`ImageIO` 的 `CGImageSourceCreateThumbnailAtIndex`，避免整图解码进内存）→ JPEG 压缩。
+  - S1.2 定义常量（maxLongEdge、jpegQuality、maxCount=4、单张体积上限）集中一处。
+  - S1.3 失败路径：非图片/解码失败/压缩后仍超限，各返回明确错误。
+- Verify：喂一张大图（如 4000px HEIC）产出 JPEG 且长边 ≤ 阈值、体积在限内；喂坏数据返回错误不崩。
 
-### S2 — 语言切换 UI
-- Goal: 设置页「切换语言」点开是真实可用的选择器，不再是占位。
+### S2 — 消息层多模态载体
+- Goal：`AIMessage` 能携带附件，且默认空时行为与现状完全一致。
 - Depends on: S1
-- Refs: C4（要替换的 `LanguagePlaceholderSheet`，SettingsView.swift:96–116）
+- Refs: C3 — AIMessage 现状
 - Sub-steps:
-  - S2.1 写 `LanguagePickerSheet`：列出「跟随系统」+ 7 种语言，**每种语言用其自身语言书写**（Deutsch 而非「德语」——用户看不懂当前语言时才需要切换，这是切换器的存在意义），当前项打勾
-  - S2.2 接进 `SettingsView.sheetContent` 的 `.language` 分支，删除 `LanguagePlaceholderSheet`
-  - S2.3 确认与系统 per-app 语言设置的关系：App 内偏好优先，且不打架
-- Verify: 设置页切换任一语言，sheet 内与其后的整个 App 立即变为该语言；重启 App 后偏好仍在。
+  - S2.1 新增 `AIAttachment`（image(Data) / documentReference(name,text)），放 Models/。
+  - S2.2 `AIMessage` 加 `attachments: [AIAttachment] = []`（仅 user 有意义），构造器与 Equatable 兼容。
+  - S2.3 复核所有现有 `AIMessage(...)` 构造点默认空附件、不受影响（编译即证）。
+- Verify：项目编译通过；现有纯文本消息构造不需改动。
 
-### S3 — Features 层文案迁移
-- Goal: `Features/` 下全部面向用户文案进入 catalog（英文为基准值）。
-- Depends on: S1
-- Refs: C1
+### S3 — 两家 client 图片序列化
+- Goal：user 消息带图片附件时，两家各自序列化成正确的 content blocks；无附件时逐字节保持旧形状。
+- Depends on: S2
+- Refs: C2, C4, C5 — 两家契约与序列化点
 - Sub-steps:
-  - S3.1 Browser + Switcher（`FileBrowserView` 22 处——最大单点、`NameInputSheet`、`DocumentSwitcherSheet`）
-  - S3.2 AI 相关视图（`AIWritingView` 13 处、`AIClarifyCard`、`AIConfigGate`、`AIRefineBar`、`HomeAIButton`、`AIActionPopover`）
-  - S3.3 Settings（`SettingsView` 12 处、`AIConfigEditorView` 9 处、`AboutView`）
-  - S3.4 Import + Preview + Document + Editor（`DirectoryPicker`、`ImportPreviewButton`、`ImportTargetPicker`、`ReadOnlyPreviewView`、`PreviewShareButton`、`DocumentView`）
-  - S3.5 复查带插值/复数的字符串（如「已导入 N 个文件」）——复数在 catalog 里配 plural variation，不要手拼字符串；ru 有 one/few/many 三型，是这里最容易翻车的点
-  - S3.6 给 10 个 `NavigationStack` 逐个补 `.rebuildsOnLanguageChange()`（ContentView 与 SettingsView 已在 S1 加好，余 8 个：AIConfigEditorView、AboutView、NameInputSheet、DocumentSwitcherSheet、DirectoryPicker、AIWritingView、ReadOnlyPreviewView、SettingsView 内的语言占位层）
-  - S3.7 清理 catalog 中被替换掉的旧中文 key（Xcode 会标为 stale）
-- Verify: `grep -rE '"[^"]*[一-龥]' --include='*.swift' Features/` 只余注释命中；且切换语言后各页 `navigationTitle` 均跟随变化（不只是 Text）。
+  - S3.1 ChatGPTClient.serialize：user 有 image 附件 → content 数组 [text block, image_url(data URI) …]；否则原样字符串。
+  - S3.2 ClaudeClient.serialize：user 有 image 附件 → content 数组 [text block, image(source base64) …]；否则原样字符串。
+  - S3.3 抽出「把图片附件转 base64/data-uri」的共享小工具，避免两家各写一遍（DRY）。
+  - S3.4 确认 documentReference 类附件在 client 层被忽略（它已在 S4 于 userContent 阶段拼进文本）。
+- Verify：构造带 1 张图的 user 消息，两家 JSON 各含正确图片块；不带附件时 JSON 与改造前逐字节一致。
 
-### S4 — Models 层文案迁移
-- Goal: 模型/服务层持有的面向用户文案同样本地化，且**切换语言后立即生效**。
-- 注意：S1.2 已证伪原方案（`String(localized:locale:)` 显式传 locale）。模型层一律走 `LocalizationController.string(_:)`——
-  **不是** Foundation 的 `String(localized:)`（它绕过取词拦截，只认系统语言；详见上方硬规则 1）。
-- Depends on: S1
-- Refs: C2（`ThemePreference.label` 是硬编码中文的典型）、C1
+### S4 — 引用文档选择器 + 文本注入
+- Goal：能从库内挑 .md（多选），其正文以 `<reference>` 注入 user 消息文本。
+- Depends on: S2
+- Refs: C6, C9, C10 — 注入点、文档来源、可复用树形
 - Sub-steps:
-  - S4.1 `ThemePreference.label`（跟随系统/浅色/深色）改为可本地化
-  - S4.2 `AIError` 的 `errorDescription`（6 处）——注意它会流到 `AIWritingSession.phase = .error(...)` 直接展示给用户
-  - S4.3 `AIAction.label` / `systemImage` 旁的文案、`validationError` 的两条提示（含插值「当前文档没有内容，无法\(label)。」——插值 + 本地化的组合要当心语序，德语/日语语序与中文不同，别拼字符串，用带参数的 catalog 键）
-  - S4.4 `DocumentNode`、`FileStore`、`AIWritingSession`（「AI 返回了无法识别的内容…」）、`ChatGPTClient` 的零散文案
-- Verify: 切换语言后，主题 Picker 选项、AI 动作名、一条人为触发的 AI 错误提示均随之变化（而非停在旧语言）。
+  - S4.1 写 `DocumentReferencePicker`：复用 `FileStore.tree` 的折叠树，多选 .md（排除文件夹/Inbox），确认后回传 [(name,text)]。读文本用 `FileStore.readText`。
+  - S4.2 `AIAction.userContent`：把 documentReference 附件按 `<reference title="…">…</reference>` 注入，位置在 `<document>` 之后、用户 note 之前，边界清晰、防 prompt 注入。
+  - S4.3 空文档 / 读取失败的引用项跳过并记录；超大文档给软提示（假设项，按 summary 处理）。
+- Verify：引用一篇非空 .md 跑自由创作，user 消息文本含 `<reference>` 包裹的该文正文；多选顺序稳定。
 
-### S5 — AI prompt 英文骨架化 + 语言指令
-- Goal: prompt 主体改为英文单份，末尾按 locale 注入语言指令。
-- Depends on: S1（需要 resolved locale）
-- Refs: C6（`AIAction` 全量 prompt）、C7（`ClarifyTool`）、C1（决策出处）
-- Sub-steps:
-  - S5.1 写 `AIPromptLocale`：由 `LocalizationController` 的 resolved locale 产出语言码，生成语言指令文本
-  - S5.2 `outputContract` 译为英文。**注意保留其现有语义**：「与原文、用户输入保持同一种语言」这条不是要删，它正是「输出跟随文档语言」决策的载体，要译过去而非译掉。同样保留「不滥用 emoji」「避免 AI 腔」两条——它们呼应 CLAUDE.md 的文案约定
-  - S5.3 四个 `role`（续写/润色/整理/自由创作）译为英文，保持现有角色设定的具体度，别译成空泛套话
-  - S5.4 `refineMessages` 的 system + user 模板英文化
-  - S5.5 `ClarifyTool.description` 与 schema 内各 `description` 英文化；**并在其中明确要求：提问用 UI 语言**（对应锁定决策里的双语义拆分——问题是界面文本，正文是内容）
-  - S5.6 语言指令拼装进 `AIAction.messages()` 与 `refineMessages()` 的 system
-- Verify: 德语 UI + 中文文档跑一次「自由创作」触发反问——**反问问题是德语，生成正文是中文**。四个动作 + refine 各跑一次不退化。
-
-### S6 — system prompt 注入国家码与语言码
-- Goal: 模型知道用户的语言与所处国家。
-- Depends on: S5
-- Refs: C8（`ClaudeClient` 的 system 装配点）、C1
-- Sub-steps:
-  - S6.1 `AIPromptLocale` 补出国家码——**取自 `Locale.current.region`（设备区域）而非语言偏好**（用户可能「UI 英文但人在德国」；从语言反推区域会推错）。区域缺失时优雅省略，不要注入空值或猜测
-  - S6.2 注入进 system prompt，格式对模型明确（如 `User locale: language=de, region=DE`），并说明用途（日期/数字/单位/文化惯例的本地约定）
-  - S6.3 确认 `ClaudeClient`（system 抽顶层字段）与 `ChatGPTClient`（system 留在 messages）**两条路径都带上**——两家装配方式不同，这是最容易只改一半的地方
-- Verify: 抓一次实际请求体，Claude 与 ChatGPT 两个客户端的 system 内容里都能看到正确的语言码与国家码。
-
-### S7 — 7 种语言翻译落地
-- Goal: catalog 中 7 种语言全部译满，无缺译。
+### S5 — 输入 UI 接线（附件条）
+- Goal：续写 + 自由创作的输入区能加/删附件并发送；其它动作无附件入口。
 - Depends on: S3, S4
-- Refs: C1（语言清单）
+- Refs: C7, C8, C11 — UI 挂载、会话入口、两个 AI 入口与动作门控
 - Sub-steps:
-  - S7.1 zh-Hans（从原中文回填——原文案是母语打磨过的，优先复用原句而非从英文回译）
-  - S7.2 zh-Hant（由 zh-Hans 转换，但**过一遍用词差异**：软件/軟體、文件/檔案、设置/設定——直接简转繁会露馅）
-  - S7.3 ja / ko
-  - S7.4 de / ru（ru 注意复数三型；de 注意长词导致的按钮文字溢出）
-  - S7.5 全语言复查：**无 emoji**（CLAUDE.md 硬约束，翻译同样适用）、占位符数量与顺序正确、术语一致（Markdown / AI 等专名不译）
-- Verify: Xcode 中 catalog 7 种语言均无 stale / needs-review；无空值。
+  - S5.1 写 `AIAttachmentBar`：横向缩略图（图片）+ 文档 chip（SF Symbol doc.text + 文件名），每项可删；「加图片」(PhotosPicker) 与「引用文档」两个按钮；到上限禁用加图并提示。文案禁 emoji、图标用 SF Symbols。
+  - S5.2 `AIWritingView`：仅当 `action` ∈ {continueWriting, custom} 时在 promptInput 下方渲染 AIAttachmentBar；附件存为 `@State`。选图经 S1 压缩后入附件条。
+  - S5.3 附件随 `start()` 下传：`AIAction.messages` 接收 attachments，附到首个 user 消息；`AIWritingSession.start` 透传。多轮（refine/regenerate）不重复带图（假设项）。
+  - S5.4 附件条仅 idle 阶段可编辑，进入流式/完成后只读或隐藏。
+- Verify：自由创作加 1 图 + 引 1 文档，发起后模型收到图与文档参考；润色动作无附件入口；上限提示生效。
 
-### S8 — 全语言验收
-- Goal: 确认 DoD 全部达成。
-- Depends on: S2, S6, S7
+### S6 — 异常处理收口
+- Goal：把附件相关的失败都变成可读、不崩、不误导的体验。
+- Depends on: S3, S5
+- Refs: C2, C12 — 异常来源、降级重试路径
+- Sub-steps:
+  - S6.1 图片加载/压缩失败：单项跳过 + 附件条内可读提示，不影响其余附件与发送。
+  - S6.2 模型不支持视觉（多为 4xx）：在带图请求失败时补语义提示「所选模型可能不支持图片」，与现有 AIError.http 截断协作，不裸抛。
+  - S6.3 确认 `streamWithToolFallback` 降级重试时请求体仍带图片块（makeRequest 闭包重建消息应保持附件）。
+  - S6.4 空附件、超大单图、超限张数的边界提示文案（走本地化 catalog，禁 emoji）。
+- Verify：故意用无视觉模型发图 → 得到可读提示而非乱码；坏图被跳过其余仍发；降级重试仍带图。
+
+### S7 — 验收 + TODO 注释审计
+- Goal：DoD 七项逐条过；未做范围留明确 TODO。
+- Depends on: S1, S2, S3, S4, S5, S6
+- Refs: C1 — 范围边界
+- Sub-steps:
+  - S7.1 抓包：无附件路径两家逐字节回归；带图两家块格式正确（需用户 API Key，属凭据，卡则记 blocked）。
+  - S7.2 UI 走查：两个入口 × 生成类动作，附件条、缩略图、删除、上限、只读态。
+  - S7.3 新增文案全部进 catalog 7 语言、无 emoji、无 stale（沿用归档 i18n 计划的校验手法）。
+  - S7.4 拍照、外部文件引用两处留 TODO 注释，指向后续迭代。
+  - S7.5 逐条对照 summary 的 DoD 七项。
+- Verify：DoD 七项全部通过（S7.1 的带图抓包若无 Key 可留待用户自验）。
+
+### S8 — 图片能力门控（用户自声明开关）
+- 缘起：本 App 支持用户自定义任意 provider/model（ChatGPT/Claude/DeepSeek/BigModel/MiniMax…），App 无法可靠判断某 provider+model 是否支持视觉；文本模型收到内联图片常返回 200 文字拒绝（如 MiniMax 文本模型答「访问不了链接」），事后也难检测。故不由 App 猜测，改由用户在配置里自声明——与现有「响应格式手动选」同一哲学。
+- Goal：图片附件是否可用，由用户在 AI 配置里的开关决定；文档引用不受影响（纯文本、任意模型可读）。
+- Depends on: S5
+- Refs: C1
+- 决策（用户确认）：图片选择按钮**常态展示**；开关关闭时点它**跳转 AI 配置页**（而非隐藏）；开关下方小字 tip 提示用户自行确认 provider/model 是否支持附件。
+- Sub-steps:
+  - S8.1 AIConfig 加 supportsImages: Bool（默认 false）；自定义 Decodable 迁移，旧配置缺键回退 false（synthesized Decodable 不认默认值）。
+  - S8.2 AIConfigEditorView 加开关 + footer tip；文案本地化。
+  - S8.3 AIAttachmentBar 加 supportsImages + onNeedsConfig：图片按钮常显，开→PhotosPicker、关→onNeedsConfig()。
+  - S8.4 AIWritingView 呈现 AIConfigEditorView sheet，onDismiss 重载 config 刷新门控；session 仍用初始 config（切图能力不改端点）。
+- Verify：开关关时点图片按钮进配置页；开后返回可选图；文档引用与开关无关始终可用；旧配置能正常读取不崩。
+
+### S9 — 图片入口合并「拍照 + 相册」
+- 缘起：原计划 out-of-scope 的「拍照」现补齐。PhotosPicker 只含相册，拍照需 UIImagePickerController。
+- Goal：一个「图片」入口，点击弹「拍照 / 从相册选择」；拍照走相机、相册走 PhotosPicker；仍受 supportsImages 门控（关→跳配置）。
+- Depends on: S5
+- Refs: C7
+- Sub-steps:
+  - S9.1 写 CameraPicker（UIViewControllerRepresentable 包 UIImagePickerController sourceType=.camera），产出图片 Data。
+  - S9.2 Info.plist 加 NSCameraUsageDescription（本地化）。
+  - S9.3 AIAttachmentBar 图片入口改 Menu：拍照（isSourceTypeAvailable(.camera) 才显，模拟器无相机）+ 从相册选择（.photosPicker(isPresented:) 命令式）；supportsImages 关时整入口→onNeedsConfig。
+  - S9.4 拍照结果同样经 ImageAttachmentEncoder 压缩入附件。
+- Verify：真机点「图片」弹菜单，拍照/相册各得一张压缩图入附件条；模拟器无「拍照」项；开关关→跳配置。
+
+### S10 — 文件选择入口（文本 + PDF + 图片）
+- 决策（用户确认）：文件入口接受文本/PDF/图片；文本→注入(documentReference)、图片→图片块、PDF→原生文档块（受门控、依赖模型支持，兼容性风险已知）。
+- Goal：新增「文件」入口，用 fileImporter 选外部文件，按类型路由。
+- Depends on: S5（复用 S2 载体 / S3 序列化模式 / S4 注入）
+- Refs: C2, C4, C5, C6
+- Sub-steps:
+  - S10.1 AIAttachment 加 .pdf(data,name)；PDF 体积上限常量（base64 膨胀，留余量）。
+  - S10.2 AIMessage 广义 rich 附件（image + pdf）；两家 serialize 加 PDF 块——**两路同改**（ChatGPT content part type:"file"+file_data data URI；Claude block type:"document"+source.base64 application/pdf）。
+  - S10.3 fileImporter：allowedContentTypes = [.plainText/.text/源码, .pdf, .image]；按 UTType 路由——文本读文本→documentReference、图片经编码→image、PDF→pdf。
+  - S10.4 门控广义化：supportsImages 现覆盖图片与 PDF；文件入口常显（文本不受限），门控关时选到图片/PDF 丢弃并提示去配置；文本正常入。
+  - S10.5 更新 supportsImages 的 label/tip 文案为「图片与 PDF」。
+- Verify：文件入口选 txt→注入、选图→图片块、选 PDF（开关开）→PDF 块两家格式正确；开关关时图片/PDF 被拦、文本仍入；扫描件 PDF 提不出可发（原生块不依赖文本层）。
+
+### S11 — 入口提示文案 + 收尾
+- Goal：入口上方加引导文案；清理 stale；文案全量本地化；TODO 收口；DoD 复核。
+- Depends on: S9, S10
 - Refs: C1
 - Sub-steps:
-  - S8.1 逐语言过一遍主要界面（首页/文档/编辑/AI/设置/关于），检查截断、换行、按钮溢出（德语与俄语最容易撑破）
-  - S8.2 验证优先级链三条路径：有偏好 → 跟随系统 → 系统为法语时兜底英文
-  - S8.3 AI 全动作 × 代表性语言组合抽测，重点是「UI 语言 ≠ 文档语言」的交叉场景
-  - S8.4 逐条对照 summary.md 的 Definition of Done 六项
-- Verify: DoD 六项全部通过。
+  - S11.1 Photo/Document/File 入口上方加提示文案「添加合适的附件，让 AI 帮你生成更好的内容」（禁 emoji）。
+  - S11.2 移除已 stale 的 "Tell me what you want first." catalog key。
+  - S11.3 本轮新增文案（相机权限说明、文件/拍照入口、提示、PDF 相关提示等）全量进 catalog 6 语言、无 emoji、无 stale。
+  - S11.4 更新 AIAttachmentBar 里「拍照」「外部文件」TODO 注释为已实现。
+  - S11.5 DoD 复核（含新增能力）。
+- Verify：入口上方提示常显；catalog 无 stale/缺译/emoji；TODO 已更新。
+
+## Notes
+- S9/S10 相互独立，均依赖 S5，可并行；S11 收尾依赖二者。
+- PDF 原生块跨 provider 兼容性风险（用户已知选定）：多数 OpenAI 兼容代理对 file part 支持不一，失败时走现有 AIError.http 提示；文本类文件是万能兜底。
+- 门控语义：supportsImages 广义为「图片/PDF 等富附件」总开关；文本（文档引用/文本文件）永不门控。
+- 复用优先：引用文档选择器复用 DocumentSwitcherSheet 的树形；图片→base64 工具两家共享；不重复造轮子。
+- 最大陷阱（归档 i18n 计划 S6 教训重演）：ClaudeClient 与 ChatGPTClient 是两条独立序列化路径，改图片块极易只改一半 → S3 必须两家同时改、同时抓包验。
+- 文档引用与图片是**两个消费层**：文档在 AIAction（文本），图片在 client（块）。别把文档也塞进图片块。
