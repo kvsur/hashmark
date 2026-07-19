@@ -19,13 +19,42 @@ final class PreviewHandle {
     /// 保证内部横滚优先于「预览 ↔ 编辑」切换。瞬时值、不驱动 UI，无需可观察。
     var isTouchingHorizontalScroller = false
 
-    /// 把整篇渲染内容导出为 PDF 数据。rect 默认 CGRectNull → 捕获整页内容。
+    /// 量出当前渲染内容的真实宽高（不做任何重排/加宽，所见即所得）。
+    /// 供 createPDF 按此整体渲染——宽代码块/表格若在屏上需要横滑才能看全，
+    /// 导出的静态产物里同样会按当前列宽截断，与用户在预览里看到的一致。
+    private static let measureContentSizeJS = """
+        (function () {
+          return {
+            w: Math.ceil(document.documentElement.scrollWidth),
+            h: Math.ceil(document.documentElement.scrollHeight)
+          };
+        })();
+        """
+
+    /// 把整篇渲染内容拍平成一份 PDF：按当前真实内容宽高整体渲染，不做任何重排。
+    /// createPDF 走打印/矢量路径（非 GPU 快照），可无视 GPU 纹理尺寸上限承载超长内容，
+    /// 故长截图与 PDF 都以它为唯一来源（DRY），彻底避开原「逐屏快照」的空白问题。
+    /// 注：显式 rect 会生成单页 PDF；极长文档单页可能超出部分阅读器的页高上限，属可接受的边缘取舍。
+    @MainActor
+    private func renderFlattenedPDF(completion: @escaping (Data?) -> Void) {
+        guard let webView else { completion(nil); return }
+        webView.evaluateJavaScript(Self.measureContentSizeJS) { result, _ in
+            let config = WKPDFConfiguration()
+            if let size = result as? [String: Any],
+               let width = size["w"] as? Double, let height = size["h"] as? Double,
+               width > 0, height > 0 {
+                config.rect = CGRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(height))
+            }
+            webView.createPDF(configuration: config) { pdfResult in
+                completion(try? pdfResult.get())
+            }
+        }
+    }
+
+    /// 把整篇渲染内容导出为 PDF 数据（所见即所得，横向溢出内容按当前列宽截断）。
     @MainActor
     func exportPDF(completion: @escaping (Data?) -> Void) {
-        guard let webView else { completion(nil); return }
-        webView.createPDF(configuration: WKPDFConfiguration()) { result in
-            completion(try? result.get())
-        }
+        renderFlattenedPDF(completion: completion)
     }
 
     /// 取「纯文本」：渲染后 DOM 的可见文字（marked.js 已解析，去掉了 #、* 等语法标记）。
@@ -38,60 +67,38 @@ final class PreviewHandle {
         }
     }
 
-    /// 把整篇渲染内容截成一张长图（含超出屏幕、需滚动才可见的部分）。
-    ///
-    /// 关键：不能对超长内容做「一次性整页快照」——渲染目标一旦超过 GPU 纹理尺寸上限
-    /// 就会返回空白图。改为「逐屏滚动、每屏一张、最后拼接」：每次快照只有一个视口高，
-    /// 稳定可靠；代价是截图期间屏上预览会快速滚动一遍，并有一定耗时。
+    /// 把整篇渲染内容截成一张长图（含超出屏幕、需纵向滚动才可见的部分）。
+    /// 复用「拍平 PDF」拿到整页矢量内容，再把首页栅格化成位图——一套逻辑贯穿长图与 PDF。
+    /// 相比逐屏快照：不受 GPU 纹理上限约束（CoreGraphics 路径）、无需在屏上滚一遍。
     @MainActor
     func captureLongScreenshot(completion: @escaping (UIImage?) -> Void) {
-        guard let webView else { completion(nil); return }
-        let width = webView.scrollView.contentSize.width
-        let totalHeight = webView.scrollView.contentSize.height
-        let viewportHeight = webView.bounds.height
-        guard width > 0, totalHeight > 0, viewportHeight > 0 else { completion(nil); return }
-
-        let originalOffset = webView.scrollView.contentOffset
-        let maxOffset = max(totalHeight - viewportHeight, 0)
-
-        // 合成用的画布：按屏幕缩放比，尺寸为整页内容大小。
-        let format = UIGraphicsImageRendererFormat.default()
-        format.scale = webView.traitCollection.displayScale
-        format.opaque = false
-        let renderer = UIGraphicsImageRenderer(
-            size: CGSize(width: width, height: totalHeight),
-            format: format
-        )
-
-        // 逐片截好先收集，最后在 renderer 闭包里一次性绘制（闭包内不能做异步等待）。
-        var tiles: [(image: UIImage, y: CGFloat)] = []
-
-        func captureTile(at y: CGFloat) {
-            guard y < totalHeight else {
-                let composite = renderer.image { _ in
-                    for tile in tiles { tile.image.draw(at: CGPoint(x: 0, y: tile.y)) }
-                }
-                webView.scrollView.setContentOffset(originalOffset, animated: false)
-                completion(composite)
-                return
-            }
-            // 滚动到目标行；接近底部时会被系统夹到 maxOffset，故用 rectY 修正截取起点。
-            let targetOffset = min(y, maxOffset)
-            webView.scrollView.setContentOffset(CGPoint(x: 0, y: targetOffset), animated: false)
-
-            // 给 WebKit 一点时间把刚进入视口的内容画出来，否则远处分片可能空白。
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-                let rectY = y - targetOffset
-                let sliceHeight = min(viewportHeight - rectY, totalHeight - y)
-                let config = WKSnapshotConfiguration()
-                config.rect = CGRect(x: 0, y: rectY, width: width, height: sliceHeight)
-                config.afterScreenUpdates = true
-                webView.takeSnapshot(with: config) { image, _ in
-                    if let image { tiles.append((image, y)) }
-                    captureTile(at: y + viewportHeight)
-                }
-            }
+        let displayScale = webView?.traitCollection.displayScale ?? 0
+        let scale = displayScale > 0 ? displayScale : UIScreen.main.scale
+        renderFlattenedPDF { data in
+            guard let data else { completion(nil); return }
+            completion(Self.rasterize(pdf: data, scale: scale))
         }
-        captureTile(at: 0)
+    }
+
+    /// 把（拍平后单页的）PDF 栅格化成 UIImage。CoreGraphics 路径，不受 GPU 纹理尺寸上限约束。
+    /// 页面根元素自带背景色，PDF 已含底色，故 opaque=false 直接绘制即可。
+    private static func rasterize(pdf data: Data, scale: CGFloat) -> UIImage? {
+        guard let provider = CGDataProvider(data: data as CFData),
+              let document = CGPDFDocument(provider),
+              let page = document.page(at: 1) else { return nil }
+        let bounds = page.getBoxRect(.mediaBox)
+        guard bounds.width > 0, bounds.height > 0 else { return nil }
+
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = scale
+        format.opaque = false
+        let renderer = UIGraphicsImageRenderer(size: bounds.size, format: format)
+        return renderer.image { ctx in
+            let cg = ctx.cgContext
+            // PDF 坐标系原点在左下，翻转到 UIKit 的左上原点后再绘制。
+            cg.translateBy(x: -bounds.origin.x, y: bounds.size.height + bounds.origin.y)
+            cg.scaleBy(x: 1, y: -1)
+            cg.drawPDFPage(page)
+        }
     }
 }
