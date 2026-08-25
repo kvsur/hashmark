@@ -30,6 +30,8 @@ enum GeminiContractTests {
     static func main() throws {
         try testNativeRequest()
         try testReasoningEffortMapping()
+        try testSearchRequestShape()
+        try testSearchDisabledRequestShape()
         try testCurrentCapabilityContracts()
         try testStatefulContinuation()
         try testSearchStream()
@@ -48,6 +50,7 @@ enum GeminiContractTests {
 
     private static func configuration(
         model: String = "gemini-3.7-flash",
+        webSearch: Bool = true,
         reasoningEffort: AIReasoningEffort = .low
     ) throws
         -> ResolvedAIProviderConfiguration
@@ -57,7 +60,10 @@ enum GeminiContractTests {
             baseURL: "https://generativelanguage.googleapis.com",
             model: model,
             apiKey: "fixture-key",
-            preferences: AICapabilityPreferences(reasoningEffort: reasoningEffort)
+            preferences: AICapabilityPreferences(
+                webSearchEnabled: webSearch,
+                reasoningEffort: reasoningEffort
+            )
         ))
     }
 
@@ -74,6 +80,47 @@ enum GeminiContractTests {
         let generation = body?["generation_config"] as? [String: Any]
         expect(generation?["thinking_level"] as? String == "high",
                "Gemini Maximum effort did not map to its strongest level")
+    }
+
+    private static func testSearchRequestShape() throws {
+        let request = try GeminiRequestBuilder(configuration: configuration()).makeStreamRequest(
+            messages: [AIMessage(role: .user, content: "Find current sources.")],
+            tools: []
+        )
+        let body = try JSONSerialization.jsonObject(
+            with: request.httpBody ?? Data()
+        ) as? [String: Any]
+        let input = body?["input"] as? [[String: Any]]
+        let generation = body?["generation_config"] as? [String: Any]
+        let toolChoice = generation?["tool_choice"] as? [String: Any]
+        let allowed = toolChoice?["allowed_tools"] as? [String: Any]
+        expect(input?.first?["type"] as? String == "user_input",
+               "Gemini collapsed a user_input Step into an invalid input object")
+        expect(body?["tool_choice"] == nil,
+               "Gemini emitted tool_choice at the unsupported request top level")
+        expect(allowed?["mode"] as? String == "any"
+               && allowed?["tools"] as? [String] == ["google_search"],
+               "Gemini Search tool choice was not nested under generation_config")
+    }
+
+    private static func testSearchDisabledRequestShape() throws {
+        let request = try GeminiRequestBuilder(configuration: configuration(
+            webSearch: false
+        )).makeStreamRequest(
+            messages: [AIMessage(role: .user, content: "Answer from the prompt.")],
+            tools: []
+        )
+        let body = try JSONSerialization.jsonObject(
+            with: request.httpBody ?? Data()
+        ) as? [String: Any]
+        let input = body?["input"] as? [[String: Any]]
+        let generation = body?["generation_config"] as? [String: Any]
+        expect(input?.count == 1 && input?.first?["type"] as? String == "user_input",
+               "Gemini Search-off request did not preserve the Step array input")
+        expect(body?["tools"] == nil,
+               "Gemini Search-off request still declared Google Search")
+        expect(generation?["tool_choice"] == nil && body?["tool_choice"] == nil,
+               "Gemini Search-off request still selected a tool")
     }
 
     private static func testNativeRequest() throws {
@@ -162,10 +209,10 @@ enum GeminiContractTests {
         let body = try JSONSerialization.jsonObject(with: request.httpBody ?? Data()) as? [String: Any]
         expect(body?["previous_interaction_id"] as? String == "interaction_previous",
                "previous_interaction_id was not preserved")
-        let input = body?["input"] as? [String: Any]
-        expect(input?["type"] as? String == "function_result",
+        let input = body?["input"] as? [[String: Any]]
+        expect(input?.first?["type"] as? String == "function_result",
                "Gemini function result did not use native Interactions input")
-        expect(input?["call_id"] as? String == "call_fixture",
+        expect(input?.first?["call_id"] as? String == "call_fixture",
                "Gemini function result lost call_id")
     }
 
@@ -222,7 +269,11 @@ enum GeminiContractTests {
         expect(config.usesNativeWebSearch
                && tools?.contains(where: { $0["type"] as? String == "google_search" }) == true,
                "Unknown Gemini model lost the explicit Google Search trial path")
-        expect(body?["generation_config"] == nil, "Unknown Gemini model received thinking config")
+        let generation = body?["generation_config"] as? [String: Any]
+        expect(generation?["thinking_level"] == nil,
+               "Unknown Gemini model received thinking config")
+        expect(generation?["tool_choice"] != nil,
+               "Unknown Gemini model lost the Search tool choice trial path")
     }
 
     private static func testTypedError() throws {

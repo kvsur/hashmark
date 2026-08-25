@@ -33,7 +33,10 @@ nonisolated struct GeminiRequestBuilder {
         let allStoreNames = Array(Set(fileSearchStoreNames + scopedStoreNames)).sorted()
         var body: [String: JSONValue] = [
             "model": .string(configuration.model),
-            "input": input.count == 1 ? input[0] : .array(input),
+            // Interactions accepts user_input as a Step only inside a Step array. Do not
+            // collapse a one-step turn into an object: the server then interprets it as
+            // Content and rejects the otherwise-valid user_input discriminator.
+            "input": .array(input),
             "stream": .bool(true),
             "store": .bool(true)
         ]
@@ -41,6 +44,7 @@ nonisolated struct GeminiRequestBuilder {
         if let previousInteractionID {
             body["previous_interaction_id"] = .string(previousInteractionID)
         }
+        var generationConfig: [String: JSONValue] = [:]
         if configuration.allowsKnownSafeRequest(.reasoning) {
             let level: String
             switch configuration.reasoningEffort {
@@ -50,9 +54,7 @@ nonisolated struct GeminiRequestBuilder {
                 // Gemini's strongest portable Interactions level is high.
                 level = "high"
             }
-            body["generation_config"] = .object([
-                "thinking_level": .string(level)
-            ])
+            generationConfig["thinking_level"] = .string(level)
         }
 
         var nativeTools = tools.map { tool in
@@ -75,12 +77,17 @@ nonisolated struct GeminiRequestBuilder {
         }
         if !nativeTools.isEmpty { body["tools"] = .array(nativeTools) }
         if configuration.usesNativeWebSearch {
-            body["tool_choice"] = .object([
+            // Interactions scopes tool choice under generation_config. A top-level
+            // tool_choice is rejected by the Gemini endpoint as an unknown parameter.
+            generationConfig["tool_choice"] = .object([
                 "allowed_tools": .object([
                     "mode": .string("any"),
                     "tools": .array([.string("google_search")])
                 ])
             ])
+        }
+        if !generationConfig.isEmpty {
+            body["generation_config"] = .object(generationConfig)
         }
 
         var request = URLRequest(url: streamingURL())
