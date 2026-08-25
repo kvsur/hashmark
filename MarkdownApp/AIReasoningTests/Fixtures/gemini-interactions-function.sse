@@ -1,0 +1,12 @@
+event: interaction.created
+data: {"event_type":"interaction.created","interaction":{"id":"interaction_tool","status":"in_progress"}}
+
+event: step.start
+data: {"event_type":"step.start","index":0,"step":{"id":"call_fixture","type":"function_call","name":"ask_clarifying_question","arguments":{"question":"Audience?","answer_type":"text"}}}
+
+event: step.stop
+data: {"event_type":"step.stop","index":0}
+
+event: interaction.completed
+data: {"event_type":"interaction.completed","interaction":{"id":"interaction_tool","status":"completed","steps":[{"id":"call_fixture","type":"function_call","name":"ask_clarifying_question","arguments":{"question":"Audience?","answer_type":"text"}}]}}
+

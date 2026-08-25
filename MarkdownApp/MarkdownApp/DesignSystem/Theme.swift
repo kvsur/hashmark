@@ -30,15 +30,25 @@ enum Theme {
 
     // MARK: - 颜色
 
-    /// AI 功能统一品牌渐变：用于所有 AI 入口按钮的图标/文字着色，保证全 App 一致（DRY）。
-    /// 这是有意的品牌色（区别于随深浅色自适应的语义色），故作为设计常量集中在此。
+    /// AI 品牌色（有意的固定品牌色，区别于随深浅色自适应的语义色）。紫→蓝→粉。
+    /// 线性/角向渐变共用这一组，保证全 App AI 视觉一致（DRY）。
+    private static let aiColors = [
+        Color(red: 0.55, green: 0.36, blue: 0.96),  // 紫
+        Color(red: 0.36, green: 0.60, blue: 0.98),  // 蓝
+        Color(red: 0.93, green: 0.42, blue: 0.72)   // 粉
+    ]
+
+    /// AI 会话内的小面积行动色。比系统蓝更深，白字在浅色和深色外观下都保持清晰对比。
+    static let aiAccent = Color(red: 0.12, green: 0.38, blue: 0.82)
+
+    /// AI 功能统一品牌渐变：用于所有 AI 入口按钮的图标/文字着色。
     static let aiGradient = LinearGradient(
-        colors: [
-            Color(red: 0.55, green: 0.36, blue: 0.96),  // 紫
-            Color(red: 0.36, green: 0.60, blue: 0.98),  // 蓝
-            Color(red: 0.93, green: 0.42, blue: 0.72)   // 粉
-        ],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
+        colors: aiColors, startPoint: .topLeading, endPoint: .bottomTrailing
+    )
+
+    /// AI 品牌角向渐变：用于「生成中」旋转指示环等需要圆周着色的场景。
+    /// 末尾回到起始色，让旋转接缝顺滑无跳变。
+    static let aiAngularGradient = AngularGradient(
+        colors: aiColors + [aiColors[0]], center: .center
     )
 }

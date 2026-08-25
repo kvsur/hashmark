@@ -30,7 +30,7 @@ struct AIClarifyCard: View {
         VStack(alignment: .leading, spacing: 10) {
             Label("Just checking one thing", systemImage: "questionmark.bubble")
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Theme.aiGradient)
+                .foregroundStyle(Theme.aiAccent)
             // 问题醒目、可换行、行距舒展，不贴边。
             Text(request.question)
                 .font(.title3.weight(.semibold))
@@ -71,7 +71,7 @@ private struct OptionRow: View {
             HStack(spacing: 12) {
                 Image(systemName: selected ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
-                    .foregroundStyle(selected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(Color.secondary))
+                    .foregroundStyle(selected ? AnyShapeStyle(Theme.aiAccent) : AnyShapeStyle(Color.secondary))
                 Text(label)
                     .font(.body)
                     .foregroundStyle(.primary)
@@ -87,7 +87,7 @@ private struct OptionRow: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(selected ? Color.accentColor : Color(.separator),
+                    .strokeBorder(selected ? Theme.aiAccent : Color(.separator),
                                   lineWidth: selected ? 2 : 1)
             )
             .contentShape(.rect)
@@ -103,7 +103,7 @@ private struct RecommendedBadge: View {
             .foregroundStyle(.white)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(Theme.aiGradient, in: Capsule())
+            .background(Theme.aiAccent, in: Capsule())
     }
 }
 
@@ -124,9 +124,9 @@ private struct MultiSelectAnswer: View {
                     }
                 }
             }
-            AIGradientButton(title: selected.isEmpty ? "Confirm" : "Confirm (\(selected.count))",
-                             systemImage: "checkmark",
-                             isEnabled: !selected.isEmpty) {
+            AIPrimaryButton(title: selected.isEmpty ? "Confirm" : "Confirm (\(selected.count))",
+                            systemImage: "checkmark",
+                            isEnabled: !selected.isEmpty) {
                 // 按选项原顺序拼接，读起来自然。这段答案会发给模型，
                 // 故用当前界面语言的列表格式（中/日为「、」，德/俄为「, … und/и …」），
                 // 不写死顿号。
@@ -165,8 +165,8 @@ private struct TextAnswer: View {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .strokeBorder(Color(.separator), lineWidth: 1)
                 )
-            AIGradientButton(title: "Submit", systemImage: "paperplane.fill",
-                             isEnabled: !trimmed.isEmpty) {
+            AIPrimaryButton(title: "Submit", systemImage: "paperplane.fill",
+                            isEnabled: !trimmed.isEmpty) {
                 onSubmit(trimmed)
             }
             .frame(maxWidth: .infinity)

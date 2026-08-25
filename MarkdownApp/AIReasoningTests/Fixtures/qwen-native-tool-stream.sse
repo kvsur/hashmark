@@ -1,0 +1,6 @@
+data: {"request_id":"req-tool","output":{"choices":[{"message":{"role":"assistant","content":"","tool_calls":[{"index":0,"id":"call_1","function":{"name":"fixture_tool","arguments":"{\"value\":"}}]},"finish_reason":"null"}]}}
+
+data: {"request_id":"req-tool","output":{"choices":[{"message":{"role":"assistant","content":"","tool_calls":[{"index":0,"function":{"arguments":"1}"}}]},"finish_reason":"tool_calls"}]},"usage":{"input_tokens":4,"output_tokens":3,"total_tokens":7}}
+
+data: [DONE]
+

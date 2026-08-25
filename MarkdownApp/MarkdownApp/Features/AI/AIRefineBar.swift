@@ -66,7 +66,7 @@ struct AIRefineBar: View {
                 .font(.headline.weight(.semibold))
                 .foregroundStyle(.white)
                 .frame(width: 40, height: 40)
-                .background(Circle().fill(Theme.aiGradient))
+                .background(Circle().fill(Theme.aiAccent))
         }
         .buttonStyle(.plain)
         .grayscale(trimmed.isEmpty ? 1 : 0)

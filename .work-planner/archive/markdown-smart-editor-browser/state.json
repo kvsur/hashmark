@@ -1,0 +1,230 @@
+{
+  "version": "1.3.0",
+  "created_at": "2026-08-10 22:01:55",
+  "updated_at": "2026-08-11 13:46:45",
+  "current_step": "S10",
+  "next_step": "由用户按需完成 S10.3 通用设备矩阵；拖放功能已取消，不再列入验收。",
+  "overall_status": "in_progress",
+  "completion_rate": "93%",
+  "all_steps": [
+    {
+      "id": "S1",
+      "name": "可测试的编辑引擎与 UIKit 安全应用层",
+      "status": "done",
+      "depends_on": [],
+      "refs": ["C1", "C2", "C5", "C7", "C8"],
+      "notes": [
+        "S1.4 采用可由 swiftc 独立编译运行的纯 Foundation 测试 harness，避免为当前单 target 工程手改 pbxproj；规则测试可在无模拟器环境运行。"
+      ],
+      "sub_steps": [
+        { "id": "S1.1", "name": "定义 MarkdownEditingContext、MarkdownTextMutation、MarkdownEditorCommand 契约", "status": "done" },
+        { "id": "S1.2", "name": "实现 UTF-16 安全的行、缩进、前缀和多行选区工具", "status": "done" },
+        { "id": "S1.3", "name": "建立 UITextView mutation applier 与单次 undo/选区/滚动保持", "status": "done" },
+        { "id": "S1.4", "name": "增加纯逻辑测试 harness 与 Unicode、CRLF、边界、marked-text 基线测试", "status": "done" }
+      ],
+      "verify": "Debug 构建与纯逻辑测试通过；mutation 可单步撤销/重做；IME 组合输入不被规则改写。",
+      "start_at": "2026-08-10 22:26:00",
+      "done_at": "2026-08-10 22:29:00"
+    },
+    {
+      "id": "S2",
+      "name": "智能 Return、列表层级与结构续写",
+      "status": "done",
+      "depends_on": ["S1"],
+      "refs": ["C1", "C2", "C5", "C6", "C10", "C11", "C12"],
+      "notes": [],
+      "sub_steps": [
+        { "id": "S2.1", "name": "续写无序列表与递增有序列表，保留缩进和 delimiter", "status": "done" },
+        { "id": "S2.2", "name": "续写任务列表并将新项重置为未完成", "status": "done" },
+        { "id": "S2.3", "name": "空项 Return 按嵌套层级 outdent 或退出结构", "status": "done" },
+        { "id": "S2.4", "name": "续写 blockquote 与围栏代码缩进并避免上下文误判", "status": "done" },
+        { "id": "S2.5", "name": "当前行/多行选区 indent、outdent 与有序列表重编号", "status": "done" }
+      ],
+      "verify": "规则矩阵通过；用户示例 Return 生成 `2. `；一次撤销恢复输入前状态。",
+      "start_at": "2026-08-10 22:29:00",
+      "done_at": "2026-08-10 22:30:00"
+    },
+    {
+      "id": "S3",
+      "name": "统一格式命令、配对输入与智能粘贴",
+      "status": "done",
+      "depends_on": ["S2"],
+      "refs": ["C2", "C5", "C6", "C10", "C12"],
+      "notes": [],
+      "sub_steps": [
+        { "id": "S3.1", "name": "实现 bold、italic、strikethrough、inline code、link 行内 toggle", "status": "done" },
+        { "id": "S3.2", "name": "实现标题、引用、列表、任务与 fenced code 块级 toggle", "status": "done" },
+        { "id": "S3.3", "name": "实现避让 IME/转义/代码上下文的配对与闭合符跳过", "status": "done" },
+        { "id": "S3.4", "name": "实现选中文本粘贴 URL 转 Markdown link", "status": "done" },
+        { "id": "S3.5", "name": "补齐命令幂等、选区、undo/redo 与 AI menu 回归测试", "status": "done" }
+      ],
+      "verify": "命令在空选区/多行/已格式化/Unicode 下通过；toggle 两次恢复原文；粘贴与 AI 菜单无回归。",
+      "start_at": "2026-08-10 22:30:00",
+      "done_at": "2026-08-10 22:31:00"
+    },
+    {
+      "id": "S4",
+      "name": "iPhone/iPad 命令入口与硬件键盘",
+      "status": "done",
+      "depends_on": ["S3"],
+      "refs": ["C2", "C9", "C10", "C11", "C12"],
+      "notes": [
+        "S4.2 使用自适应 EditorKeyboardBar 覆盖 iPhone/iPad 软件键盘，硬件键盘走可发现 UIKeyCommand；未额外叠加 inputAssistantItem，避免重复两排命令。"
+      ],
+      "sub_steps": [
+        { "id": "S4.1", "name": "建立独立 EditorKeyboardBar 与常用命令分组", "status": "done" },
+        { "id": "S4.2", "name": "适配 iPad 软件/浮动/硬件键盘状态", "status": "done" },
+        { "id": "S4.3", "name": "增加可发现的 UIKeyCommand/系统编辑快捷键", "status": "done" },
+        { "id": "S4.4", "name": "补齐七语言、SF Symbols、VoiceOver、Dynamic Type 与命中区", "status": "done" }
+      ],
+      "verify": "iPhone/iPad 软件与硬件键盘矩阵通过；所有入口共用命令结果；系统可发现快捷键。",
+      "start_at": "2026-08-10 22:31:00",
+      "done_at": "2026-08-10 22:33:00"
+    },
+    {
+      "id": "S5",
+      "name": "raw Markdown 语法视觉与排版辅助",
+      "status": "done",
+      "depends_on": ["S1"],
+      "refs": ["C2", "C3", "C5", "C8", "C12"],
+      "notes": [],
+      "sub_steps": [
+        { "id": "S5.1", "name": "实现 raw 标记始终可见的 MarkdownSyntaxHighlighter", "status": "done" },
+        { "id": "S5.2", "name": "实现列表/引用长行的非破坏性悬挂缩进", "status": "done" },
+        { "id": "S5.3", "name": "合帧重算并处理外部替换、AI 回填、主题与字号刷新", "status": "done" },
+        { "id": "S5.4", "name": "验证选区、marked text、菜单、undo、滚动与 AI 按钮兼容", "status": "done" }
+      ],
+      "verify": "100k 字符局部输入无可感停顿；属性不污染 raw text；主题/文档/AI 回填后样式正确。",
+      "start_at": "2026-08-10 22:31:00",
+      "done_at": "2026-08-10 22:33:00"
+    },
+    {
+      "id": "S6",
+      "name": "查找、大纲与 iPad 编辑工作区",
+      "status": "done",
+      "depends_on": ["S4", "S5"],
+      "refs": ["C2", "C3", "C4", "C13"],
+      "notes": [
+        "2026-08-11 目录入口提升为 Preview/Edit 共用的文档级导航，图标由倾斜缩进列表改为对齐列表；编辑态聚焦源码 range，预览态按层级、渲染标题与同名序号定位 DOM 标题。Debug 构建通过。"
+      ],
+      "sub_steps": [
+        { "id": "S6.1", "name": "接入系统查找/替换、结果导航与快捷键", "status": "done" },
+        { "id": "S6.2", "name": "建立标题大纲与 UTF-16 range 跳转", "status": "done" },
+        { "id": "S6.3", "name": "iPad regular width 并排编辑/预览，compact 保持现有切换", "status": "done" },
+        { "id": "S6.4", "name": "实现编辑/预览双向比例滚动同步与大纲显式定位", "status": "done" }
+      ],
+      "verify": "长文档查找/大纲可用；iPad 横竖屏与分屏稳定；并排同步可预测且 iPhone 无回归。",
+      "start_at": "2026-08-10 22:33:00",
+      "done_at": "2026-08-10 22:37:00"
+    },
+    {
+      "id": "S7",
+      "name": "性能、回归、i18n 与发布验收",
+      "status": "in_progress",
+      "depends_on": ["S6"],
+      "refs": ["C1", "C5", "C6"],
+      "notes": [
+        "Debug/Release Simulator 构建、纯逻辑规则/100k 字符测试、本地化完整性审计，以及 iPhone 15 Pro/iPad Air 11-inch 模拟器安装启动均通过。S7.3 的实际输入手感、键盘形态和旋转/分屏交互由用户验收。",
+        "S7.3 首轮反馈：关闭键盘按钮不应随格式命令横向滚动；已将其移出滚动区并固定在键盘栏右侧，Debug 构建与编辑引擎回归通过。"
+      ],
+      "sub_steps": [
+        { "id": "S7.1", "name": "完成规则测试矩阵与 100k 字符性能基准", "status": "done" },
+        { "id": "S7.2", "name": "完成七语言、无 emoji、stale key、辅助功能与主题审计", "status": "done" },
+        { "id": "S7.3", "name": "完成 iPhone/iPad 输入、布局、保存、预览、分享与 AI 回归矩阵", "status": "pending" },
+        { "id": "S7.4", "name": "逐条核对 DoD 并记录已知限制与后续候选", "status": "pending" }
+      ],
+      "verify": "DoD 十项满足；Debug/Release 构建与测试通过；设备验收矩阵无阻断回归。",
+      "start_at": "2026-08-10 22:37:00"
+    },
+    {
+      "id": "S8",
+      "name": "目录活动时间与稳定分组排序",
+      "status": "done",
+      "depends_on": ["S6"],
+      "refs": ["C14", "C15", "C16"],
+      "notes": [
+        "S8.1–S8.4 使用 DocumentActivityResolver 单次构建递归快照，祖先只继承后代 Markdown 时间，空目录回退自身；目录树复用同一快照避免按层重复扫描。",
+        "临时目录夹具覆盖分组、深层传播、空目录、同时间戳、隐藏项、Inbox、非 Markdown、符号链接循环、缺失目录与 600 文件性能；独立测试和 Debug 构建通过。"
+      ],
+      "sub_steps": [
+        { "id": "S8.1", "name": "定义文件自身时间、文件夹后代最大时间与空目录回退的排序契约", "status": "done" },
+        { "id": "S8.2", "name": "实现独立单次递归活动时间解析并排除 Inbox、隐藏项、非 Markdown 与目录循环", "status": "done" },
+        { "id": "S8.3", "name": "实现文件夹/文件固定分组及组内时间降序、自然名称稳定兜底", "status": "done" },
+        { "id": "S8.4", "name": "补齐空目录、深层嵌套、同时间戳、不可读目录、大量节点与刷新测试", "status": "done" }
+      ],
+      "verify": "目录夹具中分组与递归时间结果确定；深层文件更新会提升祖先文件夹；大目录加载无明显卡顿且现有过滤规则不回归。",
+      "start_at": "2026-08-11 10:15:44",
+      "done_at": "2026-08-11 10:18:19"
+    },
+    {
+      "id": "S9",
+      "name": "已取消：移除拖放移动并恢复原生列表",
+      "status": "done",
+      "depends_on": ["S8"],
+      "refs": ["C14", "C15", "C16", "C17", "C18"],
+      "notes": [
+        "用户确认触控应遵循 Apple 系统交互：按住文件直到拖动预览浮起，再拖入目标文件夹；不自定义长按计时。",
+        "S9.1–S9.5 使用 Transferable + 系统 draggable/dropDestination；载荷带本次进程会话标识，放置时重新校验沙盒、Inbox、文件类型、源存在与目标目录，并复用 FileStore.move。",
+        "载荷 Codable/伪造会话、移动边界、同目录拒绝、重名编号和磁盘结果测试通过；Debug/Release 构建无本阶段新增警告。真实触控/指针手感归入 S10.3。",
+        "2026-08-11 S10.3 设备反馈后重新打开：实际拖放未成功；整行 listRowBackground 破坏了左滑 item 原有圆角。保留原 start_at/done_at 作为首次实现审计，S9.2–S9.5 重新验证。",
+        "2026-08-11 修复收口：移除覆盖系统 List 行样式的 listRowBackground，恢复原有 swipe 圆角；将 List 内失效的 Transferable/dropDestination 链路改为 NavigationLink 标签内 onDrag + 文件夹 onDrop/DropDelegate，使用系统 fileURL 载荷并在 FileStore 重新校验。URL 往返、移动边界、CRUD/排序回归与 Debug/Release 构建通过；真实触控仍归 S10.3 复测。",
+        "2026-08-11 S10.3 第二轮反馈：拖动预览已浮起，但文件夹上松手仍回弹且磁盘未移动，证明子行 onDrop 在同一 List 内仍未成为有效目标。保留 S9.2，重新打开 S9.3–S9.5，改为 List 级 destination + 行坐标命中。",
+        "2026-08-11 第二次修复收口：子行不再挂任何 onDrop/dropDestination，整个 List 作为唯一 DropDelegate；文件夹行通过无视觉影响的 GeometryReader 上报可见 frame，dropUpdated/performDrop 按 List 本地坐标命中文件夹。载荷改为 own-process 自定义 UTType，移动同步使用当前拖动 URL 并由 FileStore 再校验。载荷往返、坐标命中、移动边界、CRUD/排序、编辑器回归及 Debug/Release 全部通过。",
+        "2026-08-11 坐标采集最终加固：不依赖 List 跨 cell hosting 传播 PreferenceKey，改为直接记录 List 和可见文件夹的全局 frame，将 DropInfo 本地坐标转全局后命中；最终 Debug/Release 重验通过。",
+        "2026-08-11 用户再次反馈仍无法完成移动，明确要求移除拖拽并表达失望。产品决定改为取消该功能：删除实现、状态、载荷、几何测量、FileStore 专用 API 与专用测试，只保留现有移动面板。"
+      ],
+      "sub_steps": [
+        { "id": "S9.1", "name": "删除拖动载荷、拖动源与预览", "status": "done" },
+        { "id": "S9.2", "name": "删除 List/子行放置目标、坐标测量与 targeted 反馈", "status": "done" },
+        { "id": "S9.3", "name": "删除 FileStore 拖放专用校验 API 与专用测试", "status": "done" },
+        { "id": "S9.4", "name": "恢复 BrowserNodeLabel 纯展示和原生 List/swipe 样式", "status": "done" },
+        { "id": "S9.5", "name": "保留左滑移动面板、目录排序与刷新", "status": "done" }
+      ],
+      "verify": "App 内载荷、磁盘边界、重名与移动后刷新通过测试；Debug 构建确认只接入文件拖动源和文件夹放置目标且无重排。真实触控/指针手感归入 S10.3。",
+      "start_at": "2026-08-11 10:18:49",
+      "done_at": "2026-08-11 10:25:20"
+    },
+    {
+      "id": "S10",
+      "name": "首页目录性能、回归与设备验收",
+      "status": "in_progress",
+      "depends_on": ["S9"],
+      "refs": ["C14", "C15", "C16", "C17"],
+      "notes": [
+        "S10.1–S10.2 独立测试覆盖递归活动时间、稳定分组、600 文件性能、载荷会话校验、沙盒/Inbox/同目录边界、重名移动，以及新建/保存/导入/重命名/删除/移动面板/目录树回归。",
+        "S10.3 自动部分：Debug App 已在 iPhone 15 Pro 与 iPad Air 11-inch (M4) 模拟器安装并启动，首页静态渲染正常；系统按住拖动、指针与 VoiceOver 手感由用户实操验收。",
+        "S10.4 扩展 DoD 11–14 代码与自动化审计通过；Debug/Release 构建成功。Release 仅保留任务开始前已存在的 ChatGPTClient/ClaudeClient actor isolation 与 AppIntents 元数据警告。",
+        "2026-08-11 S10.3 首轮失败：用户确认拖放未成功，且 listRowBackground 导致左滑 item 圆角回归；S10.4 随修复重新打开。",
+        "2026-08-11 修复后 Browser UI diff 审计：原有行图标、字体、副标题、间距、NavigationLink 与 swipeActions 结构保持；正常状态无自定义行背景，仅拖动悬停文件夹时显示条件性圆角反馈。五组独立测试、git diff --check、七语言 catalog 编译、iPhone/iPad 模拟器启动及 Debug/Release 构建通过。",
+        "2026-08-11 拖放取消后收口：源码与测试目录全量检索无 onDrag/onDrop/dropDestination、拖放状态、载荷、targeted 视觉或专用 FileStore API 残留；BrowserNodeLabel 恢复纯展示。递归排序、FileStore CRUD/移动面板、编辑器回归测试与 Debug/Release 构建通过。"
+      ],
+      "sub_steps": [
+        { "id": "S10.1", "name": "完成排序、递归时间、移动安全与大目录性能测试", "status": "done" },
+        { "id": "S10.2", "name": "回归新建、保存、导入、AI 新建、重命名、删除、移动与目录导航", "status": "done" },
+        { "id": "S10.3", "name": "完成 iPhone/iPad、触控/指针/VoiceOver、主题与七语言设备矩阵（不含已取消拖放）", "status": "pending" },
+        { "id": "S10.4", "name": "核对修订后 DoD 11–14 并完成 Debug/Release 发布前收口", "status": "done" }
+      ],
+      "verify": "扩展 DoD 全部满足；磁盘操作无数据丢失或越界移动；性能、测试、Debug/Release 构建与设备验收通过。",
+      "start_at": "2026-08-11 10:25:20"
+    }
+  ],
+  "failures": [],
+  "decisions": {
+    "editor-model": "保留可见 Markdown 源码与 Preview/Edit 双模式，建设源码优先智能编辑器，不做 WYSIWYG 块编辑器。",
+    "source-of-truth": "DocumentView.text/raw Markdown 是唯一内容源，TextKit 属性只用于视觉且不得写回文件。",
+    "editing-architecture": "纯逻辑 Editing Engine 产出 UTF-16 TextMutation，MarkdownTextView/Coordinator 只桥接 UIKit 与应用变更。",
+    "markdown-standard": "以 CommonMark + 当前 GFM 预览能力为规则基线。",
+    "delivery": "按可独立验收的阶段增量交付，先解决输入摩擦，再做格式入口、视觉与 iPad 工作区。",
+    "browser-sort": "文件夹与文件固定分组；组内按有效更新时间降序，同时间戳以本地化自然名称升序稳定兜底。文件夹时间取后代 Markdown 最大修改时间，无文件时回退目录时间。",
+    "browser-drag-move": "历史决定：曾尝试单文件系统拖放，但真机验证失败后已取消。",
+    "browser-drag-cancelled": "文件拖入文件夹功能已完整移除；文件移动只保留现有左滑移动面板。"
+  },
+  "notes": [
+    "AI Modal 选中内容 raw → Markdown Preview 已作为本计划前置即时优化完成，并通过 iOS Simulator Debug 构建；不计入本计划进度。",
+    "仓库当前无自动化测试 target，S1.4 已补充独立纯逻辑 test harness。",
+    "2026-08-10 用户授权连续完成全部实现，并明确由其执行最终体验验证。",
+    "2026-08-11 新增首页文件目录阶段 S8–S10；S8/S9 可在用户继续执行编辑器 S7.3 验收时推进，S10 等待 S7 与 S9 后统一收口。",
+    "2026-08-11 用户要求连续完成 S8–S10；复核后确认首页目录 S10 与编辑器 S7 无技术依赖，故将 S10 依赖从 S7+S9 收敛为 S9，S7 人工验收仍独立保留。",
+    "2026-08-11 修正上轮 state 写入定位错误：三条 S10 自动验收备注曾误落入 S2.notes，现已移回 S10；同时按设备反馈重新打开 S9 与 S10.4。"
+  ]
+}

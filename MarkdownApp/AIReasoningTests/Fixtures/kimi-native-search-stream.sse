@@ -1,0 +1,5 @@
+data: {"id":"chat-search","choices":[{"delta":{"tool_calls":[{"index":0,"id":"formula-1","function":{"name":"web_search","arguments":"{\"query\":\"Sw"}}]},"finish_reason":null}]}
+
+data: {"id":"chat-search","choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"ift\"}"}}]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":8,"completion_tokens":3,"total_tokens":11}}
+
+data: [DONE]

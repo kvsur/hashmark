@@ -18,6 +18,56 @@ final class PreviewHandle {
     /// 由页面 touchstart/touchend 经消息通道实时回填；滑动切换手势结束时读它做避让，
     /// 保证内部横滚优先于「预览 ↔ 编辑」切换。瞬时值、不驱动 UI，无需可观察。
     var isTouchingHorizontalScroller = false
+    var onScrollFraction: ((CGFloat) -> Void)?
+    private var isApplyingSyncedScroll = false
+
+    @MainActor
+    func receiveScrollFraction(_ fraction: CGFloat) {
+        guard !isApplyingSyncedScroll else { return }
+        onScrollFraction?(min(max(fraction, 0), 1))
+    }
+
+    @MainActor
+    func scroll(toFraction fraction: CGFloat) {
+        guard let webView else { return }
+        isApplyingSyncedScroll = true
+        let value = min(max(fraction, 0), 1)
+        webView.evaluateJavaScript(
+            "window.__previewScrollToFraction && window.__previewScrollToFraction(\(value));"
+        ) { [weak self] _, _ in
+            DispatchQueue.main.async { self?.isApplyingSyncedScroll = false }
+        }
+    }
+
+    /// 定位渲染后的标题。标题先用 marked.parseInline 转成可见文字，避免 Markdown 行内标记
+    /// （如 `*强调*`）造成源码标题与 DOM textContent 不一致；occurrence 处理同级同名标题。
+    @MainActor
+    func scroll(toHeadingLevel level: Int, rawTitle: String, occurrence: Int) {
+        guard let webView, (1...6).contains(level) else { return }
+        guard let data = try? JSONEncoder().encode([rawTitle]),
+              let wrapped = String(data: data, encoding: .utf8) else { return }
+        let titleJSON = String(wrapped.dropFirst().dropLast())
+        let safeOccurrence = max(occurrence, 0)
+        let script = """
+        (function () {
+          var probe = document.createElement('span');
+          probe.innerHTML = marked.parseInline(\(titleJSON));
+          var targetText = (probe.textContent || '').trim();
+          var headings = document.querySelectorAll('h\(level)');
+          var matchIndex = 0;
+          for (var i = 0; i < headings.length; i++) {
+            if ((headings[i].textContent || '').trim() !== targetText) continue;
+            if (matchIndex === \(safeOccurrence)) {
+              headings[i].scrollIntoView({ block: 'start', behavior: 'auto' });
+              return true;
+            }
+            matchIndex++;
+          }
+          return false;
+        })();
+        """
+        webView.evaluateJavaScript(script)
+    }
 
     /// 导出宽度上限：整页扩展后的宽度不超过此值，防止极宽表格/代码块把产物撑得过大。
     /// 绝大多数内容自然宽都在此值以内，会被完整平铺；仅超此值的内容才会在边缘截断。
@@ -42,6 +92,7 @@ final class PreviewHandle {
     private static var enterExportModeJS: String {
         """
         (function () {
+          if (window.MermaidViewer) { window.MermaidViewer.close(); }
           var content = document.getElementById('content');
           if (!content) { return { w: 0, h: 0 }; }
           var cs = getComputedStyle(content);
@@ -68,6 +119,10 @@ final class PreviewHandle {
             need = Math.max(need, t.scrollWidth + padX);
           });
           probe.remove();
+          // 展示公式在窄屏可横滑；静态导出需要把完整公式宽度一并铺开。
+          content.querySelectorAll('.katex-display').forEach(function (math) {
+            need = Math.max(need, math.scrollWidth + padX);
+          });
 
           // 目标宽度封顶 maxExportWidth。
           var target = Math.min(Math.ceil(need), \(maxExportWidth));
@@ -83,7 +138,8 @@ final class PreviewHandle {
             '#content{width:' + target + 'px !important;max-width:none !important;}' +
             '#content pre{overflow:visible !important;}' +
             '#content pre code,#content pre code.hljs{overflow:visible !important;}' +
-            '#content table{overflow:visible !important;max-width:none !important;}';
+            '#content table{overflow:visible !important;max-width:none !important;}' +
+            '#content .katex-display{overflow:visible !important;max-width:none !important;}';
           window.__exitExportMode = function () {
             var s = document.getElementById('__export_mode');
             if (s) { s.remove(); }
@@ -103,19 +159,38 @@ final class PreviewHandle {
     @MainActor
     private func renderFlattenedPDF(completion: @escaping (Data?) -> Void) {
         guard let webView else { completion(nil); return }
-        webView.evaluateJavaScript(Self.enterExportModeJS) { result, _ in
-            let config = WKPDFConfiguration()
-            if let size = result as? [String: Any],
-               let width = size["w"] as? Double, let height = size["h"] as? Double,
-               width > 0, height > 0 {
-                let clampedWidth = min(CGFloat(width), CGFloat(Self.maxExportWidth))
-                config.rect = CGRect(x: 0, y: 0, width: clampedWidth, height: CGFloat(height))
+        waitForRendering(in: webView) { [weak webView] in
+            guard let webView else { completion(nil); return }
+            webView.evaluateJavaScript(Self.enterExportModeJS) { result, _ in
+                let config = WKPDFConfiguration()
+                if let size = result as? [String: Any],
+                   let width = size["w"] as? Double, let height = size["h"] as? Double,
+                   width > 0, height > 0 {
+                    let clampedWidth = min(CGFloat(width), CGFloat(Self.maxExportWidth))
+                    config.rect = CGRect(x: 0, y: 0, width: clampedWidth, height: CGFloat(height))
+                }
+                webView.createPDF(configuration: config) { pdfResult in
+                    // 无论成败都退出导出模式，别把加宽样式留在屏上。
+                    webView.evaluateJavaScript("window.__exitExportMode && window.__exitExportMode()")
+                    completion(try? pdfResult.get())
+                }
             }
-            webView.createPDF(configuration: config) { pdfResult in
-                // 无论成败都退出导出模式，别把加宽样式留在屏上。
-                webView.evaluateJavaScript("window.__exitExportMode && window.__exitExportMode()")
-                completion(try? pdfResult.get())
+        }
+    }
+
+    /// Mermaid 与 KaTeX 可能跨越多个事件循环；分享前统一等待页面登记的最终渲染任务。
+    @MainActor
+    private func waitForRendering(in webView: WKWebView, completion: @escaping @MainActor () -> Void) {
+        Task { @MainActor [weak webView] in
+            if let webView {
+                _ = try? await webView.callAsyncJavaScript(
+                    "await (window.__markdownRenderingReady || Promise.resolve()); return true;",
+                    arguments: [:],
+                    in: nil,
+                    contentWorld: .page
+                )
             }
+            completion()
         }
     }
 
@@ -130,8 +205,21 @@ final class PreviewHandle {
     @MainActor
     func extractPlainText(completion: @escaping (String?) -> Void) {
         guard let webView else { completion(nil); return }
-        webView.evaluateJavaScript("document.getElementById('content').innerText") { result, _ in
-            completion(result as? String)
+        Task { @MainActor [weak webView] in
+            guard let webView,
+                  let value = try? await webView.callAsyncJavaScript(
+                    """
+                    await (window.__markdownRenderingReady || Promise.resolve());
+                    return document.getElementById('content').innerText;
+                    """,
+                    arguments: [:],
+                    in: nil,
+                    contentWorld: .page
+                  ) else {
+                completion(nil)
+                return
+            }
+            completion(value as? String)
         }
     }
 

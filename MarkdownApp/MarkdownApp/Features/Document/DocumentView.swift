@@ -14,6 +14,7 @@ import SwiftUI
 
 struct DocumentView: View {
     let store: FileStore
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     /// 当前文档节点。设为可变状态，配合快速切换器实现原地换文档（不改导航栈）。
     @State private var node: DocumentNode
 
@@ -37,6 +38,8 @@ struct DocumentView: View {
     @State private var showSwitcher = false
     /// 桥接预览 WebView，供预览态「分享 - 长截图」取用。
     @State private var previewHandle = PreviewHandle()
+    @State private var editorHandle = EditorHandle()
+    @State private var showOutline = false
 
     // AI 写作：点按钮先选动作，过配置门槛后弹会话，接受则应用回文档。
     private let aiConfigStore = AIConfigStore()
@@ -44,6 +47,15 @@ struct DocumentView: View {
     @State private var aiTrigger = false
     @State private var pendingAction: AIAction?
     @State private var aiLaunch: AILaunch?
+    /// 选区润色态：非 nil 表示本次 AI 会话来自「选中文字 → 气泡菜单 AI」，接受时按此 range 回填。
+    /// nil 表示走整篇动作（底栏 AI 按钮）。整篇路径会先把它清空，避免沿用上一次的选区。
+    @State private var pendingSelection: EditorSelection?
+
+    /// 一次选区润色所需的最小信息：选中文本 + 它在源码中的 NSRange。
+    private struct EditorSelection {
+        let range: NSRange
+        let text: String
+    }
 
     var body: some View {
         content
@@ -83,15 +95,19 @@ struct DocumentView: View {
                             : [.sourceFile, .sourceContent]
                     )
                 }
-                // 底部两个按钮一左一右：中间放弹性空隙把「切换文档」推到左下角、AI 推到右下角。
-                // 各自成一枚独立玻璃胶囊（iOS 18 无 ToolbarSpacer 时用 Group + Spacer 回退）。
+                // 文档间/文档内导航组成左侧一组，AI 内容操作独立在右侧；
+                // 让顶部只承担返回、模式切换与分享，减少视觉拥挤。
                 if #available(iOS 26, *) {
-                    ToolbarItem(placement: .bottomBar) { switchDocButton }
+                    ToolbarItemGroup(placement: .bottomBar) {
+                        switchDocButton
+                        outlineButton
+                    }
                     ToolbarSpacer(.flexible, placement: .bottomBar)
                     ToolbarItem(placement: .bottomBar) { aiActionButton }
                 } else {
                     ToolbarItemGroup(placement: .bottomBar) {
                         switchDocButton
+                        outlineButton
                         Spacer()
                         aiActionButton
                     }
@@ -99,24 +115,33 @@ struct DocumentView: View {
             }
             .aiConfigGate(trigger: $aiTrigger, store: aiConfigStore) { config in
                 if let action = pendingAction {
-                    aiLaunch = AILaunch(config: config, action: action)
+                    // 把选区（若有）烘焙进 launch，后续都从 launch 读，不再读 @State。
+                    aiLaunch = AILaunch(config: config, action: action,
+                                        selectionText: pendingSelection?.text,
+                                        selectionRange: pendingSelection?.range)
                 }
             }
             .sheet(item: $aiLaunch) { launch in
                 AIWritingView(
                     config: launch.config,
                     action: launch.action,
-                    context: text,
+                    // 选区润色只把「选中文本」作为上下文；整篇动作用全文。
+                    context: launch.selectionText ?? text,
+                    // 选区润色时把选中内容展示给用户看；整篇动作不展示（内容即整篇，无需预览）。
+                    contextPreview: launch.selectionText,
                     title: launch.action.label
                 ) { result in
-                    applyAI(launch.action, result)
+                    applyAI(launch, result)
                 }
             }
             .onAppear(perform: loadIfNeeded)
+            .onAppear(perform: configureScrollSync)
             // 切回预览时先落盘，保证预览读到的是最新且已持久化的内容。
             .onChange(of: mode) { _, newMode in
                 if newMode == .preview { save() }
+                configureScrollSync()
             }
+            .onChange(of: horizontalSizeClass) { _, _ in configureScrollSync() }
             .onDisappear(perform: save)
             .sheet(isPresented: $showSwitcher) {
                 DocumentSwitcherSheet(store: store, currentURL: node.url) { selected in
@@ -124,6 +149,12 @@ struct DocumentView: View {
                 }
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showOutline) {
+                MarkdownOutlineSheet(markdown: text) { item in
+                    navigate(to: item)
+                }
+                .presentationDetents([.medium, .large])
             }
     }
 
@@ -141,6 +172,14 @@ struct DocumentView: View {
         .controlSize(.large)
     }
 
+    /// 文档内标题导航；与「切换文档」同属导航组，在 Preview/Edit 两态均可用。
+    private var outlineButton: some View {
+        Button { showOutline = true } label: {
+            Label("Outline", systemImage: "list.bullet")
+        }
+        .controlSize(.large)
+    }
+
     /// AI 辅助按钮：彩色 "AI" 文字 + sparkles 图标，点按弹出动作列表（锚定到本按钮）。
     private var aiActionButton: some View {
         AIAssistButton(title: "AI") { showAIActions = true }
@@ -149,6 +188,7 @@ struct DocumentView: View {
             // compact 场景显式用 .popover 适配，保持「贴着按钮」的观感。
             .popover(isPresented: $showAIActions) {
                 AIActionPopover { action in
+                    pendingSelection = nil   // 整篇动作：清掉可能残留的选区态
                     pendingAction = action
                     showAIActions = false
                     // 延迟触发，确保 popover 关闭动画完成后再触发 AI 流程，
@@ -171,9 +211,20 @@ struct DocumentView: View {
                 // 预览在「编辑的左边」：切走时向左滑出、回来时从左侧滑入。
                 .transition(.move(edge: .leading))
         case .edit:
-            EditorView(text: $text)
-                // 编辑在「预览的右边」：切走时向右滑出、进入时从右侧滑入。
+            if horizontalSizeClass == .regular {
+                HStack(spacing: 0) {
+                    EditorView(text: $text, handle: editorHandle, onRequestAIRefine: requestSelectionRefine)
+                        .frame(maxWidth: .infinity)
+                    Divider()
+                    MarkdownPreviewView(markdown: text, handle: previewHandle)
+                        .frame(maxWidth: .infinity)
+                }
                 .transition(.move(edge: .trailing))
+            } else {
+                EditorView(text: $text, handle: editorHandle, onRequestAIRefine: requestSelectionRefine)
+                    // 编辑在「预览的右边」：切走时向右滑出、进入时从右侧滑入。
+                    .transition(.move(edge: .trailing))
+            }
         }
     }
 
@@ -185,16 +236,71 @@ struct DocumentView: View {
         withAnimation(.easeInOut(duration: 0.25)) { mode = newMode }
     }
 
+    /// 同一份大纲按当前模式选择对应目标：源码聚焦标题，预览滚到渲染后的标题。
+    private func navigate(to item: MarkdownOutlineItem) {
+        switch mode {
+        case .preview:
+            previewHandle.scroll(
+                toHeadingLevel: item.level,
+                rawTitle: item.title,
+                occurrence: item.occurrence
+            )
+        case .edit:
+            editorHandle.focus(range: item.range)
+        }
+    }
+
+    /// 仅 iPad 宽屏编辑态同时显示两栏时启用双向比例同步；其它布局解除闭包，避免隐藏视图互相驱动。
+    private func configureScrollSync() {
+        guard horizontalSizeClass == .regular, mode == .edit else {
+            editorHandle.onScrollFraction = nil
+            previewHandle.onScrollFraction = nil
+            return
+        }
+        editorHandle.onScrollFraction = { [weak previewHandle = previewHandle] fraction in
+            previewHandle?.scroll(toFraction: fraction)
+        }
+        previewHandle.onScrollFraction = { [weak editorHandle = editorHandle] fraction in
+            editorHandle?.scroll(toFraction: fraction)
+        }
+    }
+
     // MARK: - AI
 
-    /// 接受 AI 结果：按动作应用到当前文档并落盘。
-    /// 续写/自定义=追加文末（不破坏原文）；润色/整理=替换全文。上下文用整篇（暂不支持选中）。
-    private func applyAI(_ action: AIAction, _ result: String) {
-        switch action.editorApplyMode {
+    /// 用户在编辑区选中文字、点气泡菜单「AI」时触发：以选中文本为上下文发起润色会话。
+    /// 复用整篇 AI 的同一套门槛/会话机制（pendingAction + aiTrigger + aiConfigGate），只是额外记下选区。
+    private func requestSelectionRefine(_ selectedText: String, _ range: NSRange) {
+        guard !selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        Haptics.light()
+        pendingSelection = EditorSelection(range: range, text: selectedText)
+        pendingAction = .polish            // 选区快捷入口固定走「润色」
+        aiTrigger = true                   // 过配置门槛后由 aiConfigGate 装配 aiLaunch 弹会话
+    }
+
+    /// 接受 AI 结果：按 launch 载荷应用到当前文档并落盘。
+    /// 选区润色=只替换选中的那段 range（其余不动）；否则按动作——续写/自定义追加文末、润色/整理替换全文。
+    private func applyAI(_ launch: AILaunch, _ result: String) {
+        if let range = launch.selectionRange {
+            applyToSelection(range, result)
+            return
+        }
+        switch launch.action.editorApplyMode {
         case .append:
             text = text.isEmpty ? result : text + "\n\n" + result
         case .replace:
             text = result
+        }
+        save()
+    }
+
+    /// 按 range 回填选区润色结果。range 越界（理论上会话期间源文不可编辑，但仍防御）则不覆盖错内容，
+    /// 安全退化为追加到文末。
+    private func applyToSelection(_ range: NSRange, _ result: String) {
+        let ns = text as NSString
+        if range.location != NSNotFound, range.location >= 0, range.location + range.length <= ns.length {
+            text = ns.replacingCharacters(in: range, with: result)
+        } else {
+            text = text.isEmpty ? result : text + "\n\n" + result
         }
         save()
     }

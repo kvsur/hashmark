@@ -1,0 +1,785 @@
+{
+  "version": "1.3.0",
+  "created_at": "2026-08-24 16:48:17",
+  "updated_at": "2026-08-25 10:50:33",
+  "current_step": "S14",
+  "next_step": "继续 S14.5：设备恢复可用后完成实体机覆盖安装，并用授权 Qwen/GLM 凭据做真实账户 smoke test。",
+  "overall_status": "in_progress",
+  "completion_rate": "99%",
+  "all_steps": [
+    {
+      "id": "S1",
+      "name": "Native contract freeze and demolition map",
+      "status": "done",
+      "depends_on": [],
+      "refs": [
+        "C1",
+        "C2",
+        "C3",
+        "C4",
+        "C5",
+        "C6",
+        "C7",
+        "C8",
+        "C11"
+      ],
+      "notes": [
+        "S1.1-S1.5 2026-08-24 18:03:51 完成：形成 C13 六家第一方契约冻结矩阵与 C14 旧兼容实现拆除图；锁定 Gemini Interactions、Qwen native DashScope、Kimi builtin $web_search、GLM text/vision split、REST transport 和 endpoint override 边界。"
+      ],
+      "sub_steps": [
+        {
+          "id": "S1.1",
+          "name": "盘点当前 AI 实现并标记 retain/rewrite/delete",
+          "status": "done"
+        },
+        {
+          "id": "S1.2",
+          "name": "复核六家第一方 endpoint/model/stream/image/file 契约",
+          "status": "done"
+        },
+        {
+          "id": "S1.3",
+          "name": "冻结最新 Web Search 模型、tool、引用和续传矩阵",
+          "status": "done"
+        },
+        {
+          "id": "S1.4",
+          "name": "冻结原生文件生命周期与 endpoint override 规则",
+          "status": "done"
+        },
+        {
+          "id": "S1.5",
+          "name": "形成 clean-break 删除图并锁定 REST/SDK 决策",
+          "status": "done"
+        }
+      ],
+      "verify": "六家第一方契约均有日期化来源且无兼容路由，高影响开放项全部关闭，旧 AI 文件和测试都有明确处置。",
+      "start_at": "2026-08-24 18:03:51",
+      "done_at": "2026-08-24 18:03:51"
+    },
+    {
+      "id": "S2",
+      "name": "Provider-neutral core and clean-break configuration",
+      "status": "done",
+      "depends_on": [
+        "S1"
+      ],
+      "refs": [
+        "C1",
+        "C2",
+        "C4",
+        "C5",
+        "C6",
+        "C7",
+        "C9",
+        "C12",
+        "C13",
+        "C14"
+      ],
+      "notes": [
+        "S2.1-S2.5 2026-08-24 18:03:51 实现完成：删除 APIProtocol、十家兼容 Registry/Profile、OpenAIChat 和旧 Anthropic 客户端；新增六家 manifest、exact model capabilities、粗粒度 AIProviderAdapter、中立 generation/citation/file/usage/continuation 类型、显式 Provider 配置与统一设置状态。未运行测试、构建或静态复查，S2.6 pending。",
+        "S2.6 2026-08-24 20:16:53 完成：NativeProviderCoreTests、AIConfigFormStateTests 与 production Swift source audit 全部通过；S2 验证闭环。"
+      ],
+      "sub_steps": [
+        {
+          "id": "S2.1",
+          "name": "用六家 AIProvider 和日期化 manifest 替换旧协议/Registry",
+          "status": "done"
+        },
+        {
+          "id": "S2.2",
+          "name": "定义粗粒度 AIProviderAdapter 并隔离 wire types",
+          "status": "done"
+        },
+        {
+          "id": "S2.3",
+          "name": "建立中立 request/event/citation/file/error 领域模型",
+          "status": "done"
+        },
+        {
+          "id": "S2.4",
+          "name": "围绕显式 Provider 重建 AIConfig 与统一表单状态",
+          "status": "done"
+        },
+        {
+          "id": "S2.5",
+          "name": "重建 factory、诊断和联网前校验并删除 fallback",
+          "status": "done"
+        },
+        {
+          "id": "S2.6",
+          "name": "运行 native core/settings 契约测试与旧路径静态审计",
+          "status": "done",
+          "done_at": "2026-08-24 20:16:53"
+        }
+      ],
+      "verify": "核心测试覆盖六家和未知模型；生产代码不存在旧 APIProtocol、custom/compatibility fallback、host 推断或共享 wire payload。",
+      "start_at": "2026-08-24 18:03:51",
+      "done_at": "2026-08-24 20:16:53"
+    },
+    {
+      "id": "S3",
+      "name": "OpenAI Responses native adapter",
+      "status": "done",
+      "depends_on": [
+        "S2"
+      ],
+      "refs": [
+        "C2",
+        "C5",
+        "C7",
+        "C8",
+        "C12",
+        "C13"
+      ],
+      "notes": [
+        "S3.1-S3.5 2026-08-24 20:29:36 实现完成：新增 OpenAI Responses 原生 request/auth、typed SSE、previous_response_id 会话状态、hosted web_search 来源、image/PDF/upload、Vector Store/File Search 生命周期与离线 fixtures；factory 已仅为 OpenAI 接入 Responses，未恢复 Chat Completions/兼容 fallback。按验证约束尚未运行测试、构建或静态审计，父步骤保持 in_progress。",
+        "S3 verification 2026-08-24 20:59:26 完成：OpenAIResponsesContractTests、NativeProviderCoreTests 与 OpenAI native production source audit 全部通过；确认 Responses-only 路由、typed stream、previous_response_id、web_search sources、image/file 与 File Search fixture。"
+      ],
+      "sub_steps": [
+        {
+          "id": "S3.1",
+          "name": "实现 Responses endpoint/auth/input 请求",
+          "status": "done"
+        },
+        {
+          "id": "S3.2",
+          "name": "实现 Responses typed stream items/events",
+          "status": "done"
+        },
+        {
+          "id": "S3.3",
+          "name": "实现 response state 与多轮续传",
+          "status": "done"
+        },
+        {
+          "id": "S3.4",
+          "name": "实现 hosted web_search 与 sources",
+          "status": "done"
+        },
+        {
+          "id": "S3.5",
+          "name": "实现 image/file input 与 File Search fixture",
+          "status": "done"
+        }
+      ],
+      "verify": "OpenAI 只调用 Responses；文本、推理、工具、搜索、图片、文件、File Search、取消和续传 fixture 完整。",
+      "start_at": "2026-08-24 20:29:36",
+      "done_at": "2026-08-24 20:59:26"
+    },
+    {
+      "id": "S4",
+      "name": "Anthropic native adapter",
+      "status": "done",
+      "depends_on": [
+        "S2"
+      ],
+      "refs": [
+        "C2",
+        "C5",
+        "C7",
+        "C8",
+        "C12",
+        "C13"
+      ],
+      "notes": [
+        "S4.1-S4.5 2026-08-24 21:12:33 完成：新增独立 Anthropic Messages request/auth、typed SSE、thinking/signature 与 redacted block 保真、web_search_20260318 server tool/citation、image/PDF/Files beta 生命周期及第一方离线 fixture；AnthropicContractTests 通过，未知模型不会收到高级字段。"
+      ],
+      "sub_steps": [
+        {
+          "id": "S4.1",
+          "name": "实现官方 Messages transport/auth/error",
+          "status": "done"
+        },
+        {
+          "id": "S4.2",
+          "name": "实现 thinking/tool/continuation 保真",
+          "status": "done"
+        },
+        {
+          "id": "S4.3",
+          "name": "实现冻结版本 web_search server tool",
+          "status": "done"
+        },
+        {
+          "id": "S4.4",
+          "name": "实现 image/PDF/document/Files 路径",
+          "status": "done"
+        },
+        {
+          "id": "S4.5",
+          "name": "重建 Anthropic 第一方契约 fixture",
+          "status": "done"
+        }
+      ],
+      "verify": "Messages 请求无 OpenAI 字段；search tool 版本、thinking、引用、图片和 PDF/file 均匹配第一方 fixture。",
+      "start_at": "2026-08-24 21:12:33",
+      "done_at": "2026-08-24 21:12:33"
+    },
+    {
+      "id": "S5",
+      "name": "Gemini native adapter",
+      "status": "done",
+      "depends_on": [
+        "S2"
+      ],
+      "refs": [
+        "C2",
+        "C7",
+        "C8",
+        "C12",
+        "C13"
+      ],
+      "notes": [
+        "S5.1-S5.5 2026-08-24 21:16:18 完成：新增 Gemini Interactions 原生 request/SSE、x-goog-api-key 与 Api-Revision、previous_interaction_id、thought/function/safety error/usage、google_search grounding citation spans、inline/uploaded image/PDF 及独立 File Search Store/import 生命周期；GeminiContractTests 通过，未知模型高级字段关闭。"
+      ],
+      "sub_steps": [
+        {
+          "id": "S5.1",
+          "name": "实现冻结的 Gemini 原生 endpoint/content 契约",
+          "status": "done"
+        },
+        {
+          "id": "S5.2",
+          "name": "实现 native stream/thought/tool/safety/usage",
+          "status": "done"
+        },
+        {
+          "id": "S5.3",
+          "name": "实现 google_search 精确模型门控",
+          "status": "done"
+        },
+        {
+          "id": "S5.4",
+          "name": "解析 grounding metadata 与 citation spans",
+          "status": "done"
+        },
+        {
+          "id": "S5.5",
+          "name": "实现 image/Files/PDF/File Search fixture",
+          "status": "done"
+        }
+      ],
+      "verify": "Gemini 不调用兼容 endpoint；原生 text/tool/search/image/file 和 grounding stream fixture 覆盖支持与拒绝路径。",
+      "start_at": "2026-08-24 21:16:18",
+      "done_at": "2026-08-24 21:16:18"
+    },
+    {
+      "id": "S6",
+      "name": "Qwen DashScope native adapter",
+      "status": "done",
+      "depends_on": [
+        "S2"
+      ],
+      "refs": [
+        "C2",
+        "C3",
+        "C7",
+        "C8",
+        "C12",
+        "C13"
+      ],
+      "notes": [
+        "S6.1-S6.5 2026-08-24 21:20:49 完成：新增独立 DashScope text-generation/multimodal-generation request、native SSE、enable_search/search_options 与 agent search strategy、search_info citation、image/PDF/upload/extract/retrieval 文件生命周期及离线 fixture；QwenContractTests 通过，compatible-mode 被显式拒绝，未知模型高级字段关闭。"
+      ],
+      "sub_steps": [
+        {
+          "id": "S6.1",
+          "name": "实现原生 DashScope text-generation",
+          "status": "done"
+        },
+        {
+          "id": "S6.2",
+          "name": "实现原生 multimodal-generation 与 stream",
+          "status": "done"
+        },
+        {
+          "id": "S6.3",
+          "name": "实现 enable_search/search_options 模型规则",
+          "status": "done"
+        },
+        {
+          "id": "S6.4",
+          "name": "解析 search_info sources/citations",
+          "status": "done"
+        },
+        {
+          "id": "S6.5",
+          "name": "实现 image/file/extract/retrieval fixture",
+          "status": "done"
+        }
+      ],
+      "verify": "Qwen 不使用 compatible-mode/OpenAI schema；原生文本、多模态、搜索来源与文件路径符合日期化 DashScope 矩阵。",
+      "start_at": "2026-08-24 21:20:49",
+      "done_at": "2026-08-24 21:20:49"
+    },
+    {
+      "id": "S7",
+      "name": "Kimi native adapter",
+      "status": "done",
+      "depends_on": [
+        "S2"
+      ],
+      "refs": [
+        "C2",
+        "C3",
+        "C7",
+        "C8",
+        "C12",
+        "C13"
+      ],
+      "notes": [
+        "S7.1-S7.5 2026-08-24 21:24:25 完成：新增独立 Kimi chat/files wire、K2.6 reasoning_content 不透明续传、builtin_function $web_search 自动续轮契约、搜索时强制 disabled thinking、来源归一化、inline/uploaded vision 与 Files/extract 生命周期及离线 fixture；KimiContractTests 通过，未知模型高级字段关闭。",
+        "S7 contract follow-up 2026-08-24 21:33:08：按官方 Files/chat 文档修正为 /v1/files、image/video purpose 与 ms:// media reference，并新增 endpoint fixture；KimiContractTests 与整 App 构建复验通过。"
+      ],
+      "sub_steps": [
+        {
+          "id": "S7.1",
+          "name": "实现独立 Kimi transport/model/wire types",
+          "status": "done"
+        },
+        {
+          "id": "S7.2",
+          "name": "实现 K2.6 thinking/tool continuation",
+          "status": "done"
+        },
+        {
+          "id": "S7.3",
+          "name": "实现冻结的 builtin 或 Formula 搜索路径",
+          "status": "done"
+        },
+        {
+          "id": "S7.4",
+          "name": "处理 search-thinking 冲突与来源状态",
+          "status": "done"
+        },
+        {
+          "id": "S7.5",
+          "name": "实现 vision/Files/extract fixture",
+          "status": "done"
+        }
+      ],
+      "verify": "Kimi 不复用 OpenAI serializer；K2.6 thinking/search 冲突、续传、图片、文件上传和提取都有第一方 fixture。",
+      "start_at": "2026-08-24 21:24:25",
+      "done_at": "2026-08-24 21:24:25"
+    },
+    {
+      "id": "S8",
+      "name": "GLM native adapter",
+      "status": "done",
+      "depends_on": [
+        "S2"
+      ],
+      "refs": [
+        "C2",
+        "C3",
+        "C7",
+        "C8",
+        "C12",
+        "C13"
+      ],
+      "notes": [
+        "S8.1-S8.5 2026-08-24 21:27:20 完成：新增独立 BigModel chat/files wire、typed stream/error、thinking/reasoning_content 与 function 终态、chat web_search 配置、顶层 web_search 来源与 request identity、精确 glm-5v-turbo/glm-4.6v 视觉文件路径及离线 fixture；GLMContractTests 通过，文本模型拒绝媒体，未知/宽泛相似模型高级能力关闭。",
+        "S8 contract follow-up 2026-08-24 21:33:08：按 GLM-5V 官方契约补充视觉模型 thinking、raw Base64 image，并拒绝同轮混用 image/file 模态；GLMContractTests 与整 App 构建复验通过。"
+      ],
+      "sub_steps": [
+        {
+          "id": "S8.1",
+          "name": "实现 BigModel native request/stream/error",
+          "status": "done"
+        },
+        {
+          "id": "S8.2",
+          "name": "实现 thinking/function 与终态",
+          "status": "done"
+        },
+        {
+          "id": "S8.3",
+          "name": "实现冻结的 chat web_search 路径",
+          "status": "done"
+        },
+        {
+          "id": "S8.4",
+          "name": "解析 web_search sources 与 request identity",
+          "status": "done"
+        },
+        {
+          "id": "S8.5",
+          "name": "实现精确 visual/file 模型路径",
+          "status": "done"
+        }
+      ],
+      "verify": "GLM 请求/来源符合 BigModel fixture；文本和视觉/文件模型明确分离，不存在 OpenAI adapter 或宽泛模型猜测。",
+      "start_at": "2026-08-24 21:27:20",
+      "done_at": "2026-08-24 21:27:20"
+    },
+    {
+      "id": "S9",
+      "name": "Native attachment and file lifecycle orchestration",
+      "status": "done",
+      "depends_on": [
+        "S3",
+        "S4",
+        "S5",
+        "S6",
+        "S7",
+        "S8"
+      ],
+      "refs": [
+        "C2",
+        "C7",
+        "C9",
+        "C13"
+      ],
+      "notes": [
+        "S9 start 2026-08-24 21:47:02：现状审计确认 Provider FileService 以隐式 pending 队列把上传结果附到 last user message，无法可靠表达原消息归属、重试/多轮复用或跨 Adapter 生命周期；S9 将改为 typed intent/state 与显式按消息绑定的 Provider-scoped reference。",
+        "S9.1-S9.5 2026-08-24 22:04:26 完成：建立 typed attachment intent/lifecycle、Provider-scoped transport reference 与按原消息绑定的编排器；六家 Adapter 请求不再读取隐式 pending 队列，上传/提取/检索引用带归属和过期校验；集中 provider-specific 数量/体积/模型/混合媒体 preflight，显式文本 context 不静默降级；取消、失败和完成均清理资源，诊断仅记录数量/字节/路径。AttachmentOrchestrationTests、六家契约测试与 iOS build 通过。"
+      ],
+      "sub_steps": [
+        {
+          "id": "S9.1",
+          "name": "建立 typed attachment intents/states",
+          "status": "done"
+        },
+        {
+          "id": "S9.2",
+          "name": "编排 provider-owned upload/reference/extract/retrieval",
+          "status": "done"
+        },
+        {
+          "id": "S9.3",
+          "name": "集中 MIME/size/count/model preflight",
+          "status": "done"
+        },
+        {
+          "id": "S9.4",
+          "name": "实现显式文本 fallback 与不静默降级",
+          "status": "done"
+        },
+        {
+          "id": "S9.5",
+          "name": "补齐生命周期、取消、过期与隐私测试",
+          "status": "done"
+        }
+      ],
+      "verify": "每个附件都有确定原生路径或请求前解释；Provider 文件 ID/块不串用，日志不含附件内容。",
+      "start_at": "2026-08-24 21:47:02",
+      "done_at": "2026-08-24 22:04:26"
+    },
+    {
+      "id": "S10",
+      "name": "Search citations, native tool state and session continuity",
+      "status": "done",
+      "depends_on": [
+        "S3",
+        "S4",
+        "S5",
+        "S6",
+        "S7",
+        "S8"
+      ],
+      "refs": [
+        "C2",
+        "C7",
+        "C8",
+        "C12",
+        "C13"
+      ],
+      "notes": [
+        "S10.1-S10.5 2026-08-24 22:04:26 完成：AIStreamEvent 改为 typed AISearchEvent；Kimi 仅 continuationRequired 可触发有界原生搜索续传，server tools 与普通 toolCall 永不进入通用自动循环；建立 search timeline、来源身份去重、publisher/marker/span/query/provider metadata 和严格 http(s) URL 校验；搜索状态/来源独立展示且不进入 Markdown 正文；stop/retry/regenerate/refine/clarify、多轮 opaque continuation、取消与循环上限由 SearchAndSessionStateTests 覆盖。"
+      ],
+      "sub_steps": [
+        {
+          "id": "S10.1",
+          "name": "以 typed provider search event 替换通用自动续传",
+          "status": "done"
+        },
+        {
+          "id": "S10.2",
+          "name": "建立中立 search state/citation 模型",
+          "status": "done"
+        },
+        {
+          "id": "S10.3",
+          "name": "集成流式/最终引用且不污染正文",
+          "status": "done"
+        },
+        {
+          "id": "S10.4",
+          "name": "重建 stop/retry/regenerate/refine 多轮状态",
+          "status": "done"
+        },
+        {
+          "id": "S10.5",
+          "name": "补齐循环、异常、取消、超时和隐私时间线测试",
+          "status": "done"
+        }
+      ],
+      "verify": "六家搜索得到一致可见状态/引用，同时保持原生 wire 和 continuation；会话动作不混淆正文、推理和来源。",
+      "start_at": "2026-08-24 22:04:26",
+      "done_at": "2026-08-24 22:04:26"
+    },
+    {
+      "id": "S11",
+      "name": "End-to-end AIGC presentation and streaming UX",
+      "status": "done",
+      "depends_on": [
+        "S9",
+        "S10"
+      ],
+      "refs": [
+        "C1",
+        "C7",
+        "C9",
+        "C12",
+        "C13"
+      ],
+      "notes": [
+        "S11.1-S11.6 2026-08-24 22:23:35 完成：新增 Provider-neutral presentation reducer，完整覆盖附件准备/上传/连接/Thinking/搜索/工具/生成/收尾/完成/取消/中断/失败；Thinking 只展示显式可见内容并尊重用户 disclosure 选择，正文开始后默认收起；delta 40ms 合帧与 WebView 结束帧保证降低主线程重排；滚动归属、Jump to Latest、final-only accept、后台/网络/长度终态和恢复入口均落地。PresentationStateTests、SearchAndSessionStateTests 与 Debug iOS Simulator build 通过。"
+      ],
+      "sub_steps": [
+        {
+          "id": "S11.1",
+          "name": "建立完整 AIGC presentation state machine",
+          "status": "done"
+        },
+        {
+          "id": "S11.2",
+          "name": "实现安全且尊重用户选择的 Thinking 面板",
+          "status": "done"
+        },
+        {
+          "id": "S11.3",
+          "name": "实现 delta 合并和高性能增量 Markdown 渲染",
+          "status": "done"
+        },
+        {
+          "id": "S11.4",
+          "name": "实现阅读位置、进度、引用和正文接受体验",
+          "status": "done"
+        },
+        {
+          "id": "S11.5",
+          "name": "实现取消、重试、后台和网络中断终态",
+          "status": "done"
+        },
+        {
+          "id": "S11.6",
+          "name": "补齐 phase/thinking/scroll/interruption 展示测试",
+          "status": "done"
+        }
+      ],
+      "verify": "六家驱动同一套完整且流畅的可见生成链路；Thinking/streaming 可访问、不可破坏正文，只有最终答案可进入文档。",
+      "start_at": "2026-08-24 22:12:24",
+      "done_at": "2026-08-24 22:23:35"
+    },
+    {
+      "id": "S12",
+      "name": "Unified settings, model freshness and capability UX",
+      "status": "done",
+      "depends_on": [
+        "S2"
+      ],
+      "refs": [
+        "C1",
+        "C2",
+        "C6",
+        "C9",
+        "C13"
+      ],
+      "notes": [
+        "S12.1-S12.5 2026-08-24 22:23:35 完成：统一单页配置保持六家显式 Provider 语义；新增第一方地区端点预设与 advanced Base URL 安全说明、日期化 manifest 模型状态、Thinking/Search 冲突提示、OpenAI/Anthropic/Gemini/Qwen/Kimi 官方 List Models 发现（GLM 无冻结官方路由故保守关闭）；API Key 改为 SecureField，未知/仅发现模型不会获得高级能力。设置契约测试、七语言 catalog 完整性预检与 Debug build 通过。"
+      ],
+      "sub_steps": [
+        {
+          "id": "S12.1",
+          "name": "保持单页结构并改为六家显式 Provider 语义",
+          "status": "done"
+        },
+        {
+          "id": "S12.2",
+          "name": "实现 Provider 默认值、地区与安全 endpoint override",
+          "status": "done"
+        },
+        {
+          "id": "S12.3",
+          "name": "展示日期化模型能力和 thinking/search 冲突",
+          "status": "done"
+        },
+        {
+          "id": "S12.4",
+          "name": "接入可用模型列表但保持 manifest 权威",
+          "status": "done"
+        },
+        {
+          "id": "S12.5",
+          "name": "完成七语言、无障碍、焦点和 UI 状态测试",
+          "status": "done"
+        }
+      ],
+      "verify": "六家共用一个无兼容概念的配置页；保存只路由一个 native Adapter，能力解释与日期化 manifest 一致。",
+      "start_at": "2026-08-24 22:16:00",
+      "done_at": "2026-08-24 22:23:35"
+    },
+    {
+      "id": "S13",
+      "name": "Contract regression, real-provider QA and handoff",
+      "status": "done",
+      "depends_on": [
+        "S11",
+        "S12"
+      ],
+      "refs": [
+        "C1",
+        "C2",
+        "C8",
+        "C9",
+        "C10",
+        "C12",
+        "C13",
+        "C14"
+      ],
+      "notes": [
+        "S13.1-S13.5 2026-08-24 22:37:15 完成：新增 2026-08-24 六家 fixture manifest，逐家覆盖 request/stream/source/error/image/file 及每项 manifest capability evidence；全量 core/六家 Adapter/附件/搜索会话/展示/设置/i18n/隐私/旧路径审计通过，移除旧兼容测试、fixture、string catalog 标签和空 OpenAIChat 目录；Debug/Release simulator build 通过，最终 Debug 包在 iPhone 17 Pro light + Accessibility Extra Large 与 iPad Pro 13-inch dark 启动，iPhone background/resume 正常；发布 NATIVE_PROVIDER_SUPPORT.md 与 native contract。环境无六家凭据，故 S13.4 按 verify 明确记录为未在线实测；实体设备旋转、弱网调节和 VoiceOver 手势列为 release-candidate 手工项。"
+      ],
+      "sub_steps": [
+        {
+          "id": "S13.1",
+          "name": "建立六家日期化 fixture manifest",
+          "status": "done"
+        },
+        {
+          "id": "S13.2",
+          "name": "运行全量契约/会话/展示/UI/i18n/隐私回归与旧路径审计",
+          "status": "done"
+        },
+        {
+          "id": "S13.3",
+          "name": "完成 Debug/Release 与 iPhone/iPad 设备 QA",
+          "status": "done"
+        },
+        {
+          "id": "S13.4",
+          "name": "用可用凭据 smoke test 最新搜索模型及 image/file",
+          "status": "done"
+        },
+        {
+          "id": "S13.5",
+          "name": "发布支持矩阵、排障、未实测项和刷新流程",
+          "status": "done"
+        }
+      ],
+      "verify": "离线契约和构建全部通过，在线能力与矩阵一致，缺少凭据项明确记录，旧兼容路径不可达。",
+      "start_at": "2026-08-24 22:23:35",
+      "done_at": "2026-08-24 22:37:15"
+    },
+    {
+      "id": "S14",
+      "name": "Deterministic Web Search enforcement across six Providers",
+      "status": "in_progress",
+      "depends_on": [
+        "S13"
+      ],
+      "refs": [
+        "C8",
+        "C9",
+        "C15",
+        "C16",
+        "C17",
+        "C18",
+        "C19"
+      ],
+      "notes": [
+        "S14 2026-08-25 00:17:52 开始：Kimi 真机证明设置快照、精确模型门控、模型自主工具选择与通用 continuation 验证可组合成静默离线或 invalid_native_search_continuation；用户要求把修复扩展为六家确定性搜索契约。",
+        "S14.1-S14.4 2026-08-25 00:25:46 完成：AIClientFactory 对搜索开启但模型不支持的组合联网前失败；OpenAI/Anthropic/Gemini 使用各自强制 tool choice 并验证响应搜索事件，Qwen 使用 forced_search，Kimi 仅保留 Formula 预执行且拒绝模型 continuation，GLM 改走独立 /web_search 预检、引用时间线和本地化不可信证据注入；相关 Provider 契约测试已通过。",
+        "S14.5 2026-08-25 00:34:26 验证进展：完整 13 组离线测试、回归审计、七语言搜索 prompt 检查、Debug 模拟器构建/安装/启动及签名 Release iphoneos 构建全部通过；iPhone F53A3FDD-F885-5F65-A108-9C3725475F27 当前为 unavailable，devicectl 无法定位设备，故实体机覆盖安装与真实凭据 smoke test 待设备解锁重连。",
+        "S14.6 2026-08-25 00:47:40 完成：修复所有 Provider 共用的设置初始化竞态，已保存配置不再被程序化 Provider 载入误判为手动切换而恢复默认模型；OpenAI、Anthropic、Gemini、Qwen、Kimi 的刷新模型列表会按 Provider 持久化，已保存的动态模型即使缓存缺失也保留在选项中。AI 设置回归、完整 13 组契约/审计、Debug/Release 构建及模拟器安装启动全部通过。",
+        "2026-08-25 10:16:46 只读排查：本地 GLM manifest 虽标记 2026-08-24 验证，仍固定 glm-5.2 且明确禁用 GLM 模型刷新，因而漏掉官方已上线的 glm-5.3；这是清单新鲜度缺陷。官方同时确认 GLM-5.2 与 GLM-5.3 均仅支持文本输入，图片/PDF/原生文件应继续由 GLM-5V-Turbo 等精确视觉模型承接；App 的纯文本文件引用仍可作为本地文本上下文使用。本轮未改产品代码。",
+        "2026-08-25 10:21:09 只读排查：Qwen 本地 manifest 仅到 3.5，遗漏官方当前 3.6/3.7/3.8 系列；列表响应解析已兼容 output.models[].model，但刷新 URL 由简化 generation preset 推导，未表达当前地域专属 API Key、Workspace ID 与模型列表端点约束，且 UI/日志无法区分 HTTP 失败和成功空列表。新系列还存在精确模型的 text/multimodal 原生 endpoint 与 search_strategy 差异，不能只追加 ID。本轮未改产品代码。",
+        "S14.7 2026-08-25 10:40:21 开始：用户授权直接修复 GLM-5.3 与 Qwen 3.6–3.8 清单、精确原生路由/搜索策略以及 Qwen 地域模型刷新链路。",
+        "S14.7 2026-08-25 10:50:33 完成：GLM 默认升级至 glm-5.3 并锁定 always-on thinking/reasoning_effort=max，5.2/5.3 继续严格文本模态；Qwen 默认升级至 qwen3.7-plus，补齐官方当前 3.6/3.7/3.8 精确模型、原生 text/multimodal 路由和保守文件能力。中国旧域名刷新改走 authorized inference permissions，国际/Workspace 模型目录补齐 TG/inference 过滤与分页，并增加去敏状态诊断。完整 13 组离线回归、Debug 模拟器构建/安装/启动和 Release iphoneos 构建通过；真实账户刷新因无凭据未冒充验证。"
+      ],
+      "sub_steps": [
+        {
+          "id": "S14.1",
+          "name": "建立六家强制搜索不变量和联网前失败语义",
+          "status": "done"
+        },
+        {
+          "id": "S14.2",
+          "name": "强制 OpenAI、Anthropic 与 Gemini 原生 server search",
+          "status": "done"
+        },
+        {
+          "id": "S14.3",
+          "name": "强制 Qwen 并收口 Kimi Formula 预检",
+          "status": "done"
+        },
+        {
+          "id": "S14.4",
+          "name": "实现 GLM 独立 Web Search API 预检和引用注入",
+          "status": "done"
+        },
+        {
+          "id": "S14.5",
+          "name": "完成六家契约、会话、i18n、隐私、构建和真机验证",
+          "status": "in_progress"
+        },
+        {
+          "id": "S14.6",
+          "name": "持久化刷新模型列表并保留已保存动态模型",
+          "status": "done",
+          "done_at": "2026-08-25 00:47:40"
+        },
+        {
+          "id": "S14.7",
+          "name": "更新 GLM/Qwen 最新模型矩阵并修复 Qwen 地域模型刷新",
+          "status": "done",
+          "start_at": "2026-08-25 10:40:21",
+          "done_at": "2026-08-25 10:50:33"
+        }
+      ],
+      "verify": "Search 开启时六家均有强制原生搜索或预检结果和搜索时间线，不支持组合在生成前失败；关闭时无搜索请求/字段；全套契约、会话、i18n、隐私和构建通过。",
+      "start_at": "2026-08-25 00:17:52"
+    }
+  ],
+  "failures": [],
+  "decisions": {
+    "provider-scope": "仅支持 OpenAI、Anthropic、Gemini、Qwen、Kimi、GLM 六家。",
+    "native-only": "每家只实现第一方原生 endpoint、auth、request、stream、tool 和 file 契约；禁止跨 Provider 兼容路由。",
+    "openai-route": "OpenAI 只使用当前 Responses API，不再实现 Chat Completions。",
+    "adapter-boundary": "AIProviderAdapter 只统一 App 领域请求、能力查询和事件；Provider wire 类型、parser 和 tool/file 生命周期完全私有。",
+    "settings-surface": "保持一个统一、非技术化配置页面和主要字段；用显式 Provider 语义替换会误导的协议路由，不拆六套表单。",
+    "clean-break": "App 未发布，不保留十家旧配置迁移、APIProtocol raw value、custom Provider、host 推断或 compatibility fallback。",
+    "endpoint-override": "若保留 Base URL，它只覆盖已选择 Provider 的 endpoint，不识别 Provider、不切换 wire contract、不承诺兼容。",
+    "transport": "默认使用 URLSession 直连第一方 REST API；官方 SDK 仅作契约参考，除非 S1 证明有不可替代收益。",
+    "model-capability-policy": "使用带官方来源和复核日期的精确模型/tool manifest；未知模型高级能力关闭，List Models 不能单独证明 Web Search 支持。",
+    "gemini-native-route": "Gemini 主路由冻结为 v1beta Interactions + google_search；不使用 OpenAI compatible endpoint。",
+    "qwen-native-route": "Qwen 只使用 DashScope text-generation/multimodal-generation；兼容 Responses 模型表不进入 native manifest。",
+    "qwen-model-refresh": "中国旧 DashScope 域名通过 /models/permissions 查询已授权推理模型；国际和自定义 Workspace host 通过带 TG/inference 过滤与分页的 /models 查询。",
+    "kimi-search-route": "S14 supersedes S7：Kimi 搜索开启时由 App 预执行 moonshot/web-search Formula 并注入受保护结果，不再依赖 builtin/模型自主 continuation。",
+    "glm-search-route": "S14 supersedes GLM chat auto tool：搜索开启时先调用 /api/paas/v4/web_search，再把引用和不可信证据注入 chat；未预载证据的 chat 请求在本地拒绝。",
+    "glm-model-split": "GLM-5.3 与 GLM-5.2 仅启用文本/reasoning/search；image/file 只对精确视觉模型 ID 开启。",
+    "web-search-policy": "Web Search 开启即代表每个新用户回合必须真实搜索并产生 Provider 执行证据；各 Adapter 保留原生 wire 方式，禁止关键词判断、auto 静默跳过和无证据降级。",
+    "file-policy": "direct input、upload/reference、extract、retrieval 分别建模，文件 ID 和生命周期不得跨 Provider 复用。",
+    "thinking-presentation": "只展示 Provider 明确返回的可展示 reasoning；流式时展开，正文开始后默认收起并尊重用户手动选择；signature、encrypted 和 opaque continuation 永不展示。",
+    "streaming-presentation": "使用 typed generation phases 与 delta 合并渲染；用户离开底部后停止强制滚动，中断进入显式可恢复状态，只有最终正文可写回 Markdown。",
+    "capability-safety": "Provider/model/route/tool version 任一未确认时不发送高级字段，不静默丢附件或伪造降级。",
+    "diagnostics-privacy": "日志仅记录 Provider、model、能力决策、事件类型、大小、耗时和关联 ID，不记录 Key、prompt、正文、附件、搜索原文或原始工具参数。"
+  },
+  "notes": [
+    "2026-08-24 16:48:17 用户明确要求直接归档现有任务并重启六家原生 API clean-rewrite 计划；旧十家兼容层计划完整归档到 .work-planner/archive/ten-provider-compatibility/。",
+    "本轮 bootstrap 仅更新 .work-planner 计划与持久上下文，未修改业务代码，也未执行测试或构建。",
+    "当前工作区可能包含用户未提交改动；执行阶段不得清理、回滚或覆盖无关改动。",
+    "S1 必须以执行当日第一方文档重新核验 C2，尤其是 OpenAI/Anthropic dated tool、Gemini native route、Qwen native model matrix、Kimi search-thinking 冲突和 GLM text/vision model split。",
+    "2026-08-24 17:14:18 用户指出最终 AIGC UI 链路需要显式覆盖 Thinking 与流式体验；新增 C12 和独立 S11，原设置阶段顺延为 S12，最终验收顺延为 S13。",
+    "2026-08-24 18:03:51 S1 完成并开始 S2；S2 采用明确 cutover，中间态所有 Provider Adapter 返回不可用，不允许旧兼容客户端兜底。",
+    "2026-08-24 20:16:53 S2 正式完成；六家原生核心契约、统一配置状态及旧兼容路径静态审计均已通过，下一执行阶段为 S3。",
+    "2026-08-24 20:29:36 S3 五个实现子项已落盘；OpenAI Adapter 现为六家计划中首个可路由的原生实现，S4-S8 仍保持 providerUnavailable，避免未完成协议兜底。",
+    "2026-08-24 20:59:26 S3 正式闭环，OpenAI Responses 原生 Adapter 成为首个通过离线契约验证的 Provider；当前步骤推进至 S4。",
+    "2026-08-24 21:33:08 S4-S8 独立 Provider 阶段全部完成：六家真实 Adapter 已 exhaustive 接入 factory；设置/core/OpenAI/Anthropic/Gemini/Qwen/Kimi/GLM 八组测试、原生协议隔离审计与 iOS Simulator App 构建全部通过。整体计划推进至 S9。",
+    "2026-08-24 22:37:15 S1-S13 全部完成：六家 native-only 架构、统一设置、附件/搜索/Thinking/流式体验与最终契约回归闭环；真实凭据和实体设备专项按支持文档留作发布候选检查。",
+    "2026-08-25 00:17:52 用户要求将 Kimi 真机暴露的搜索执行缺口修复为六家通用契约；追加 S14 并以 C15/C16 作为回归和第一方依据。",
+    "2026-08-25 10:50:33 S14.7 完成：GLM-5.3 与 Qwen 3.6–3.8 清单、精确路由及 Qwen 地域模型刷新已落地并通过完整离线回归和双配置构建；S14 仅余实体机/真实凭据专项。"
+  ]
+}

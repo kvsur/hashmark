@@ -36,10 +36,20 @@ struct AIAttachmentBar: View {
     private var cameraAvailable: Bool { UIImagePickerController.isSourceTypeAvailable(.camera) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Label("Attachments", systemImage: "paperclip")
+                    .font(.subheadline.weight(.semibold))
+                Spacer(minLength: 0)
+                if isProcessingPhotos {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+            }
+
             if !attachments.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
+                    HStack(spacing: 8) {
                         ForEach(attachments) { attachment in
                             chip(for: attachment)
                         }
@@ -48,15 +58,7 @@ struct AIAttachmentBar: View {
                 }
             }
 
-            // 入口上方的引导文案：鼓励添加附件作为上下文（居中，灰色小字，深浅色自适配）。
-            Text("Add the right attachments to help AI generate better content.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity, alignment: .center)
-
-            HStack(spacing: 20) {
-                Spacer(minLength: 0)
+            HStack(spacing: 8) {
                 // 图片入口常态展示。已声明支持图片才可选图；否则点击引导去配置页开启，
                 // 而不是直接把图片发给可能不支持视觉的模型（那会得到「访问不了链接」之类的困惑回复）。
                 // 开启后弹菜单：拍照（相机，模拟器无则不显）/ 从相册选择。
@@ -77,7 +79,7 @@ struct AIAttachmentBar: View {
                             Label("Choose from Library", systemImage: "photo.on.rectangle")
                         }
                     } label: {
-                        Label("Photo", systemImage: "photo.on.rectangle")
+                        attachmentActionLabel("Photo", systemImage: "photo.on.rectangle")
                     }
                     .disabled(remainingImageSlots == 0)
                 } else {
@@ -85,7 +87,7 @@ struct AIAttachmentBar: View {
                         Haptics.light()
                         onNeedsConfig()
                     } label: {
-                        Label("Photo", systemImage: "photo.on.rectangle")
+                        attachmentActionLabel("Photo", systemImage: "photo.on.rectangle")
                     }
                 }
 
@@ -93,7 +95,7 @@ struct AIAttachmentBar: View {
                     Haptics.light()
                     showReferencePicker = true
                 } label: {
-                    Label("Document", systemImage: "doc.text")
+                    attachmentActionLabel("Document", systemImage: "doc.text")
                 }
 
                 // 外部文件：文本→注入、图片→图片块、PDF→文档块（图片/PDF 受视觉门控）。
@@ -101,21 +103,12 @@ struct AIAttachmentBar: View {
                     Haptics.light()
                     showFileImporter = true
                 } label: {
-                    Label("File", systemImage: "folder")
+                    attachmentActionLabel("File", systemImage: "folder")
                 }
-
-                if isProcessingPhotos {
-                    ProgressView().controlSize(.small)
-                }
-                Spacer(minLength: 0)
             }
-            // 入口整组居中；文字回到 .body（.title3 会让德/俄等较长词换行），图标用 imageScale 稍放大更醒目；
-            // lineLimit(1) 兜底防任何语言换行。灰色系 secondaryLabel 系统语义色，深浅色自适配。
             .frame(maxWidth: .infinity)
-            .font(.body)
-            .imageScale(.large)
-            .lineLimit(1)
-            .tint(Color(.secondaryLabel))
+            .buttonStyle(.plain)
+            .tint(.primary)
 
             if let notice {
                 Text(notice)
@@ -161,6 +154,27 @@ struct AIAttachmentBar: View {
         }
     }
 
+    private func attachmentActionLabel(
+        _ title: LocalizedStringKey,
+        systemImage: String
+    ) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: systemImage)
+                .font(.system(size: 18, weight: .medium))
+            Text(title)
+                .font(.subheadline.weight(.medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .padding(.horizontal, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(.tertiarySystemFill))
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
     // MARK: - 附件 chip
 
     @ViewBuilder
@@ -177,7 +191,7 @@ struct AIAttachmentBar: View {
 
     private func imageChip(data: Data, id: UUID) -> some View {
         thumbnail(for: data)
-            .frame(width: 56, height: 56)
+            .frame(width: 48, height: 48)
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)

@@ -27,16 +27,35 @@ struct PreviewShareButton: View {
         case pdf
         case sourceFile
         case sourceContent
+
+        var title: LocalizedStringKey {
+            switch self {
+            case .longScreenshot: "Long Screenshot"
+            case .plainText: "Plain Text"
+            case .pdf: "PDF"
+            case .sourceFile: "Source File (.md)"
+            case .sourceContent: "Source Content (Markdown)"
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .longScreenshot: "rectangle.stack"
+            case .plainText: "text.alignleft"
+            case .pdf: "doc.richtext"
+            case .sourceFile: "doc.badge.arrow.up"
+            case .sourceContent: "chevron.left.forwardslash.chevron.right"
+            }
+        }
     }
 
-    @State private var showDialog = false
     @State private var shareItems: ShareItems?
     /// 长截图/PDF 生成可能耗时，期间以转圈替代图标并禁用按钮。
     @State private var isBusy = false
 
     var body: some View {
-        Button {
-            showDialog = true
+        Menu {
+            menuContent
         } label: {
             if isBusy {
                 ProgressView()
@@ -45,31 +64,67 @@ struct PreviewShareButton: View {
             }
         }
         .disabled(isBusy)
-        .confirmationDialog("Share", isPresented: $showDialog, titleVisibility: .visible) {
-            ForEach(actions, id: \.self) { action in
-                button(for: action)
-            }
-        }
+        .accessibilityLabel("Share")
         .sheet(item: $shareItems) { payload in
             ShareSheet(items: payload.items)
         }
     }
 
     @ViewBuilder
+    private var menuContent: some View {
+        if !exportActions.isEmpty {
+            Section("Export") {
+                ForEach(exportActions, id: \.self) { action in
+                    button(for: action)
+                }
+            }
+        }
+
+        if !contentActions.isEmpty {
+            Section("Share Content") {
+                ForEach(contentActions, id: \.self) { action in
+                    button(for: action)
+                }
+            }
+        }
+    }
+
+    private var exportActions: [ShareAction] {
+        actions.filter { $0 == .longScreenshot || $0 == .pdf }
+    }
+
+    private var contentActions: [ShareAction] {
+        actions.filter { action in
+            action != .longScreenshot
+                && action != .pdf
+                && (action != .sourceFile || sourceURL != nil)
+        }
+    }
+
     private func button(for action: ShareAction) -> some View {
+        Button {
+            perform(action)
+        } label: {
+            Label(action.title, systemImage: action.systemImage)
+        }
+    }
+
+    private func perform(_ action: ShareAction) {
         switch action {
         case .longScreenshot:
-            Button("Long Screenshot") { shareLongScreenshot() }
+            shareLongScreenshot()
         case .plainText:
-            Button("Plain Text") { sharePlainText() }
+            sharePlainText()
         case .pdf:
-            Button("PDF") { sharePDF() }
+            sharePDF()
         case .sourceFile:
             if let sourceURL {
-                Button("Source File (.md)") { Haptics.success(); shareItems = ShareItems(items: [sourceURL]) }
+                Haptics.success()
+                shareItems = ShareItems(items: [sourceURL])
             }
         case .sourceContent:
-            Button("Source Content (Markdown)") { Haptics.success(); shareItems = ShareItems(items: [markdown]) }
+            Haptics.success()
+            shareItems = ShareItems(items: [markdown])
         }
     }
 

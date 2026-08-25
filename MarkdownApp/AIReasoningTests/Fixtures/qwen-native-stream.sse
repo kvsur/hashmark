@@ -1,0 +1,6 @@
+data: {"request_id":"req-qwen","output":{"search_info":{"search_results":[{"site_name":"Apple Developer","index":1,"title":"Swift concurrency","url":"https://developer.apple.com/swift/"}]},"choices":[{"message":{"role":"assistant","content":"","reasoning_content":"Check sources."},"finish_reason":"null"}]},"usage":{"input_tokens":12,"output_tokens":2,"total_tokens":14}}
+
+data: {"request_id":"req-qwen","output":{"search_info":{"search_results":[{"site_name":"Apple Developer","index":1,"title":"Swift concurrency","url":"https://developer.apple.com/swift/"}]},"choices":[{"message":{"role":"assistant","content":"Swift uses structured concurrency."},"finish_reason":"stop"}]},"usage":{"input_tokens":12,"output_tokens":8,"total_tokens":20}}
+
+data: [DONE]
+

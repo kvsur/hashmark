@@ -1,0 +1,8 @@
+data: {"id":"chat-kimi","choices":[{"delta":{"reasoning_content":"Check first."},"finish_reason":null}]}
+
+data: {"id":"chat-kimi","choices":[{"delta":{"content":"Final answer."},"finish_reason":null}]}
+
+data: {"id":"chat-kimi","choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}}
+
+data: [DONE]
+

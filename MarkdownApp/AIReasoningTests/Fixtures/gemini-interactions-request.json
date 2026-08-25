@@ -1,0 +1,27 @@
+{
+  "model": "gemini-3.7-flash",
+  "input": {
+    "type": "user_input",
+    "content": [
+      {"type": "text", "text": "Read every source."},
+      {"type": "image", "data": "AQID", "mime_type": "image/jpeg"},
+      {"type": "document", "data": "JVBERg==", "mime_type": "application/pdf"},
+      {"type": "document", "uri": "https://generativelanguage.googleapis.com/v1beta/files/file_fixture", "mime_type": "application/pdf"}
+    ]
+  },
+  "system_instruction": "Be precise.",
+  "stream": true,
+  "store": true,
+  "generation_config": {"thinking_level": "low"},
+  "tools": [
+    {"type": "function", "name": "fixture_tool", "description": "Fixture function", "parameters": {"type": "object"}},
+    {"type": "google_search"},
+    {"type": "file_search", "file_search_store_names": ["fileSearchStores/store_fixture"]}
+  ],
+  "tool_choice": {
+    "allowed_tools": {
+      "mode": "any",
+      "tools": ["google_search"]
+    }
+  }
+}

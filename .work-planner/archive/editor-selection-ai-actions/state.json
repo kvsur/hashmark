@@ -1,0 +1,189 @@
+{
+  "version": "1.3.0",
+  "created_at": "2026-07-21 13:05:00",
+  "updated_at": "2026-07-23 01:05:17",
+  "current_step": "S4",
+  "next_step": "用户Build验证：按钮选中 section 后 Modal 稳定显示选中内容(含打开文档首次)；选区/整篇/回填链路正常。",
+  "overall_status": "in_progress",
+  "completion_rate": "90%",
+  "all_steps": [
+    {
+      "id": "S1",
+      "name": "编辑器底层：TextEditor → UITextView 封装",
+      "status": "done",
+      "depends_on": [],
+      "refs": [
+        "C2",
+        "C6",
+        "C7"
+      ],
+      "notes": [
+        "工程为 Xcode16 文件系统同步组(PBXFileSystemSynchronizedRootGroup)：新增 .swift 自动纳入编译，无需改 project.pbxproj。",
+        "本环境仅 Command Line Tools、无 Xcode，无法 xcodebuild 编译/跑模拟器；S1.3『运行时无回归』(键盘/滚动/滑动切换/光标观感)需用户在 Xcode 里确认。代码层已完成：新建 MarkdownTextView.swift，EditorView 内部改用它。"
+      ],
+      "sub_steps": [
+        {
+          "id": "S1.1",
+          "name": "MarkdownTextView：UITextView+Coordinator，等宽/无更正/透明背景/左右 padding 对齐现状",
+          "status": "done"
+        },
+        {
+          "id": "S1.2",
+          "name": "双向绑定：textViewDidChange 回写；updateUIView 防回环、护光标与滚动",
+          "status": "done"
+        },
+        {
+          "id": "S1.3",
+          "name": "EditorView 内部切换；回归输入/光标/滚动/切换/保存/滑动切换/键盘",
+          "status": "done"
+        }
+      ],
+      "verify": "编辑模式与原 TextEditor 无可感差异；切换与保存正常、编译通过",
+      "start_at": "2026-07-21 13:02:54",
+      "done_at": "2026-07-21 13:04:21"
+    },
+    {
+      "id": "S2",
+      "name": "选区 AI 润色快捷入口",
+      "status": "done",
+      "depends_on": [
+        "S1"
+      ],
+      "refs": [
+        "C3",
+        "C4",
+        "C5",
+        "C8"
+      ],
+      "notes": [
+        "S2.4 无新增文案键：菜单标题复用既有 'AI' 键(shouldTranslate:false)，sheet 标题复用 .polish 的 'Polish'。i18n 天然满足。",
+        "回填按 NSRange 替换选中段；range 越界兜底为追加文末(不覆盖错内容)。运行时验证需用户 Xcode。"
+      ],
+      "sub_steps": [
+        {
+          "id": "S2.1",
+          "name": "editMenuForTextIn 追加「AI」UIAction（SF Symbol，无 emoji，有选区才显）",
+          "status": "done"
+        },
+        {
+          "id": "S2.2",
+          "name": "上抛 onRequestAIRefine(text,range)；DocumentView 走 AILaunch(.polish)+门槛+AIWritingView，context=选中文本",
+          "status": "done"
+        },
+        {
+          "id": "S2.3",
+          "name": "applyAIToSelection：按 range 替换选中段并落盘；range 越界/文本已变兜底",
+          "status": "done"
+        },
+        {
+          "id": "S2.4",
+          "name": "新文案进 Localizable.xcstrings 七语言，无 emoji、无 stale",
+          "status": "done"
+        }
+      ],
+      "verify": "选中段 → 菜单 AI → 润色 context 为选中文本 → 接受仅替换该段、落盘正确",
+      "start_at": "2026-07-21 13:04:21",
+      "done_at": "2026-07-21 13:08:21"
+    },
+    {
+      "id": "S3",
+      "name": "块级快速选中（方案 A：左侧极简 gutter）",
+      "status": "done",
+      "depends_on": [
+        "S1"
+      ],
+      "refs": [
+        "C1",
+        "C7"
+      ],
+      "notes": [
+        "S3.4「点标记弹含 AI 的菜单」需 S2.1 已把 AI 项加进气泡菜单；S3 其余部分与 S2 独立、可并行。",
+        "S3.1 完成：EditorBlockScanner 纯逻辑，识别 标题/代码块/表格/引用，产出 NSRange。S3.2+ 为 TextKit 定位与 gutter 视觉，待用户 Xcode 验证 S1/S2/scanner + 定稿标记样式后再做。",
+        "S3.1 已用 CLT 自带 swift 编译器跑逻辑测试通过：section 展开正确、代码块内 # 不误判、--- 不当表格、#tag 不当标题。标题选区改为整段 section（用户定）。",
+        "已知限制：未处理 setext 标题(=== / --- 下划线式)，仅 ATX(#)；后续如需再扩。",
+        "待用户定：gutter 标记『点击行为』——(a)仅选中块，靠系统手势弹含AI菜单；(b)选中块并直接打开AI润色(复用S2)；(c)选中并程序化弹菜单(需UIEditMenuInteraction，盲写风险高)。决定后写 S3.2-3.5。",
+        "样式已定：短竖条标记；文本左内边距保持12pt不改布局，标记画在左margin、命中区限左margin以不抢正文光标点按。",
+        "点击行为已定=选中块+直接开AI润色(复用S2 onRequestAIRefine)。S3.2 caretRect 定位、S3.3 EditorGutterView 短竖条覆盖层(命中限左margin穿透正文)、S3.4 点选→AI、S3.5 键入防抖0.15s+滚动仅更新偏移，均代码完成。运行时对齐/命中/性能需用户 Xcode 验证。",
+        "[真机反馈改版] 左gutter→右侧跟随光标行小圆钮：删 EditorGutterView.swift，新增 EditorLineActionButton.swift(含容器)。EditorBlockScanner 加 enclosingSelection(按光标行定粒度)，已用swift编译器验证。MarkdownTextView 重写用按钮+菜单AI前置。"
+      ],
+      "sub_steps": [
+        {
+          "id": "S3.1",
+          "name": "EditorBlockScanner：源码→结构块(标题/代码块/表格/引用)+行范围，纯函数可单测",
+          "status": "done"
+        },
+        {
+          "id": "S3.2",
+          "name": "行范围→屏幕 rect（TextKit boundingRect），随滚动/编辑更新",
+          "status": "done"
+        },
+        {
+          "id": "S3.3",
+          "name": "EditorGutterOverlay：左缘窄覆盖层画淡标记，深浅色适配，不吃正文手势",
+          "status": "done"
+        },
+        {
+          "id": "S3.4",
+          "name": "点标记→selectedRange=块范围+弹气泡菜单（含 AI）+Haptics",
+          "status": "done"
+        },
+        {
+          "id": "S3.5",
+          "name": "性能与边界：扫描/重算节流，大文档不卡，标记不与系统把手打架",
+          "status": "done"
+        }
+      ],
+      "verify": "标记随滚动稳定对齐块首；点标记整块被选中并弹菜单；正常编辑/选择/滑动切换不受影响",
+      "start_at": "2026-07-21 13:08:21",
+      "done_at": "2026-07-21 14:23:58"
+    },
+    {
+      "id": "S4",
+      "name": "验收 + 收尾",
+      "status": "in_progress",
+      "depends_on": [
+        "S2",
+        "S3"
+      ],
+      "refs": [
+        "C1",
+        "C8"
+      ],
+      "notes": [
+        "待用户重新Build验证改版：①右侧小圆钮跟随光标行、点选当前块/段并进AI；②选区菜单AI在第一层；③润色Modal顶部展示选中内容预览卡。"
+      ],
+      "sub_steps": [
+        {
+          "id": "S4.1",
+          "name": "真机/模拟器走查：S1 回归 + 选区 AI + gutter 选块全链路",
+          "status": "pending"
+        },
+        {
+          "id": "S4.2",
+          "name": "i18n 复核：七语言齐、无 emoji、无 stale",
+          "status": "pending"
+        },
+        {
+          "id": "S4.3",
+          "name": "逐条对照 summary Definition of Done 七项",
+          "status": "pending"
+        }
+      ],
+      "verify": "DoD 七项全部满足；无回归",
+      "start_at": "2026-07-21 14:23:58"
+    }
+  ],
+  "failures": [],
+  "decisions": {
+    "editor-backend": "EditorView 内部 TextEditor → UIViewRepresentable(UITextView)，对外接口不变（选区菜单与布局 rect 都需 UITextView）",
+    "block-select-ux": "改版3(用户反馈)：小圆钮从『光标右后方』改为『光标上方』——避免被点击手指遮挡；贴近可视顶部(第一行/灵动岛)时动态翻到光标下方，横向对齐光标夹左右缘。修复第一行因隐藏阈值误判『出不来』：改为仅当光标行整体滚出可视区才隐藏。点它按光标行选中当前块/段落并进AI。",
+    "selection-refine-apply": "选区润色只替换选中 range，非整篇替换",
+    "ai-chain-reuse": "复用 AILaunch/AIWritingView/.polish，不造第二套会话与门槛",
+    "selection-menu-order": "选区气泡菜单『AI』项前置([aiAction]+suggestedActions)，确保出现在第一层而非溢出到第二页。",
+    "selection-preview": "选区润色 AIWritingView 顶部展示【完整】选中内容(不截断)：ViewThatFits——短内容整段直显(Text分支)，长内容在限高220pt内滚动看全(ScrollView分支被限高撑住不塌)。数据从不可变 AILaunch(selectionText/selectionRange)读，消除@State竞态。i18n键 'Selected text'。"
+  },
+  "notes": [
+    "前置计划「AI 输入附件」已归档至 .work-planner/archive/ai-input-attachments（其 S7.1/S7.2 为用户真机/API Key 验证，非代码项）。",
+    "无 Swift 侧现成 Markdown 块解析（预览走 web/markdown-it），S3.1 块扫描器为新代码。"
+  ]
+}

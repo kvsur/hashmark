@@ -1,0 +1,21 @@
+{
+  "model": "glm-5.3",
+  "messages": [
+    {"role": "system", "content": "Be precise."},
+    {"role": "user", "content": "Find a source."}
+  ],
+  "stream": true,
+  "thinking": {"type": "enabled"},
+  "reasoning_effort": "max",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "fixture_tool",
+        "description": "Fixture function",
+        "parameters": {"type": "object"}
+      }
+    }
+  ],
+  "tool_choice": "auto"
+}

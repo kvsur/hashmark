@@ -10,13 +10,19 @@
 import Foundation
 
 struct FileStore {
-    private let fileManager = FileManager.default
+    private let fileManager: FileManager
+    private let rootDirectoryOverride: URL?
 
     let markdownExtension = "md"
 
+    init(fileManager: FileManager = .default, rootURL: URL? = nil) {
+        self.fileManager = fileManager
+        rootDirectoryOverride = rootURL
+    }
+
     /// 所有文档的根目录：沙盒 Documents（可经 Info.plist 暴露给系统「文件」App）。
     var rootURL: URL {
-        fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        rootDirectoryOverride ?? fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
 
     /// 系统在「拷贝到本 App」时自动创建的收件目录 Documents/Inbox。
@@ -35,70 +41,16 @@ struct FileStore {
 
     // MARK: - 读取
 
-    /// 列出某目录的直接子项：文件夹在前，同类按名称自然排序。
-    /// 顺带读入元信息（文件大小 / 目录子项数），供列表副标题展示。
+    /// 列出某目录的直接子项：文件夹在前，两组分别按有效更新时间降序排列。
+    /// 文件夹时间来自其后代 Markdown 的最新修改时间；同时间以自然名称稳定兜底。
     func contents(of directory: URL) -> [DocumentNode] {
-        let keys: [URLResourceKey] = [.isDirectoryKey, .contentModificationDateKey, .fileSizeKey]
-        guard let urls = try? fileManager.contentsOfDirectory(
-            at: directory,
-            includingPropertiesForKeys: keys,
-            options: [.skipsHiddenFiles]
-        ) else { return [] }
-
-        let nodes: [DocumentNode] = urls.compactMap { url in
-            let values = try? url.resourceValues(forKeys: Set(keys))
-            let isDir = values?.isDirectory ?? false
-            // 隐藏系统 Inbox（暂存区，非用户目录）：不进浏览器、也不进选目录器。
-            if isDir && url.standardizedFileURL == inboxURL.standardizedFileURL {
-                return nil
-            }
-            // 只展示文件夹与 .md 文件，其它类型忽略。
-            if !isDir && url.pathExtension.lowercased() != markdownExtension {
-                return nil
-            }
-            return DocumentNode(
-                url: url,
-                kind: isDir ? .folder : .markdown,
-                modifiedAt: values?.contentModificationDate ?? .distantPast,
-                fileSize: isDir ? nil : values?.fileSize.map(Int64.init),
-                // 文件夹子项数用浅层计数，不递归（避免列一层就读整棵树）。
-                childCount: isDir ? visibleChildCount(of: url) : nil
-            )
-        }
-
-        return nodes.sorted { a, b in
-            if a.isFolder != b.isFolder { return a.isFolder }   // 文件夹在前
-            return a.name.localizedStandardCompare(b.name) == .orderedAscending
-        }
-    }
-
-    /// 某目录下「本 App 可见项」（文件夹 + .md，排除系统 Inbox）的浅层数量。
-    /// 只读一层、不构建节点、不递归，用于列表里目录行的「N 项」。
-    private func visibleChildCount(of directory: URL) -> Int {
-        guard let urls = try? fileManager.contentsOfDirectory(
-            at: directory,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        ) else { return 0 }
-
-        return urls.reduce(into: 0) { count, url in
-            let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
-            if isDir {
-                if url.standardizedFileURL != inboxURL.standardizedFileURL { count += 1 }
-            } else if url.pathExtension.lowercased() == markdownExtension {
-                count += 1
-            }
-        }
+        activityRecords(in: directory).map(documentNode(from:))
     }
 
     /// 递归读出某目录下的整棵树（文件夹在前）。文件为叶子（children=nil），
     /// 文件夹的 children 为其内容（可能为空数组）。供 S10 快速切换器的折叠树使用。
     func tree(of directory: URL) -> [DocumentTreeNode] {
-        contents(of: directory).map { node in
-            node.isFolder
-                ? DocumentTreeNode(node: node, children: tree(of: node.url))
-                : DocumentTreeNode(node: node, children: nil)
-        }
+        activityRecords(in: directory).map(documentTreeNode(from:))
     }
 
     // MARK: - 新建
@@ -209,6 +161,28 @@ struct FileStore {
     }
 
     // MARK: - 工具
+
+    private func activityRecords(in directory: URL) -> [DocumentActivityRecord] {
+        DocumentActivityResolver(fileManager: fileManager, markdownExtension: markdownExtension)
+            .records(in: directory, excluding: inboxURL)
+    }
+
+    private func documentNode(from record: DocumentActivityRecord) -> DocumentNode {
+        DocumentNode(
+            url: record.url,
+            kind: record.isFolder ? .folder : .markdown,
+            modifiedAt: record.modifiedAt,
+            fileSize: record.fileSize,
+            childCount: record.childCount
+        )
+    }
+
+    private func documentTreeNode(from record: DocumentActivityRecord) -> DocumentTreeNode {
+        DocumentTreeNode(
+            node: documentNode(from: record),
+            children: record.children?.map(documentTreeNode(from:))
+        )
+    }
 
     /// 生成目录内不冲突的 URL：若已存在则追加 " 2"、" 3"…
     private func uniqueURL(for base: String, extension ext: String?, in directory: URL) -> URL {

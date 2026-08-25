@@ -1,0 +1,6 @@
+data: {"id":"glm-response","request_id":"glm-request","web_search":[{"title":"Swift","link":"https://developer.apple.com/swift/","content":"Swift overview","media":"Apple Developer","refer":"1"}],"choices":[{"delta":{"reasoning_content":"Check sources."},"finish_reason":null}]}
+
+data: {"id":"glm-response","request_id":"glm-request","web_search":[{"title":"Swift","link":"https://developer.apple.com/swift/","content":"Swift overview","media":"Apple Developer","refer":"1"}],"choices":[{"delta":{"content":"Swift uses structured concurrency."},"finish_reason":"stop"}],"usage":{"prompt_tokens":12,"completion_tokens":8,"total_tokens":20}}
+
+data: [DONE]
+

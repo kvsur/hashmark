@@ -1,0 +1,33 @@
+event: interaction.created
+data: {"event_type":"interaction.created","interaction":{"id":"interaction_fixture","status":"in_progress"}}
+
+event: step.start
+data: {"event_type":"step.start","index":0,"step":{"type":"thought","summary":[],"signature":""}}
+
+event: step.delta
+data: {"event_type":"step.delta","index":0,"delta":{"type":"text","text":"Check current sources."}}
+
+event: step.delta
+data: {"event_type":"step.delta","index":0,"delta":{"type":"thought_signature","signature":"opaque-signature"}}
+
+event: step.stop
+data: {"event_type":"step.stop","index":0}
+
+event: step.start
+data: {"event_type":"step.start","index":1,"step":{"type":"google_search_call","id":"search_fixture","arguments":{"queries":["Swift concurrency"]}}}
+
+event: step.stop
+data: {"event_type":"step.stop","index":1}
+
+event: step.start
+data: {"event_type":"step.start","index":2,"step":{"type":"model_output","content":[]}}
+
+event: step.delta
+data: {"event_type":"step.delta","index":2,"delta":{"type":"text","text":"Swift uses structured concurrency.","annotations":[{"type":"url_citation","url":"https://swift.org/documentation/","title":"Swift.org","start_index":0,"end_index":30}]}}
+
+event: step.stop
+data: {"event_type":"step.stop","index":2}
+
+event: interaction.completed
+data: {"event_type":"interaction.completed","interaction":{"id":"interaction_fixture","status":"completed","usage":{"total_input_tokens":8,"total_output_tokens":6,"total_tokens":14},"steps":[{"type":"model_output","content":[{"type":"text","text":"Swift uses structured concurrency.","annotations":[{"type":"url_citation","url":"https://swift.org/documentation/","title":"Swift.org","start_index":0,"end_index":30}]}]}]}}
+

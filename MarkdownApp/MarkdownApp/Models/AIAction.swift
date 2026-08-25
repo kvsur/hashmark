@@ -27,6 +27,16 @@ enum AIAction: String, CaseIterable, Identifiable {
         }
     }
 
+    /// 动作选择器中的结果说明：标题负责命名，说明负责消除四个动作之间的语义猜测。
+    var detail: LocalizedStringKey {
+        switch self {
+        case .continueWriting: "Continue naturally from the end"
+        case .polish: "Improve clarity, tone, and wording"
+        case .format: "Fix Markdown structure without rewriting"
+        case .custom: "Describe exactly what you want to write"
+        }
+    }
+
     /// 选择器用图标（S6）。
     var systemImage: String {
         switch self {

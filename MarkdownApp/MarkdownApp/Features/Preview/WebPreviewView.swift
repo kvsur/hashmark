@@ -4,7 +4,7 @@
 //
 //  用 WKWebView 渲染 Markdown 的底层封装（UIViewRepresentable 桥接）。
 //  只负责「把一段 Markdown 文本渲染成 GitHub 风格网页」，不关心它从哪来。
-//  资源全部本地打包（marked + github-markdown-css + highlight.js），全程离线。
+//  资源全部本地打包（marked + highlight.js + Mermaid + KaTeX），全程离线。
 //
 //  类比前端：这相当于一个受控组件——外部传入 markdown，内部把它塞进 iframe 渲染；
 //  markdown 变化时重新调用页面里的 renderMarkdown()。
@@ -24,16 +24,25 @@ struct WebPreviewView: UIViewRepresentable {
     var onWebViewReady: ((WKWebView) -> Void)? = nil
     /// 触点进入/离开「可横向滚动区」（宽代码块/表格）时回调，供上层避让滑动切换手势。
     var onHorizontalTouch: ((Bool) -> Void)? = nil
+    /// Markdown 渲染后的网页内容高度；供 Modal 内的紧凑预览自适应，普通全屏预览可忽略。
+    var onContentHeightChange: ((CGFloat) -> Void)? = nil
+    /// 预览滚动位置（0...1），供 iPad 并排编辑时与源码区双向同步。
+    var onScrollFractionChange: ((CGFloat) -> Void)? = nil
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
+        WebPreviewTemplate.installConfiguration(into: configuration)
         // 接收模板里 touchstart/touchend 上报的「触点是否在横滚区」。
         // userContentController 会强持有 handler，包一层弱代理避免延长 Coordinator 生命周期。
         configuration.userContentController.add(
             WeakScriptMessageHandler(context.coordinator),
             name: Coordinator.touchScrollableHandlerName
+        )
+        configuration.userContentController.add(
+            WeakScriptMessageHandler(context.coordinator),
+            name: Coordinator.previewScrollHandlerName
         )
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
@@ -53,6 +62,8 @@ struct WebPreviewView: UIViewRepresentable {
 
         context.coordinator.onExternalLink = onExternalLink
         context.coordinator.onHorizontalTouch = onHorizontalTouch
+        context.coordinator.onContentHeightChange = onContentHeightChange
+        context.coordinator.onScrollFractionChange = onScrollFractionChange
         // 记住最新内容；页面还没加载完时先存起来，didFinish 后再渲染。
         context.coordinator.pendingMarkdown = markdown
         if context.coordinator.isLoaded {
@@ -64,17 +75,30 @@ struct WebPreviewView: UIViewRepresentable {
 
     final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         static let touchScrollableHandlerName = "touchScrollable"
+        static let previewScrollHandlerName = "previewScroll"
 
         var isLoaded = false
         var pendingMarkdown: String = ""
+        private var renderGeneration = 0
         var onExternalLink: ((URL) -> Void)?
         var onHorizontalTouch: ((Bool) -> Void)?
+        var onContentHeightChange: ((CGFloat) -> Void)?
+        var onScrollFractionChange: ((CGFloat) -> Void)?
 
         func userContentController(_ userContentController: WKUserContentController,
                                    didReceive message: WKScriptMessage) {
-            guard message.name == Self.touchScrollableHandlerName,
-                  let inScroller = message.body as? Bool else { return }
-            onHorizontalTouch?(inScroller)
+            switch message.name {
+            case Self.touchScrollableHandlerName:
+                guard let inScroller = message.body as? Bool else { return }
+                onHorizontalTouch?(inScroller)
+            case Self.previewScrollHandlerName:
+                guard let fraction = message.body as? Double else { return }
+                DispatchQueue.main.async { [weak self] in
+                    self?.onScrollFractionChange?(CGFloat(fraction))
+                }
+            default:
+                break
+            }
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -104,14 +128,34 @@ struct WebPreviewView: UIViewRepresentable {
             }
         }
 
-        /// 把当前 Markdown 以 JSON 字符串安全传入页面，调用 renderMarkdown()。
-        /// 用数组包一层再剥掉外层中括号，避免个别 Foundation 版本不允许顶层裸字符串（fragment）。
+        /// 用 callAsyncJavaScript 直接传参，并等待 KaTeX 字体与 Mermaid SVG 完成后再回报高度。
+        /// generation 防止快速编辑时较早的异步渲染晚返回、覆盖最新内容的高度。
         func render(in webView: WKWebView) {
-            guard let data = try? JSONEncoder().encode([pendingMarkdown]),
-                  let wrapped = String(data: data, encoding: .utf8) else { return }
-            let json = String(wrapped.dropFirst().dropLast())   // ["...\n..."] → "...\n..."
-            webView.evaluateJavaScript("window.renderMarkdown(\(json));")
+            renderGeneration += 1
+            let generation = renderGeneration
+            let markdown = pendingMarkdown
+            Task { @MainActor [weak self, weak webView] in
+                guard let self, let webView,
+                      let value = try? await webView.callAsyncJavaScript(
+                        "return await window.renderMarkdown(markdown);",
+                        arguments: ["markdown": markdown],
+                        in: nil,
+                        contentWorld: .page
+                      ),
+                      generation == self.renderGeneration,
+                      let height = (value as? NSNumber)?.doubleValue else { return }
+                // 回调延后到下一主循环，避免在 UIViewRepresentable 更新期间直接改 SwiftUI 状态。
+                DispatchQueue.main.async {
+                    self.onContentHeightChange?(CGFloat(height))
+                }
+            }
         }
+    }
+
+    static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
+        let controller = webView.configuration.userContentController
+        controller.removeScriptMessageHandler(forName: Coordinator.touchScrollableHandlerName)
+        controller.removeScriptMessageHandler(forName: Coordinator.previewScrollHandlerName)
     }
 }
 

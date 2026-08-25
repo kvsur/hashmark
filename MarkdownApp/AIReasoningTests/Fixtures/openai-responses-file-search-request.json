@@ -1,0 +1,36 @@
+{
+  "model": "gpt-5.6-terra",
+  "stream": true,
+  "store": true,
+  "instructions": "Be precise.",
+  "input": [
+    {
+      "role": "user",
+      "content": [
+        {"type": "input_text", "text": "Use the attached sources."},
+        {"type": "input_image", "image_url": "data:image/jpeg;base64,AQID", "detail": "auto"},
+        {"type": "input_file", "filename": "sample.pdf", "file_data": "data:application/pdf;base64,JVBERg=="},
+        {"type": "input_file", "file_id": "file_fixture"}
+      ]
+    }
+  ],
+  "parallel_tool_calls": false,
+  "tools": [
+    {
+      "type": "function",
+      "name": "fixture_tool",
+      "description": "Fixture function",
+      "parameters": {"type": "object"},
+      "strict": false
+    },
+    {"type": "web_search"},
+    {"type": "file_search", "vector_store_ids": ["vs_fixture"], "max_num_results": 20}
+  ],
+  "tool_choice": {
+    "type": "allowed_tools",
+    "mode": "required",
+    "tools": [{"type": "web_search"}]
+  },
+  "include": ["web_search_call.action.sources", "file_search_call.results"],
+  "reasoning": {"generate_summary": "auto"}
+}

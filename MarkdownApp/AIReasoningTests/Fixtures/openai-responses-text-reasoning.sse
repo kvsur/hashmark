@@ -1,0 +1,15 @@
+event: response.created
+data: {"type":"response.created","response":{"id":"resp_text","status":"in_progress","output":[],"usage":null,"error":null,"incomplete_details":null}}
+
+event: response.reasoning_summary_text.delta
+data: {"type":"response.reasoning_summary_text.delta","item_id":"rs_text","delta":"Check the structure."}
+
+event: response.reasoning_summary_text.done
+data: {"type":"response.reasoning_summary_text.done","item_id":"rs_text","text":"Check the structure."}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","item_id":"msg_text","delta":"# Native response"}
+
+event: response.completed
+data: {"type":"response.completed","response":{"id":"resp_text","status":"completed","output":[],"usage":{"input_tokens":12,"output_tokens":8,"total_tokens":20},"error":null,"incomplete_details":null}}
+

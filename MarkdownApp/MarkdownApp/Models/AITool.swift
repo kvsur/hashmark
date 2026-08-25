@@ -2,18 +2,17 @@
 //  AITool.swift
 //  MarkdownApp
 //
-//  Function tool calling 的中立模型层：工具定义（AITool）、流式事件（AIStreamEvent）、
-//  以及本 App 唯一的业务工具「反问澄清」（ClarifyTool + 解析出的 ClarifyRequest）。
-//  工具的入参 schema 用 JSONValue 表达——它同时能编码成 OpenAI 的 parameters 与
-//  Anthropic 的 input_schema（两者都是 JSON Schema），一份定义两处复用（DRY）。
+//  Function tool calling 的中立模型层：工具定义（AITool），以及本 App 唯一的业务工具
+//  「反问澄清」（ClarifyTool + 解析出的 ClarifyRequest）。流式事件独立在 AIStreamEvent.swift。
+//  工具入参 schema 用 JSONValue 表达；每家 Adapter 再映射到自己的第一方工具定义。
 //
 
 import Foundation
 
 // MARK: - 任意 JSON 值（用于编码工具的 JSON Schema）
 
-/// 可编码的任意 JSON 值。让我们用 Swift 字面量搭出 JSON Schema，再交给两种上游各自的请求体。
-indirect enum JSONValue: Encodable {
+/// 可编码的任意 JSON 值。用 Swift 字面量搭出 JSON Schema，再交给 Provider Adapter。
+nonisolated indirect enum JSONValue: Codable, Equatable {
     case string(String)
     case number(Double)
     case bool(Bool)
@@ -32,22 +31,62 @@ indirect enum JSONValue: Encodable {
         case .null: try container.encodeNil()
         }
     }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if container.decodeNil() {
+            self = .null
+        } else if let value = try? container.decode(Bool.self) {
+            self = .bool(value)
+        } else if let value = try? container.decode(Double.self) {
+            self = .number(value)
+        } else if let value = try? container.decode(String.self) {
+            self = .string(value)
+        } else if let value = try? container.decode([JSONValue].self) {
+            self = .array(value)
+        } else {
+            self = .object(try container.decode([String: JSONValue].self))
+        }
+    }
+
+    /// 递归把 JSONSerialization 的 Foundation 对象转为 JSONValue。
+    nonisolated static func foundation(_ any: Any) -> JSONValue {
+        switch any {
+        case let dict as [String: Any]:
+            .object(dict.mapValues(JSONValue.foundation))
+        case let array as [Any]:
+            .array(array.map(JSONValue.foundation))
+        case let string as String:
+            .string(string)
+        case let bool as Bool:
+            .bool(bool)
+        case let number as NSNumber:
+            .number(number.doubleValue)
+        default:
+            .null
+        }
+    }
 }
 
-// MARK: - 工具定义与流式事件
+nonisolated extension JSONValue {
+    var objectValue: [String: JSONValue]? {
+        guard case .object(let value) = self else { return nil }
+        return value
+    }
+
+    func string(for key: String) -> String? {
+        guard case .string(let value)? = objectValue?[key] else { return nil }
+        return value
+    }
+}
+
+// MARK: - 工具定义
 
 /// 一个可供模型调用的工具（供应商无关）。parameters 是 JSON Schema（object）。
-struct AITool {
+nonisolated struct AITool {
     let name: String
     let description: String
     let parameters: JSONValue
-}
-
-/// 流式产出的事件：正文文本增量，或一次完整的工具调用。
-/// 关键约束：只有 .text 进正文渲染区；.toolCall 交给会话层处理，绝不渲染成正文。
-enum AIStreamEvent {
-    case text(String)
-    case toolCall(AIToolCall)
 }
 
 // MARK: - 反问澄清工具

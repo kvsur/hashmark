@@ -1,0 +1,62 @@
+{
+  "model": "kimi-k2.6",
+  "messages": [
+    {
+      "role": "system",
+      "content": "The app has already completed Web Search for this turn. Use the attached web_search result as the source for current information, never claim that internet access is unavailable when it is present, do not request another web_search, and clearly say when the result lacks reliable evidence instead of answering from memory."
+    },
+    {"role": "system", "content": "Be precise."},
+    {"role": "user", "content": "Find a source."},
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "formula-1",
+          "type": "function",
+          "function": {
+            "name": "web_search",
+            "arguments": "{\"query\":\"Find a source.\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "content": "----MOONSHOT ENCRYPTED BEGIN----fixture----MOONSHOT ENCRYPTED END----",
+      "tool_call_id": "formula-1"
+    }
+  ],
+  "stream": true,
+  "stream_options": {"include_usage": true},
+  "max_completion_tokens": 32768,
+  "thinking": {"type": "disabled"},
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "fixture_tool",
+        "description": "Fixture function",
+        "parameters": {"type": "object"}
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "web_search",
+        "description": "Search the web for information",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "description": "What to search for",
+              "type": "string"
+            }
+          },
+          "required": ["query"]
+        }
+      }
+    }
+  ],
+  "tool_choice": "none"
+}

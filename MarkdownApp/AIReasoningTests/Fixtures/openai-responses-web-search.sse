@@ -1,0 +1,18 @@
+event: response.created
+data: {"type":"response.created","response":{"id":"resp_search","status":"in_progress","output":[],"usage":null,"error":null,"incomplete_details":null}}
+
+event: response.web_search_call.searching
+data: {"type":"response.web_search_call.searching","item_id":"ws_fixture","output_index":0}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","output_index":0,"item":{"id":"ws_fixture","type":"web_search_call","status":"completed","call_id":null,"name":null,"arguments":null,"action":{"type":"search","sources":[{"title":"Swift documentation","url":"https://swift.org/documentation/","publisher":"Swift.org"}]},"content":null,"results":null}}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","item_id":"msg_search","delta":"Swift uses structured concurrency."}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","output_index":1,"item":{"id":"msg_search","type":"message","status":"completed","call_id":null,"name":null,"arguments":null,"action":null,"content":[{"type":"output_text","text":"Swift uses structured concurrency.","annotations":[{"type":"url_citation","title":"Swift documentation","url":"https://swift.org/documentation/","start_index":0,"end_index":5}]}],"results":null}}
+
+event: response.completed
+data: {"type":"response.completed","response":{"id":"resp_search","status":"completed","output":[],"usage":{"input_tokens":40,"output_tokens":15,"total_tokens":55},"error":null,"incomplete_details":null}}
+

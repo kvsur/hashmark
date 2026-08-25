@@ -6,17 +6,67 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <link rel="stylesheet" href="github-markdown.css">
   <link rel="stylesheet" href="highlight-github.css">
+  <link rel="stylesheet" href="katex.min.css">
+  <link rel="stylesheet" href="mermaid-viewer.css">
   <style>
-    /* 背景交给 github-markdown.css 的语义色；这里只做外边距与安全区适配 */
-    html, body { margin: 0; padding: 0; -webkit-text-size-adjust: 100%; }
+    /* 页面画布与原生 systemBackground 对齐，避免透明 WebView 加载/回弹时露出异色。 */
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #fff;
+      -webkit-text-size-adjust: 100%;
+    }
     .markdown-body {
       box-sizing: border-box;
       max-width: 100%;
       margin: 0 auto;
       padding: 16px calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
     }
+    /*
+      GitHub Dark 的默认画布是蓝灰 #0d1117，与 iOS OLED 黑色主题会形成明显色块。
+      App 层只覆写语义 token：正文用纯黑，代码/隔行表格保留一层极轻深灰，
+      既融入原生导航背景，又不抹掉 Markdown 的内容层级。
+    */
+    @media (prefers-color-scheme: dark) {
+      html, body { background: #000; }
+      .markdown-body {
+        --bgColor-default: #000;
+        --bgColor-muted: #111113;
+        --bgColor-neutral-muted: #8e8e9338;
+        --borderColor-default: #2c2c2e;
+        --borderColor-muted: #38383ab3;
+        --borderColor-neutral-muted: #48484a;
+        --fgColor-default: #f2f2f7;
+        --fgColor-muted: #98989d;
+      }
+      /* highlight.js 自带 #0d1117，需一并收敛到抬升表面 token。 */
+      .markdown-body .hljs { background: var(--bgColor-muted); }
+    }
     /* 图片不撑破视口 */
     .markdown-body img { max-width: 100%; height: auto; }
+    /* 公式与图表在窄屏可横滑；导出时 PreviewHandle 会把公式完整铺开。 */
+    .markdown-body .katex-display {
+      max-width: 100%;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 4px 0;
+    }
+    .markdown-body .mermaid {
+      box-sizing: border-box;
+      max-width: 100%;
+      margin: 16px 0;
+      padding: 14px;
+      overflow-x: auto;
+      background: var(--bgColor-muted, #f6f8fa);
+      border: 1px solid var(--borderColor-muted, #d1d9e0);
+      border-radius: 8px;
+    }
+    .markdown-body .mermaid svg {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      margin: 0 auto;
+    }
   </style>
 </head>
 <body>
@@ -24,34 +74,85 @@
 
   <script src="marked.min.js"></script>
   <script src="highlight.min.js"></script>
+  <script src="mermaid-viewer.js"></script>
+  <script src="markdown-renderer.js"></script>
   <script>
-    // 标准 GFM：表格、任务列表、删除线等。marked v12 默认已开启 gfm。
-    marked.setOptions({ gfm: true, breaks: false });
+    // 导出/取纯文本前由 Swift 等待这个 Promise，避免截到仍在异步布局的 Mermaid。
+    window.__markdownRenderingReady = Promise.resolve();
+    function trackMarkdownRendering(job) {
+      var ready = Promise.resolve(job).catch(function (error) {
+        console.error(error);
+        return Math.ceil(document.documentElement.scrollHeight);
+      });
+      window.__markdownRenderingReady = ready;
+      return ready;
+    }
 
-    // 由 Swift 侧通过 evaluateJavaScript 调用：window.renderMarkdown(<JSON 字符串>)
+    // 由 Swift 侧通过 callAsyncJavaScript 调用；返回增强渲染完成后的真实页面高度。
     window.renderMarkdown = function (md) {
       var el = document.getElementById('content');
-      el.innerHTML = marked.parse(md || '');
-      // marked 会给代码块加 language-xxx class；逐块交给 highlight.js 上色
-      el.querySelectorAll('pre code').forEach(function (block) {
-        try { hljs.highlightElement(block); } catch (e) {}
-      });
-      // 渲染完滚回顶部，避免复用同一 WebView 时残留滚动位置
-      window.scrollTo(0, 0);
+      return trackMarkdownRendering(MarkdownRenderer.render(el, md, {
+        highlight: true,
+        mermaid: true
+      }).then(function (height) {
+        if (height === null) return Math.ceil(document.documentElement.scrollHeight);
+        // 渲染完滚回顶部，避免复用同一 WebView 时残留滚动位置
+        window.scrollTo(0, 0);
+        return height;
+      }));
     };
 
     // AI 流式渲染：Swift 侧节流调用 window.aiRender(<JSON 字符串>, isFinal)
-    // 流式期间跳过语法高亮（重解析开销大），只在结束(isFinal)时高亮一次；
-    // 每次渲染后滚到底，让最新生成内容始终可见。
+    // 流式期间跳过高亮与 Mermaid（避免每个 token 都重排图表）；最终帧再完整增强。
+    // 数学公式仍由 marked 扩展同步产出，用户可以在生成过程中看到公式逐步成形。
+    var aiAutoFollow = true;
+    function aiNearBottom() {
+      return (window.innerHeight + window.scrollY) >= (document.body.scrollHeight - 24);
+    }
+    function postAiScroll(atBottom) {
+      var h = window.webkit && window.webkit.messageHandlers
+           && window.webkit.messageHandlers.aiScroll;
+      if (h) h.postMessage(atBottom);
+    }
     window.aiRender = function (md, isFinal) {
       var el = document.getElementById('content');
-      el.innerHTML = marked.parse(md || '');
-      if (isFinal) {
-        el.querySelectorAll('pre code').forEach(function (block) {
-          try { hljs.highlightElement(block); } catch (e) {}
-        });
-      }
+      return trackMarkdownRendering(MarkdownRenderer.render(el, md, {
+        highlight: Boolean(isFinal),
+        mermaid: Boolean(isFinal)
+      }).then(function (height) {
+        if (height !== null && aiAutoFollow) {
+          window.scrollTo(0, document.body.scrollHeight);
+        }
+        return height;
+      }));
+    };
+    // 用户主动滚动：更新跟随态并上报原生（贴底=跟随=隐藏按钮，离底=不跟随=显示按钮）。
+    window.addEventListener('scroll', function () {
+      aiAutoFollow = aiNearBottom();
+      postAiScroll(aiAutoFollow);
+    }, { passive: true });
+    // 原生「跳到最新」：恢复跟随并滚到底。
+    window.__aiScrollToLatest = function () {
+      aiAutoFollow = true;
       window.scrollTo(0, document.body.scrollHeight);
+    };
+
+    // 普通预览滚动同步：仅注册了 previewScroll handler 的静态预览会上报；AI 预览静默跳过。
+    var previewScrollFrame = 0;
+    window.addEventListener('scroll', function () {
+      if (previewScrollFrame) return;
+      previewScrollFrame = requestAnimationFrame(function () {
+        previewScrollFrame = 0;
+        var handler = window.webkit && window.webkit.messageHandlers
+                   && window.webkit.messageHandlers.previewScroll;
+        if (!handler) return;
+        var travel = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
+        handler.postMessage(Math.max(0, Math.min(1, window.scrollY / travel)));
+      });
+    }, { passive: true });
+    window.__previewScrollToFraction = function (fraction) {
+      var travel = Math.max(document.documentElement.scrollHeight - window.innerHeight, 0);
+      window.scrollTo(0, travel * Math.max(0, Math.min(1, fraction || 0)));
     };
 
     // 触点探测：手指落在「实际可横向滚动」的元素（宽代码块/表格）内时上报原生，
@@ -59,6 +160,8 @@
     // 只有注册了 touchScrollable handler 的宿主（编辑器预览）会收到；
     // AI 流式预览共用本模板但未注册，需判空静默跳过。
     function inHorizontalScroller(el) {
+      // Mermaid 专注查看器接管横向拖动；避免被原生「预览/编辑」切换手势抢走。
+      if (el.closest && el.closest('.mermaid-viewer:not([hidden])')) return true;
       while (el && el !== document.body) {
         var style = getComputedStyle(el);
         if (/(auto|scroll)/.test(style.overflowX) && el.scrollWidth > el.clientWidth + 1) {

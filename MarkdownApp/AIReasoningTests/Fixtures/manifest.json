@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "verifiedAt": "2026-08-24",
+  "providers": [
+    {
+      "id": "openAI",
+      "nativeRoute": "/v1/responses",
+      "cases": {
+        "request": ["Fixtures/openai-responses-file-search-request.json"],
+        "stream": ["Fixtures/openai-responses-text-reasoning.sse", "Fixtures/openai-responses-function.sse"],
+        "source": ["Fixtures/openai-responses-web-search.sse"],
+        "error": ["OpenAIResponsesContractTests.swift#testTypedError"],
+        "image": ["OpenAIResponsesContractTests.swift#testNativeRequest"],
+        "file": ["OpenAIResponsesContractTests.swift#testNativeRequest", "AttachmentOrchestrationTests.swift#testReferenceReuseAndRetrievalIdentity"]
+      },
+      "capabilities": {
+        "reasoning": ["Fixtures/openai-responses-text-reasoning.sse"],
+        "webSearch": ["Fixtures/openai-responses-web-search.sse"],
+        "functionTools": ["Fixtures/openai-responses-function.sse"],
+        "continuation": ["OpenAIResponsesContractTests.swift#testPreviousResponseContinuation"],
+        "imageInput": ["OpenAIResponsesContractTests.swift#testNativeRequest"],
+        "pdfInput": ["OpenAIResponsesContractTests.swift#testNativeRequest"],
+        "directFileInput": ["OpenAIResponsesContractTests.swift#testNativeRequest"],
+        "uploadedFile": ["Fixtures/openai-responses-file-search-request.json"],
+        "fileSearch": ["Fixtures/openai-responses-file-search-request.json"]
+      }
+    },
+    {
+      "id": "anthropic",
+      "nativeRoute": "/v1/messages",
+      "cases": {
+        "request": ["Fixtures/anthropic-native-request.json"],
+        "stream": ["Fixtures/anthropic-native-stream.sse", "Fixtures/anthropic-thinking-tool.sse"],
+        "source": ["Fixtures/anthropic-web-search.sse"],
+        "error": ["AnthropicContractTests.swift#testTypedError"],
+        "image": ["AnthropicContractTests.swift#testNativeRequest"],
+        "file": ["AnthropicContractTests.swift#testNativeRequest"]
+      },
+      "capabilities": {
+        "reasoning": ["Fixtures/anthropic-thinking-tool.sse"],
+        "webSearch": ["Fixtures/anthropic-web-search.sse"],
+        "functionTools": ["Fixtures/anthropic-thinking-tool.sse"],
+        "continuation": ["AnthropicContractTests.swift#testThinkingContinuationOrdering"],
+        "imageInput": ["AnthropicContractTests.swift#testNativeRequest"],
+        "pdfInput": ["AnthropicContractTests.swift#testNativeRequest"],
+        "directFileInput": ["AnthropicContractTests.swift#testNativeRequest"],
+        "uploadedFile": ["Fixtures/anthropic-native-request.json"]
+      }
+    },
+    {
+      "id": "gemini",
+      "nativeRoute": "/v1beta/interactions",
+      "cases": {
+        "request": ["Fixtures/gemini-interactions-request.json"],
+        "stream": ["Fixtures/gemini-interactions-search.sse", "Fixtures/gemini-interactions-function.sse"],
+        "source": ["Fixtures/gemini-interactions-search.sse"],
+        "error": ["GeminiContractTests.swift#testTypedError"],
+        "image": ["GeminiContractTests.swift#testNativeRequest"],
+        "file": ["GeminiContractTests.swift#testNativeRequest", "AttachmentOrchestrationTests.swift#testReferenceReuseAndRetrievalIdentity"]
+      },
+      "capabilities": {
+        "reasoning": ["Fixtures/gemini-interactions-search.sse"],
+        "webSearch": ["Fixtures/gemini-interactions-search.sse"],
+        "functionTools": ["Fixtures/gemini-interactions-function.sse"],
+        "continuation": ["GeminiContractTests.swift#testStatefulContinuation"],
+        "imageInput": ["GeminiContractTests.swift#testNativeRequest"],
+        "pdfInput": ["GeminiContractTests.swift#testNativeRequest"],
+        "directFileInput": ["GeminiContractTests.swift#testNativeRequest"],
+        "uploadedFile": ["Fixtures/gemini-interactions-request.json"],
+        "fileSearch": ["Fixtures/gemini-interactions-request.json"]
+      }
+    },
+    {
+      "id": "qwen",
+      "nativeRoute": "/api/v1/services/aigc/text-generation/generation",
+      "cases": {
+        "request": ["Fixtures/qwen-native-text-request.json"],
+        "stream": ["Fixtures/qwen-native-stream.sse", "Fixtures/qwen-native-tool-stream.sse"],
+        "source": ["Fixtures/qwen-native-stream.sse"],
+        "error": ["QwenContractTests.swift#testCompatibleRouteRejected"],
+        "image": ["QwenContractTests.swift#testNativeMultimodalRequest"],
+        "file": ["QwenContractTests.swift#testNativeMultimodalRequest"]
+      },
+      "capabilities": {
+        "reasoning": ["Fixtures/qwen-native-stream.sse"],
+        "webSearch": ["Fixtures/qwen-native-stream.sse"],
+        "functionTools": ["Fixtures/qwen-native-tool-stream.sse"],
+        "imageInput": ["QwenContractTests.swift#testNativeMultimodalRequest"],
+        "pdfInput": ["QwenContractTests.swift#testNativeMultimodalRequest"],
+        "directFileInput": ["QwenContractTests.swift#testNativeMultimodalRequest"],
+        "uploadedFile": ["QwenContractTests.swift#testNativeMultimodalRequest"],
+        "extraction": ["QwenContractTests.swift#testNativeMultimodalRequest"]
+      }
+    },
+    {
+      "id": "kimi",
+      "nativeRoute": "/v1/chat/completions",
+      "cases": {
+        "request": ["Fixtures/kimi-native-search-request.json"],
+        "stream": ["Fixtures/kimi-native-reasoning-stream.sse", "Fixtures/kimi-native-search-stream.sse"],
+        "source": ["Fixtures/kimi-native-search-stream.sse"],
+        "error": ["KimiContractTests.swift#testTypedError"],
+        "image": ["KimiContractTests.swift#testVisionAndExtraction"],
+        "file": ["KimiContractTests.swift#testNativeFilesEndpoint", "KimiContractTests.swift#testVisionAndExtraction"]
+      },
+      "capabilities": {
+        "reasoning": ["Fixtures/kimi-native-reasoning-stream.sse"],
+        "webSearch": ["Fixtures/kimi-native-search-stream.sse"],
+        "functionTools": ["KimiContractTests.swift#testThinkingContinuationOrdering"],
+        "continuation": ["KimiContractTests.swift#testThinkingContinuationOrdering"],
+        "imageInput": ["KimiContractTests.swift#testVisionAndExtraction"],
+        "pdfInput": ["KimiContractTests.swift#testVisionAndExtraction"],
+        "directFileInput": ["KimiContractTests.swift#testVisionAndExtraction"],
+        "uploadedFile": ["KimiContractTests.swift#testNativeFilesEndpoint"],
+        "extraction": ["KimiContractTests.swift#testVisionAndExtraction"]
+      }
+    },
+    {
+      "id": "glm",
+      "nativeRoute": "/api/paas/v4/chat/completions",
+      "cases": {
+        "request": ["Fixtures/glm-native-text-request.json"],
+        "stream": ["Fixtures/glm-native-stream.sse", "Fixtures/glm-native-tool-stream.sse"],
+        "source": ["Fixtures/glm-native-stream.sse"],
+        "error": ["GLMContractTests.swift#testTypedError"],
+        "image": ["GLMContractTests.swift#testExactVisualRequest"],
+        "file": ["GLMContractTests.swift#testExactVisualRequest"]
+      },
+      "capabilities": {
+        "reasoning": ["Fixtures/glm-native-stream.sse"],
+        "webSearch": ["Fixtures/glm-native-stream.sse"],
+        "functionTools": ["Fixtures/glm-native-tool-stream.sse"],
+        "continuation": ["GLMContractTests.swift#testReasoningContinuationReplay"],
+        "imageInput": ["GLMContractTests.swift#testExactVisualRequest"],
+        "pdfInput": ["GLMContractTests.swift#testExactVisualRequest"],
+        "directFileInput": ["GLMContractTests.swift#testExactVisualRequest"],
+        "uploadedFile": ["GLMContractTests.swift#testExactVisualRequest"]
+      }
+    }
+  ]
+}

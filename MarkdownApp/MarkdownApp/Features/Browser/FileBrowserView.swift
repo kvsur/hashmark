@@ -105,7 +105,9 @@ struct FileBrowserView: View {
     @ViewBuilder
     private func row(for node: DocumentNode) -> some View {
         // 文件夹下钻子目录，Markdown 文件下钻预览页；分流在 ContentView 的 navigationDestination。
-        NavigationLink(value: node) { label(for: node) }
+        NavigationLink(value: node) {
+            BrowserNodeLabel(node: node)
+        }
         // 三个动作只用图标（labelStyle(.iconOnly) 保留 VoiceOver 文案），配色区分：
         // 删除=红 / 重命名=蓝 / 移动=靛。
         // 删除按钮不用 role:.destructive：否则 List 会在点击时自动播放「行滑出删除」动画，
@@ -117,11 +119,11 @@ struct FileBrowserView: View {
             }
             .tint(.red)
             Button { sheet = .rename(node) } label: {
-                Label("Rename", systemImage: "square.and.pencil").labelStyle(.iconOnly)
+                Label("Rename", systemImage: "pencil").labelStyle(.iconOnly)
             }
             .tint(.blue)
             Button { sheet = .move(node) } label: {
-                Label("Move", systemImage: "folder.fill").labelStyle(.iconOnly)
+                Label("Move", systemImage: "folder").labelStyle(.iconOnly)
             }
             .tint(.indigo)
         }
@@ -138,23 +140,6 @@ struct FileBrowserView: View {
         } message: {
             if node.isFolder {
                 Text("The folder and everything inside it will be deleted.")
-            }
-        }
-    }
-
-    private func label(for node: DocumentNode) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: node.systemImage)
-                .font(.title3)
-                .foregroundStyle(node.isFolder ? Color.accentColor : .secondary)
-                .frame(width: 26)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(node.displayName)
-                    .font(Theme.mono())
-                // 副标题：修改时间 + 子项数/大小，对齐系统「文件」App。
-                Text(node.metadataText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -272,22 +257,5 @@ struct FileBrowserView: View {
     }
     private var errorBinding: Binding<Bool> {
         Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
-    }
-}
-
-/// 浏览器可能弹出的 sheet 种类。
-enum BrowserSheet: Identifiable {
-    case newFolder
-    case newMarkdown
-    case rename(DocumentNode)
-    case move(DocumentNode)
-
-    var id: String {
-        switch self {
-        case .newFolder: "newFolder"
-        case .newMarkdown: "newMarkdown"
-        case .rename(let node): "rename-\(node.id.path)"
-        case .move(let node): "move-\(node.id.path)"
-        }
     }
 }

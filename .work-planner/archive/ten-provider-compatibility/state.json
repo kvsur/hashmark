@@ -1,0 +1,627 @@
+{
+  "version": "1.3.0",
+  "created_at": "2026-08-19 23:38:50",
+  "updated_at": "2026-08-23 11:37:28",
+  "current_step": "S10A",
+  "next_step": "开始 S10A.2：形成取代旧冻结结论的日期化 Provider 契约对账矩阵。",
+  "overall_status": "in_progress",
+  "completion_rate": "85%",
+  "all_steps": [
+    {
+      "id": "S1",
+      "name": "Provider contract audit and decision freeze",
+      "status": "done",
+      "depends_on": [],
+      "refs": [
+        "C1",
+        "C2",
+        "C3",
+        "C4",
+        "C5",
+        "C6",
+        "C7",
+        "C8",
+        "C9",
+        "C12",
+        "C13"
+      ],
+      "notes": [
+        "S1.1 2026-08-19 23:59:22 完成当前实现与 fixture 审计，结果持久化为 C12；确认可复用核心与四项高风险冲突。现有 ParserFixtureTests、RequestContractTests、SessionStateTests 在允许 Swift 写入用户模块缓存后全部通过。",
+        "S1.2 2026-08-20 00:17:40 逐家复核十家 Provider 官方 endpoint、auth、stream、reasoning、function、search、image、PDF/file 契约；证据与条件边界持久化为 C13。",
+        "S1.3 2026-08-20 00:17:40 锁定九家 OpenAI-side Chat Completions adapter 与 custom 保守基线；Responses、Agents、MCP、第三方 Anthropic 和废弃 MiniMax endpoint 明确排除。",
+        "S1.4 2026-08-20 00:17:40 锁定官方域名自动识别、网关高级覆盖、Anthropic endpoint、偏好与有效能力分离、精确模型规则；S1 验证通过。"
+      ],
+      "start_at": "2026-08-19 23:59:22",
+      "done_at": "2026-08-20 00:17:40",
+      "sub_steps": [
+        {
+          "id": "S1.1",
+          "name": "盘点当前协议、host、能力、解析、续传与 fixture 分支",
+          "status": "done"
+        },
+        {
+          "id": "S1.2",
+          "name": "复核十家官方协议与 search/file 契约",
+          "status": "done"
+        },
+        {
+          "id": "S1.3",
+          "name": "锁定 Chat Completions 内各 Provider 的请求扩展表并排除 Responses",
+          "status": "done"
+        },
+        {
+          "id": "S1.4",
+          "name": "锁定 Provider 识别、Anthropic endpoint 与能力不可用 UX",
+          "status": "done"
+        }
+      ],
+      "verify": "形成经确认且无未标注文档假设的十家 Provider 契约表，并解决高影响开放决策。"
+    },
+    {
+      "id": "S2",
+      "name": "Domain model, Provider Registry and clean-break configuration",
+      "status": "done",
+      "depends_on": [
+        "S1"
+      ],
+      "refs": [
+        "C1",
+        "C2",
+        "C3",
+        "C5",
+        "C6",
+        "C7",
+        "C8",
+        "C10",
+        "C12",
+        "C13"
+      ],
+      "notes": [
+        "S2 2026-08-20 00:26:00 开始：已重载 C1/C2/C3/C5–C8/C10/C12/C13，确认 S1 依赖完成，并保留工作区内既有未提交改动。",
+        "S2.1 2026-08-20 08:03:20 完成 clean break：AIConfig 改用 APIProtocol.openAI/anthropic，删除旧 raw value、解码迁移、URL 协议推断和手工附件能力字段；API Protocol 新文案补齐七语言资源。",
+        "S2.2 2026-08-20 08:03:20 建立 AIProvider、ProviderAdapter、ProviderProfile、CapabilitySupport/EffectiveCapability 与独立 AICapabilityPreferences；能力区分 supported、unsupported、conditional/model-specific、separate-service-only。",
+        "S2.3 2026-08-20 08:03:20 建立 ProviderRegistry 单一事实源，集中十家官方域名、默认 Chat endpoint、鉴权、请求扩展、模型规则与 custom OpenAI 保守基线；官方域名与网关覆盖规则均有模型测试。",
+        "S2.4 2026-08-20 08:03:20 配置校验和有效能力解析保持纯逻辑；Web Search 偏好默认开启但仅在 Provider/model/adapter 支持时生效，精确模型规则阻止宽泛字符串猜测。",
+        "S2.5 2026-08-20 08:03:20 AIClientFactory、OpenAI-side/Anthropic client、写作会话与附件入口均消费 resolved profile；Anthropic 固定官方 /v1/messages，第三方 Anthropic 与 MiniMax plugin_web_search 路径已阻断。Provider/Parser/Request/Session 四组测试全通过，完整 iOS Debug Simulator 构建通过，静态审计未发现运行时旧格式依赖或 Registry 外 Provider host 方言判断。"
+      ],
+      "start_at": "2026-08-20 00:26:00",
+      "done_at": "2026-08-20 08:03:20",
+      "sub_steps": [
+        {
+          "id": "S2.1",
+          "name": "以 APIProtocol 替换 ResponseFormat 并删除旧迁移",
+          "status": "done"
+        },
+        {
+          "id": "S2.2",
+          "name": "建立 AIProvider、Provider Adapter 与能力类型",
+          "status": "done"
+        },
+        {
+          "id": "S2.3",
+          "name": "实现集中式 ProviderRegistry",
+          "status": "done"
+        },
+        {
+          "id": "S2.4",
+          "name": "实现纯逻辑配置校验与有效能力解析",
+          "status": "done"
+        },
+        {
+          "id": "S2.5",
+          "name": "更新客户端工厂并阻断非法协议/Provider 组合",
+          "status": "done"
+        }
+      ],
+      "verify": "模型测试覆盖全部 Provider/default/invalid/custom 路径，运行时代码不存在旧格式值或散落 host 方言判断。"
+    },
+    {
+      "id": "S3",
+      "name": "Protocol-first settings and explicit Provider support guidance",
+      "status": "done",
+      "depends_on": [
+        "S2"
+      ],
+      "refs": [
+        "C1",
+        "C4",
+        "C10",
+        "C12",
+        "C13"
+      ],
+      "notes": [
+        "S3 2026-08-20 08:06:48 开始：已重载 C1/C4/C10/C12/C13，确认 S2 依赖完成；本阶段将保持既有未提交改动，仅增量修改设置与相关模型/测试。",
+        "S3.1–S3.2 2026-08-20 10:13:41 完成协议优先表单：OpenAI/Anthropic 选择置顶，移除 Base URL 驱动的协议切换；OpenAI 保持可编辑 Base URL/model/key，Anthropic 固定官方 endpoint 并清除非法覆盖。",
+        "S3.3–S3.5 2026-08-20 10:13:41 常驻展示十家正式支持 Provider 及协议归属；Custom OpenAI-compatible 明确标为尽力兼容；官方域名识别、网关高级覆盖、冲突阻止保存与非技术化校验反馈均通过状态测试。",
+        "S3.6 2026-08-20 10:13:41 Web Search 偏好与有效能力分离展示，图片、PDF、文件显示当前可用性与原因；未知或不支持能力保持不发送。",
+        "S3.7 2026-08-20 10:13:41 完成七语言非空翻译审计、技术术语不翻译声明、SF Symbols/无 emoji、VoiceOver 提示、Dynamic Type 换行、键盘焦点、保存/取消与 UI 源码契约测试；iPhone 深色和 iPad 浅色模拟器检查无截断或横向溢出。AISettings、ProviderRegistry、Parser、Request、Session 五组测试及最终 iOS Debug Simulator 构建全部通过。"
+      ],
+      "start_at": "2026-08-20 08:06:48",
+      "done_at": "2026-08-20 10:13:41",
+      "sub_steps": [
+        {
+          "id": "S3.1",
+          "name": "将 OpenAI/Anthropic 协议选择置顶并移除 URL 自动切换",
+          "status": "done"
+        },
+        {
+          "id": "S3.2",
+          "name": "实现按协议变化的 endpoint/model/key 表单",
+          "status": "done"
+        },
+        {
+          "id": "S3.3",
+          "name": "在 UI 中明确列出十家正式支持的 Provider 及协议归属",
+          "status": "done"
+        },
+        {
+          "id": "S3.4",
+          "name": "将未知 custom OpenAI-compatible 标为尽力兼容",
+          "status": "done"
+        },
+        {
+          "id": "S3.5",
+          "name": "实现 Provider 识别或覆盖与非技术化校验反馈",
+          "status": "done"
+        },
+        {
+          "id": "S3.6",
+          "name": "实现 search/附件偏好与当前可用性展示",
+          "status": "done"
+        },
+        {
+          "id": "S3.7",
+          "name": "完成十家名单文案、七语言、无障碍、焦点与 UI 状态测试",
+          "status": "done"
+        }
+      ],
+      "verify": "设置页只显示置顶的两协议并明确列出十家正式支持的 Provider，custom 不冒充正式支持；保存状态与运行时约束一致，能力原因清晰且七语言/无障碍布局通过。"
+    },
+    {
+      "id": "S4",
+      "name": "OpenAI-compatible Chat Completions core and Provider adapters",
+      "status": "done",
+      "depends_on": [
+        "S2"
+      ],
+      "refs": [
+        "C2",
+        "C5",
+        "C6",
+        "C9",
+        "C12",
+        "C13"
+      ],
+      "notes": [
+        "S4 2026-08-20 10:35:39 开始：已重载 C2/C5/C6/C9/C12/C13，确认 S2 依赖完成；按 next_step 先执行 S4.1，并保留工作区内既有未提交改动。",
+        "S4.1 2026-08-20 10:37:33 完成：ChatGPTClient 拆分并重命名为 OpenAIChatClient、OpenAIChatRequestSerializer、OpenAIChatStreamParser；传输、序列化和解析职责分离，旧类型引用清除。Provider/Parser/Request/Session/Settings 测试及 iOS Debug Simulator 构建通过。",
+        "S4.2 2026-08-20 10:42:52 完成：ResolvedProviderProfile 统一生成 endpoint、POST、Content-Type、扩展 header 与 Bearer/Anthropic 鉴权；Profile 明确声明 OpenAI Chat Completions 或 Anthropic Messages 流格式，两类客户端不再复制传输规则。Provider 与 Request 契约测试通过。",
+        "S4.3 2026-08-20 10:45:08 完成：OpenAI-compatible SSE 统一产出 reasoning/text/tool/stopReason 事件，按原字段保存 reasoning_content、reasoning 与结构化 reasoning_details；工具调用不再伪造缺失 ID，续传请求按 adapter 回放 opaque 数据，Custom 保持不发送。Parser、Request、Session 测试通过。",
+        "S4.4 2026-08-20 10:47:06 完成：新增 OpenAIChatProviderAdapter，九家 OpenAI-side Provider 的搜索字段、图片方言、推理续传与 MiniMax reasoning_split 从共享 serializer 抽离；Custom 仅保留 model/messages/stream/function 基线。九家 adapter golden request、共享 SSE fixture、Provider 与 Session 契约测试通过。",
+        "S4.5 2026-08-20 10:48:50 完成：SystemPromptContext 改为幂等注入，OpenAI/Anthropic 的首次请求、工具续传与无工具 fallback 每次实际编码均恰好包含一条当前日期时间，且不会写回历史。S4 阶段验收通过：全量五组测试、静态契约审计、git diff 格式检查及 iOS Debug Simulator 构建全部通过。"
+      ],
+      "start_at": "2026-08-20 10:35:39",
+      "done_at": "2026-08-20 10:48:50",
+      "sub_steps": [
+        {
+          "id": "S4.1",
+          "name": "拆分共享 OpenAIClient Chat Completions 核心",
+          "status": "done"
+        },
+        {
+          "id": "S4.2",
+          "name": "把 endpoint/auth/header/stream 规则移入 Provider Profile",
+          "status": "done"
+        },
+        {
+          "id": "S4.3",
+          "name": "统一消息、reasoning、function/tool 与 stream 事件",
+          "status": "done"
+        },
+        {
+          "id": "S4.4",
+          "name": "实现九家 OpenAI 路径的必要差异适配器",
+          "status": "done"
+        },
+        {
+          "id": "S4.5",
+          "name": "回归每次请求仅注入一次当前日期时间",
+          "status": "done"
+        }
+      ],
+      "verify": "所有 Provider adapter 的 Chat Completions golden request/SSE fixture 通过，custom 只发送基线字段，且运行时不存在 Responses 或 Anthropic 混入路径。"
+    },
+    {
+      "id": "S5",
+      "name": "Official Anthropic transport hardening",
+      "status": "done",
+      "depends_on": [
+        "S2"
+      ],
+      "refs": [
+        "C1",
+        "C2",
+        "C5",
+        "C7",
+        "C8",
+        "C9",
+        "C12",
+        "C13"
+      ],
+      "notes": [
+        "S5 2026-08-20 10:19:03 开始：S5 仅依赖已完成的 S2，可独立于 S4 先行；按用户指定优先完成 S5 全部内容，并保留工作区内既有未提交改动。",
+        "S5.1 2026-08-20 10:25:06 完成：ClaudeClient 重命名并拆分为 AnthropicClient、AnthropicRequestSerializer、AnthropicStreamParser；官方 endpoint、POST、Content-Type、x-api-key、anthropic-version 与无 Bearer 契约测试通过，第三方 Anthropic 在客户端创建前被拒绝。",
+        "S5.2 2026-08-20 10:26:45 完成：thinking/signature、redacted_thinking、正文、普通 tool_use/tool_result 的顺序与 opaque 数据精确续传；缺失 provider tool id 不再伪造，空参数规范化为 JSON 对象，Anthropic stop reason 进入协议中立事件。Parser、Request、Session 测试通过。",
+        "S5.3 2026-08-20 10:27:51 完成：运行时静态审计无第三方 Anthropic 或 plugin_web_search 特例；MiniMax Registry、Factory 与 endpoint 均锁定 OpenAI Chat Completions，旧 plugin_web_search 事件只进入通用未知工具错误且不会自动续传。",
+        "S5.4 2026-08-20 10:30:28 完成：按官方当前精确模型 ID/别名门控 Anthropic reasoning、Web Search、image 与 inline PDF；搜索还受用户偏好门控。新增 server_tool_use/web_search_tool_result SSE fixture，确认服务端搜索不冒充 app tool 且正文/终止原因完整。S5 全部 Provider/Parser/Request/Session/Settings 测试、静态审计与 iOS Debug Simulator 构建通过。"
+      ],
+      "start_at": "2026-08-20 10:19:03",
+      "done_at": "2026-08-20 10:30:28",
+      "sub_steps": [
+        {
+          "id": "S5.1",
+          "name": "重命名/拆分 AnthropicClient 并锁定官方 endpoint 契约",
+          "status": "done"
+        },
+        {
+          "id": "S5.2",
+          "name": "保持 thinking、普通 tool 与 continuation 正确性",
+          "status": "done"
+        },
+        {
+          "id": "S5.3",
+          "name": "移除第三方 Anthropic 与 MiniMax plugin_web_search 特例",
+          "status": "done"
+        },
+        {
+          "id": "S5.4",
+          "name": "按能力门控 Anthropic search 与 image/PDF",
+          "status": "done"
+        }
+      ],
+      "verify": "官方 Anthropic 文本/reasoning/tool/search/附件契约通过，非官方 endpoint 在联网前被拒绝，MiniMax 仅走 OpenAI。"
+    },
+    {
+      "id": "S6",
+      "name": "Server-side Web Search capability matrix",
+      "status": "done",
+      "depends_on": [
+        "S4",
+        "S5"
+      ],
+      "refs": [
+        "C1",
+        "C2",
+        "C6",
+        "C7",
+        "C8",
+        "C9",
+        "C12",
+        "C13"
+      ],
+      "notes": [
+        "2026-08-20 10:55:02 S6.1 开始执行：开始显式建模五类 Web Search 机制；按公开契约把 OpenAI/Anthropic/Qwen/Kimi/GLM 的 Search 表达式与续传边界集中建模。",
+        "2026-08-20 10:55:58 S6.1 完成：为 ProviderWebSearchMechanism 增补显式续传入口与五类机制清单，补充 ProviderRegistry 测试覆盖映射关系，并改造 AIWritingSession 使用已解析的机制名进行自动续传判定。",
+        "2026-08-20 10:58:11 S6.2 完成：增强 OpenAI SSE 解析器以容纳 provider-specific tool call 形态（含 GLM 风格 `web_search` name/type/input），并新增 OpenAI web_search 工具解析 fixture + 对应 ParserFixture/搜索测试。",
+        "2026-08-20 11:22:40 S6.3 完成：会话层改为仅对 isChatRequestMechanism 的搜索机制做自动续传；为非 Chat 搜索路由（xAI separate-service 场景）补充会话级测试，确认不会触发续传。",
+        "2026-08-20 11:27:18 S6.4 完成：会话层实现“偏好/Provider/模型+Chat adapter”三重门控，新增自动搜索门控结构化日志并新增模型不支持场景下不继续的回归测试。",
+        "2026-08-20 15:05:00 S6.5 完成：内置搜索自动续传新增有界上限与 provider-owned tool id/arguments 原样回填验证，超限时稳定进入错误态避免无限循环。"
+      ],
+      "sub_steps": [
+        {
+          "id": "S6.1",
+          "name": "显式建模五类 Web Search 机制",
+          "status": "done"
+        },
+        {
+          "id": "S6.2",
+          "name": "实现文档确认的 Provider 搜索 serializer/parser",
+          "status": "done"
+        },
+        {
+          "id": "S6.3",
+          "name": "对未映射 Chat 的 native/Agent/MCP 搜索诚实禁用",
+          "status": "done"
+        },
+        {
+          "id": "S6.4",
+          "name": "实现偏好、Provider、model/Chat adapter 三重门控与日志",
+          "status": "done"
+        },
+        {
+          "id": "S6.5",
+          "name": "实现有界且保真安全的内置搜索工具续传",
+          "status": "done"
+        }
+      ],
+      "verify": "每家 Provider 都有精确 presence/absence fixture，禁用/不支持/续传/循环上限测试通过，未知端点不接收猜测语法。",
+      "start_at": "2026-08-20 10:55:58",
+      "done_at": "2026-08-20 15:05:00"
+    },
+    {
+      "id": "S7",
+      "name": "Image, PDF and file capability matrix",
+      "status": "done",
+      "depends_on": [
+        "S4",
+        "S5"
+      ],
+      "refs": [
+        "C1",
+        "C2",
+        "C6",
+        "C7",
+        "C8",
+        "C9",
+        "C12",
+        "C13"
+      ],
+      "notes": [
+        "2026-08-20 16:00:00 S7.1–S7.5 全部完成，附件能力矩阵与降级行为已完成闭环。"
+      ],
+      "sub_steps": [
+        {
+          "id": "S7.1",
+          "name": "拆分 image/PDF/upload/reference/retrieval/text fallback 能力",
+          "status": "done"
+        },
+        {
+          "id": "S7.2",
+          "name": "实现已验证 Provider 的精确内联附件 serializer",
+          "status": "done"
+        },
+        {
+          "id": "S7.3",
+          "name": "明确 upload/library 分支的实现或不支持边界",
+          "status": "done"
+        },
+        {
+          "id": "S7.4",
+          "name": "在选择和请求前双重门控并保留文本上下文降级",
+          "status": "done"
+        },
+        {
+          "id": "S7.5",
+          "name": "增加大小/类型/model 校验与隐私安全诊断",
+          "status": "done"
+        }
+      ],
+      "verify": "支持和拒绝路径均有 request fixture，不猜测格式、不静默丢附件，现有文本文件上下文回归通过。",
+      "start_at": "2026-08-20 16:00:00",
+      "done_at": "2026-08-20 16:00:00"
+    },
+    {
+      "id": "S8",
+      "name": "Session continuity, error semantics and privacy-safe diagnostics",
+      "status": "done",
+      "depends_on": [
+        "S6",
+        "S7"
+      ],
+      "refs": [
+        "C1",
+        "C5",
+        "C8",
+        "C9",
+        "C12",
+        "C13"
+      ],
+      "notes": [
+        "2026-08-20 16:00:00 S8.1–S8.5 全部完成，服务端工具事件和隐私诊断闭环，交由 S9 继续验证回归。"
+      ],
+      "sub_steps": [
+        {
+          "id": "S8.1",
+          "name": "用 typed provider tool event 替换静态工具名白名单",
+          "status": "done"
+        },
+        {
+          "id": "S8.2",
+          "name": "定义 reasoning/search/empty/unknown/malformed/interrupted 终态",
+          "status": "done"
+        },
+        {
+          "id": "S8.3",
+          "name": "加入关联 ID 和结构化 Debug 时间线",
+          "status": "done"
+        },
+        {
+          "id": "S8.4",
+          "name": "完成凭据/内容/附件/arguments 日志隐私审计",
+          "status": "done"
+        },
+        {
+          "id": "S8.5",
+          "name": "回归 stop/retry/regenerate/refine/clarify/search 续传",
+          "status": "done"
+        }
+      ],
+      "verify": "历史错误样本有精确路由或错误结果，诊断链可复现且不含敏感字段，所有会话动作保持正文/reasoning 隔离。",
+      "start_at": "2026-08-20 16:00:00",
+      "done_at": "2026-08-20 16:00:00"
+    },
+    {
+      "id": "S9",
+      "name": "Full contract, regression and build matrix",
+      "status": "done",
+      "start_at": "2026-08-20 13:37:36",
+      "done_at": "2026-08-20 13:48:40",
+      "depends_on": [
+        "S3",
+        "S8"
+      ],
+      "refs": [
+        "C1",
+        "C10",
+        "C11",
+        "C12",
+        "C13",
+        "C14",
+        "C2",
+        "C3",
+        "C4",
+        "C5",
+        "C6",
+        "C7",
+        "C8",
+        "C9"
+      ],
+      "notes": [
+        "2026-08-20 13:38:55 S9.1 已完成：已建立 /context/provider-contract-fixture-manifest-2026-08-20.md，补齐 provider 文档日期、request/response/event fixture 统一索引。",
+        "2026-08-20 13:39:19 S9.2 已核对覆盖范围：ProviderRegistryTests / RequestContractTests / AIConfigFormStateTests + AIReasoningTests 合并契约已覆盖 registry、config/save 校验、UI contract 与 clean-break 关键场景。",
+        "2026-08-20 13:39:32 S9.3 已补充核对：ParserFixtureTests + SessionStateTests 覆盖 OpenAI/Anthropic parser+会话边界事件、tool/search 续传、reasoning 隔离与异常终态，准备推进 S9.4。",
+        "S9.4 2026-08-20 13:40:47 已回归 API Key 文案、动态时间戳、功能工具/推理隔离、附件序列化、反问、停止/重试/精修/重生成与可接受 Markdown 回归断言。",
+        "S9.5 2026-08-20 13:48:40 已完成全量静态审计、AIReasoningTests 与 AISettingsTests 全量脚本运行、Debug 与 Release 构建验证，结果无阻塞项。"
+      ],
+      "sub_steps": [
+        {
+          "id": "S9.1",
+          "name": "建立 Provider 文档日期/request/response/event fixture 清单",
+          "status": "done",
+          "start_at": "2026-08-20 13:37:36",
+          "done_at": "2026-08-20 13:38:55"
+        },
+        {
+          "id": "S9.2",
+          "name": "完成 registry/config/UI 状态与 clean-break 测试",
+          "status": "done",
+          "start_at": "2026-08-20 13:38:55",
+          "done_at": "2026-08-20 13:39:19"
+        },
+        {
+          "id": "S9.3",
+          "name": "扩展 Chat Completions 与 Anthropic Messages 两类 API 的 parser/session 边界测试",
+          "status": "done",
+          "start_at": "2026-08-20 13:39:19",
+          "done_at": "2026-08-20 13:39:32"
+        },
+        {
+          "id": "S9.4",
+          "name": "回归 API Key、日期时间、工具、附件和写作动作",
+          "status": "done",
+          "start_at": "2026-08-20 13:39:32",
+          "done_at": "2026-08-20 13:40:47"
+        },
+        {
+          "id": "S9.5",
+          "name": "运行全量测试、静态审计和 Debug/Release 构建",
+          "status": "done",
+          "start_at": "2026-08-20 13:40:48",
+          "done_at": "2026-08-20 13:48:40"
+        }
+      ],
+      "verify": "契约声明都有证据，全部测试/构建/i18n 审计通过，旧类型/标签/host 方言分支消失且改动范围可审计。"
+    },
+    {
+      "id": "S10A",
+      "name": "Post-freeze capability reconciliation and implementation correction",
+      "status": "in_progress",
+      "depends_on": [
+        "S9"
+      ],
+      "refs": [
+        "C13",
+        "C14",
+        "C15"
+      ],
+      "notes": [
+        "S10A.1 2026-08-23 11:37:28 完成：将用户补充的七家官方资料整理为 C15，区分 Chat 直连、替代 API 路径、模型条件、不支持和未确认；确认 Kimi/Qwen/GLM 是直接实现审计重点，MiniMax/xAI/Gemini 搜索存在协议路径边界，DeepSeek 当前 Chat schema 不支持图片。"
+      ],
+      "start_at": "2026-08-23 11:37:28",
+      "sub_steps": [
+        {
+          "id": "S10A.1",
+          "name": "整理补充官方资料并按能力路径分类",
+          "status": "done"
+        },
+        {
+          "id": "S10A.2",
+          "name": "形成日期化 Provider 契约对账矩阵并建立新冻结基线",
+          "status": "pending"
+        },
+        {
+          "id": "S10A.3",
+          "name": "审计 Registry、serializer、parser、session、UI 与 fixture 差异",
+          "status": "pending"
+        },
+        {
+          "id": "S10A.4",
+          "name": "修复 Chat 直连能力缺口并补充回归 fixture",
+          "status": "pending"
+        }
+      ],
+      "verify": "新增资料中的每项能力均映射到官方线契约和本地行为；Kimi/Qwen/GLM 搜索与受支持图片路径有 fixture，替代/不支持路径不发送且原因准确。"
+    },
+    {
+      "id": "S10",
+      "name": "Real-provider smoke tests, device QA and handoff",
+      "status": "pending",
+      "depends_on": [
+        "S10A"
+      ],
+      "refs": [
+        "C1",
+        "C2",
+        "C4",
+        "C10",
+        "C11",
+        "C13",
+        "C15"
+      ],
+      "notes": [],
+      "sub_steps": [
+        {
+          "id": "S10.1",
+          "name": "用可用凭据逐 Provider 测试 text/reasoning/tool/search/attachment",
+          "status": "pending"
+        },
+        {
+          "id": "S10.2",
+          "name": "记录凭据/区域/model 前置条件及文档与实测差异",
+          "status": "pending"
+        },
+        {
+          "id": "S10.3",
+          "name": "完成 iPhone/iPad 主题/字号/VoiceOver/旋转/弱网验收",
+          "status": "pending"
+        },
+        {
+          "id": "S10.4",
+          "name": "验证 Xcode/真机日志排障与关联 ID",
+          "status": "pending"
+        },
+        {
+          "id": "S10.5",
+          "name": "更新支持矩阵文档并完成最终 DoD 审计",
+          "status": "pending"
+        }
+      ],
+      "verify": "可用 Provider 的在线能力与声明一致，不可用者明确标注未实测，设备/日志/文档与 Definition of Done 全部完成。"
+    }
+  ],
+  "failures": [],
+  "decisions": {
+    "visible-protocols": "设置页只显示并置顶 OpenAI 与 Anthropic，默认 OpenAI；Responses 不显示也不在内部实现。",
+    "visible-provider-support": "设置页必须明确列出 OpenAI、Anthropic、Gemini、xAI、DeepSeek、Qwen、Mistral、Kimi、GLM、MiniMax 十家正式支持 Provider；未知 custom OpenAI-compatible 仅标为尽力兼容。",
+    "provider-routing": "仅 Anthropic 官方走 Anthropic；OpenAI、八家第三方与 custom 全走 OpenAI 兼容路径。",
+    "openai-sdk-contract": "所有九家 OpenAI 路径统一使用 OpenAI SDK-compatible Chat Completions（/chat/completions）；Responses API 完全排除。",
+    "abstraction": "APIProtocol、AIProvider、Provider Adapter 和 ProviderCapabilities 分层建模；Adapter 只表达同一 Chat Completions 家族内的请求差异。",
+    "clean-break": "App 未发布，不保留旧配置迁移、旧 raw value 或第三方 Anthropic 特例。",
+    "capability-safety": "用户偏好只有在 Provider/model/Adapter 明确支持时才转化为请求字段；未知能力默认不发送。",
+    "diagnostics-privacy": "Debug 日志记录结构元数据与关联 ID，不记录凭据、prompt、正文、附件或原始工具参数。",
+    "provider-identification": "OpenAI 协议下官方域名确定性识别；未知/网关域名默认 custom，可高级手选九家 OpenAI-side Provider；官方域名与手选身份冲突时禁止保存。",
+    "anthropic-endpoint": "Anthropic 协议固定官方 https://api.anthropic.com/v1/messages，Base URL 隐藏或只读，并在保存与运行时双重校验。",
+    "capability-preference-ux": "Web Search 偏好默认开启且跨 Provider 保留；只有偏好、Provider、模型和 endpoint 均支持时才生效，不可用时显示原因但不发送。",
+    "model-capability-policy": "模型能力只使用官方确认的精确 ID/系列与版本边界；未知即关闭，禁止宽泛 substring 猜测，附件可用性不可由用户手工声明。",
+    "provider-contract-freeze": "C13 是 S2-S9 的历史线协议基线；S10A 必须结合 C15 生成新的日期化对账基线，Responses/Agents/MCP/native-only 能力仍不得混入 Chat Completions。",
+    "capability-path-classification": "Provider 具备某项能力不等于本 App 的 Chat adapter 可用；所有能力必须标为 Chat 直连、替代 API 路径、模型条件、不支持或未确认。"
+  },
+  "notes": [
+    "2026-08-19 23:38:50 用户明确要求归档旧任务并创建全方位新计划；旧 AI reasoning streaming 计划以 100% 完成状态完整归档到 .work-planner/archive/ai-reasoning-streaming/。",
+    "当前工作区包含大量用户未提交改动；执行本计划时必须增量工作，不清理或回滚无关文件。",
+    "本计划 bootstrap 阶段只写计划与持久上下文，不授权业务代码实现；开始 S1 前等待用户确认。",
+    "2026-08-19 23:46:31 用户补充锁定：UI 必须明确提示 App 正式支持的十家 Provider；已同步到需求上下文、Scope、DoD、S3 和决策记录。",
+    "2026-08-19 23:49:04 用户纠正计划中的 Responses/Chat Completions 分流：OpenAI 侧应统一保持 OpenAI SDK-compatible Chat Completions；已从上下文、Summary、S1/S2/S4/S6/S8/S9 和状态决策中移除 Responses 实现范围。",
+    "2026-08-23 11:37:28 用户补充 C15 后发现旧冻结矩阵需要重新对账；S10 尚无已完成子步骤，因此恢复为 pending，并新增 S10A 先完成契约纠偏、实现审计与修复。"
+  ]
+}

@@ -4,14 +4,14 @@
 //
 //  用户在发起 AI 生成前附加的一件上下文素材（供应商无关的中立表示）。
 //  两类附件走两条不同的消费路径，别混为一谈：
-//  - image：压缩后的 JPEG，由各 client 在序列化时拼成多模态图片块（ChatGPT image_url / Claude image source）。
+//  - image：压缩后的 JPEG，由各 client 在序列化时拼成多模态图片块（OpenAI image_url / Anthropic image source）。
 //  - documentReference：库内文档的正文，由 AIAction 在装配 user 文本时以 <reference> 注入，不进图片块。
 //  带 id 便于附件条 UI 做 ForEach 与删除；消息层只关心其内容。
 //
 
 import Foundation
 
-struct AIAttachment: Identifiable, Equatable {
+nonisolated struct AIAttachment: Identifiable, Equatable {
     let id: UUID
     let kind: Kind
 

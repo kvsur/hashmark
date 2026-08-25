@@ -13,6 +13,8 @@ struct MarkdownPreviewView: View {
     let markdown: String
     /// 可选：上层传入以取底层 WebView（用于长截图等）。预览本身不需要它。
     var handle: PreviewHandle? = nil
+    /// 可选：Markdown 渲染后的网页内容高度。紧凑预览可据此自适应，完整预览无需关心。
+    var onContentHeightChange: ((CGFloat) -> Void)? = nil
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var externalLink: ExternalLink?
@@ -23,8 +25,12 @@ struct MarkdownPreviewView: View {
             colorScheme: colorScheme,
             onExternalLink: { url in externalLink = ExternalLink(url: url) },
             onWebViewReady: { webView in handle?.webView = webView },
-            onHorizontalTouch: { handle?.isTouchingHorizontalScroller = $0 }
+            onHorizontalTouch: { handle?.isTouchingHorizontalScroller = $0 },
+            onContentHeightChange: onContentHeightChange,
+            onScrollFractionChange: { handle?.receiveScrollFraction($0) }
         )
+        // 与 Web 模板共用系统画布：加载、回弹和页面内容之间不会露出不同底色。
+        .background(Color(.systemBackground))
         .sheet(item: $externalLink) { link in
             SafariView(url: link.url)
                 .ignoresSafeArea()
