@@ -5,8 +5,12 @@ enum AIPromptLocale {
 }
 
 nonisolated enum AIProvider: String, Codable, CaseIterable, Identifiable {
-    case openAI, anthropic, gemini, qwen, kimi, glm
+    case openAI, anthropic, gemini, kimi, glm
     var id: String { rawValue }
+}
+
+nonisolated enum AIModelCapability: Hashable {
+    case imageInput, pdfInput, genericFileInput
 }
 
 nonisolated struct TestCapability: Equatable {
@@ -22,6 +26,14 @@ nonisolated struct TestCapabilities: Equatable {
 nonisolated struct ResolvedAIProviderConfiguration: Equatable {
     let provider: AIProvider
     let effectiveCapabilities: TestCapabilities
+
+    func allowsKnownSafeRequest(_ capability: AIModelCapability) -> Bool {
+        switch capability {
+        case .imageInput: effectiveCapabilities.imageInput.isEnabled
+        case .pdfInput: effectiveCapabilities.inlinePDF.isEnabled
+        case .genericFileInput: true
+        }
+    }
 }
 
 enum LocalizationController {

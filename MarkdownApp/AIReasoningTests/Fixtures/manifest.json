@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "verifiedAt": "2026-08-24",
+  "version": 2,
+  "verifiedAt": "2026-08-25",
   "providers": [
     {
       "id": "openAI",
@@ -11,7 +11,8 @@
         "source": ["Fixtures/openai-responses-web-search.sse"],
         "error": ["OpenAIResponsesContractTests.swift#testTypedError"],
         "image": ["OpenAIResponsesContractTests.swift#testNativeRequest"],
-        "file": ["OpenAIResponsesContractTests.swift#testNativeRequest", "AttachmentOrchestrationTests.swift#testReferenceReuseAndRetrievalIdentity"]
+        "file": ["OpenAIResponsesContractTests.swift#testNativeRequest", "AttachmentOrchestrationTests.swift#testReferenceReuseAndRetrievalIdentity"],
+        "decision": ["OpenAIResponsesContractTests.swift#testNativeRequest"]
       },
       "capabilities": {
         "reasoning": ["Fixtures/openai-responses-text-reasoning.sse"],
@@ -34,7 +35,8 @@
         "source": ["Fixtures/anthropic-web-search.sse"],
         "error": ["AnthropicContractTests.swift#testTypedError"],
         "image": ["AnthropicContractTests.swift#testNativeRequest"],
-        "file": ["AnthropicContractTests.swift#testNativeRequest"]
+        "file": ["AnthropicContractTests.swift#testNativeRequest"],
+        "decision": ["AnthropicContractTests.swift#testUnknownModelSafety"]
       },
       "capabilities": {
         "reasoning": ["Fixtures/anthropic-thinking-tool.sse"],
@@ -56,7 +58,8 @@
         "source": ["Fixtures/gemini-interactions-search.sse"],
         "error": ["GeminiContractTests.swift#testTypedError"],
         "image": ["GeminiContractTests.swift#testNativeRequest"],
-        "file": ["GeminiContractTests.swift#testNativeRequest", "AttachmentOrchestrationTests.swift#testReferenceReuseAndRetrievalIdentity"]
+        "file": ["GeminiContractTests.swift#testNativeRequest", "AttachmentOrchestrationTests.swift#testReferenceReuseAndRetrievalIdentity"],
+        "decision": ["GeminiContractTests.swift#testUnknownModelSafety"]
       },
       "capabilities": {
         "reasoning": ["Fixtures/gemini-interactions-search.sse"],
@@ -71,28 +74,6 @@
       }
     },
     {
-      "id": "qwen",
-      "nativeRoute": "/api/v1/services/aigc/text-generation/generation",
-      "cases": {
-        "request": ["Fixtures/qwen-native-text-request.json"],
-        "stream": ["Fixtures/qwen-native-stream.sse", "Fixtures/qwen-native-tool-stream.sse"],
-        "source": ["Fixtures/qwen-native-stream.sse"],
-        "error": ["QwenContractTests.swift#testCompatibleRouteRejected"],
-        "image": ["QwenContractTests.swift#testNativeMultimodalRequest"],
-        "file": ["QwenContractTests.swift#testNativeMultimodalRequest"]
-      },
-      "capabilities": {
-        "reasoning": ["Fixtures/qwen-native-stream.sse"],
-        "webSearch": ["Fixtures/qwen-native-stream.sse"],
-        "functionTools": ["Fixtures/qwen-native-tool-stream.sse"],
-        "imageInput": ["QwenContractTests.swift#testNativeMultimodalRequest"],
-        "pdfInput": ["QwenContractTests.swift#testNativeMultimodalRequest"],
-        "directFileInput": ["QwenContractTests.swift#testNativeMultimodalRequest"],
-        "uploadedFile": ["QwenContractTests.swift#testNativeMultimodalRequest"],
-        "extraction": ["QwenContractTests.swift#testNativeMultimodalRequest"]
-      }
-    },
-    {
       "id": "kimi",
       "nativeRoute": "/v1/chat/completions",
       "cases": {
@@ -101,7 +82,8 @@
         "source": ["Fixtures/kimi-native-search-stream.sse"],
         "error": ["KimiContractTests.swift#testTypedError"],
         "image": ["KimiContractTests.swift#testVisionAndExtraction"],
-        "file": ["KimiContractTests.swift#testNativeFilesEndpoint", "KimiContractTests.swift#testVisionAndExtraction"]
+        "file": ["KimiContractTests.swift#testNativeFilesEndpoint", "KimiContractTests.swift#testVisionAndExtraction"],
+        "decision": ["KimiContractTests.swift#testUnknownModelSafety"]
       },
       "capabilities": {
         "reasoning": ["Fixtures/kimi-native-reasoning-stream.sse"],
@@ -124,7 +106,8 @@
         "source": ["Fixtures/glm-native-stream.sse"],
         "error": ["GLMContractTests.swift#testTypedError"],
         "image": ["GLMContractTests.swift#testExactVisualRequest"],
-        "file": ["GLMContractTests.swift#testExactVisualRequest"]
+        "file": ["GLMContractTests.swift#testExactVisualRequest"],
+        "decision": ["GLMContractTests.swift#testUnknownModelSafety"]
       },
       "capabilities": {
         "reasoning": ["Fixtures/glm-native-stream.sse"],

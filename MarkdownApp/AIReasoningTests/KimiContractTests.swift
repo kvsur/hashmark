@@ -20,6 +20,7 @@ enum KimiContractTests {
 
     static func main() throws {
         try testNativeSearchRequest()
+        try testReasoningEffortMapping()
         try testFormulaContract()
         try testAlwaysOnSearchPolicy()
         testNativeFilesEndpoint()
@@ -42,15 +43,49 @@ enum KimiContractTests {
 
     private static func configuration(
         model: String = "kimi-k2.6",
-        webSearch: Bool = true
+        webSearch: Bool = true,
+        reasoningEffort: AIReasoningEffort = .low
     ) throws -> ResolvedAIProviderConfiguration {
         try AIProviderRegistry.resolve(AIConfig(
             provider: .kimi,
             baseURL: "https://api.moonshot.cn/v1",
             model: model,
             apiKey: "fixture-key",
-            preferences: AICapabilityPreferences(webSearchEnabled: webSearch)
+            preferences: AICapabilityPreferences(
+                webSearchEnabled: webSearch,
+                reasoningEffort: reasoningEffort
+            )
         ))
+    }
+
+    private static func testReasoningEffortMapping() throws {
+        let k2Request = try KimiRequestBuilder(configuration: configuration(
+            webSearch: false,
+            reasoningEffort: .low
+        )).makeStreamRequest(
+            messages: [AIMessage(role: .user, content: "Answer directly.")],
+            tools: []
+        )
+        let k2Body = try JSONSerialization.jsonObject(
+            with: k2Request.httpBody ?? Data()
+        ) as? [String: Any]
+        expect((k2Body?["thinking"] as? [String: Any])?["type"] as? String
+               == "enabled",
+               "Kimi K2 effort adjustment disabled Thinking")
+
+        let k3Request = try KimiRequestBuilder(configuration: configuration(
+            model: "kimi-k3",
+            webSearch: false,
+            reasoningEffort: .low
+        )).makeStreamRequest(
+            messages: [AIMessage(role: .user, content: "Answer directly.")],
+            tools: []
+        )
+        let k3Body = try JSONSerialization.jsonObject(
+            with: k3Request.httpBody ?? Data()
+        ) as? [String: Any]
+        expect(k3Body?["reasoning_effort"] as? String == "low",
+               "Kimi K3 Low effort did not reach the request")
     }
 
     private static let formulaWebSearchTool = JSONValue.object([
@@ -349,8 +384,8 @@ enum KimiContractTests {
             } == true, "\(model) extracted attachment was not serialized")
 
             if model == "kimi-k3" {
-                expect(body?["reasoning_effort"] as? String == "max",
-                       "Kimi K3 did not use reasoning_effort")
+                expect(body?["reasoning_effort"] as? String == "low",
+                       "Kimi K3 did not use the default Low reasoning_effort")
                 expect(body?["thinking"] == nil,
                        "Kimi K3 received the incompatible K2 thinking field")
             } else {

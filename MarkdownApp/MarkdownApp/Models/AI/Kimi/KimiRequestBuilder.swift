@@ -17,7 +17,8 @@ nonisolated struct KimiRequestBuilder {
         formulaTools: [JSONValue] = [],
         webSearchPolicy: String? = nil
     ) throws -> URLRequest {
-        let webSearch = configuration.effectiveCapabilities.webSearch.isEnabled
+        let webSearch = configuration.usesNativeWebSearch
+        let reasoningStyle = configuration.modelStrategyID(key: "reasoningStyle")
         let requestMessages: [AIMessage]
         if webSearch {
             guard let webSearchPolicy, !webSearchPolicy.isEmpty else {
@@ -48,12 +49,18 @@ nonisolated struct KimiRequestBuilder {
             "stream_options": .object(["include_usage": .bool(true)]),
             "max_completion_tokens": .number(32_768)
         ]
-        if configuration.effectiveCapabilities.displayableReasoning.isEnabled,
-           KimiModelContract.reasoningStyle(for: configuration.model) == .reasoningEffort {
-            body["reasoning_effort"] = .string("max")
+        if configuration.allowsKnownSafeRequest(.reasoning),
+           reasoningStyle == "kimiReasoningEffort" {
+            let effort: String = switch configuration.reasoningEffort {
+            case .automatic, .maximum: "max"
+            case .low: "low"
+            case .high: "high"
+            }
+            body["reasoning_effort"] = .string(effort)
         } else if webSearch {
             body["thinking"] = .object(["type": .string("disabled")])
-        } else if configuration.effectiveCapabilities.displayableReasoning.isEnabled {
+        } else if configuration.allowsKnownSafeRequest(.reasoning),
+                  reasoningStyle == "kimiThinkingToggle" {
             body["thinking"] = .object(["type": .string("enabled")])
         }
         if !nativeTools.isEmpty {
@@ -79,7 +86,7 @@ nonisolated struct KimiRequestBuilder {
     /// Web Search 开启时，每个尚无搜索结果的新用户回合都由 Adapter 先执行 Formula。
     /// 查询就是用户本轮原文，不再维护脆弱的关键词/语言表。
     func pendingWebSearchQuery(in messages: [AIMessage]) -> String? {
-        guard configuration.effectiveCapabilities.webSearch.isEnabled,
+        guard configuration.usesNativeWebSearch,
               let userIndex = messages.lastIndex(where: { $0.role == .user }),
               !Self.hasWebSearchResult(after: userIndex, in: messages)
         else { return nil }
@@ -189,7 +196,7 @@ nonisolated struct KimiRequestBuilder {
         for attachment in message.attachments {
             switch attachment.kind {
             case .image(let data):
-                guard configuration.effectiveCapabilities.imageInput.isEnabled, !data.isEmpty else {
+                guard configuration.allowsKnownSafeRequest(.imageInput), !data.isEmpty else {
                     throw KimiWireError.unsupportedInput
                 }
                 content.append(mediaURL(

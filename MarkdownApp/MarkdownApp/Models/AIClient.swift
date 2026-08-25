@@ -24,7 +24,7 @@ nonisolated enum AIClientFactory {
             throw AIError.invalidURL
         }
         guard !config.preferences.webSearchEnabled
-                || resolved.effectiveCapabilities.webSearch.isEnabled
+                || resolved.usesNativeWebSearch
         else {
             throw AIError.webSearchUnavailable
         }

@@ -17,6 +17,7 @@ private func fixture(_ name: String) throws -> Data {
 enum GLMContractTests {
     static func main() throws {
         try testNativeTextRequest()
+        try testReasoningEffortMapping()
         try testStandaloneWebSearchContract()
         try testMissingWebSearchEvidenceRejected()
         try testExactVisualRequest()
@@ -37,15 +38,54 @@ enum GLMContractTests {
         }
     }
 
-    private static func configuration(model: String = "glm-5.3") throws
+    private static func configuration(
+        model: String = "glm-5.3",
+        reasoningEffort: AIReasoningEffort = .low
+    ) throws
         -> ResolvedAIProviderConfiguration
     {
         try AIProviderRegistry.resolve(AIConfig(
             provider: .glm,
             baseURL: "https://open.bigmodel.cn",
             model: model,
-            apiKey: "fixture-key"
+            apiKey: "fixture-key",
+            preferences: AICapabilityPreferences(reasoningEffort: reasoningEffort)
         ))
+    }
+
+    private static func testReasoningEffortMapping() throws {
+        let request = try GLMRequestBuilder(configuration: configuration(
+            reasoningEffort: .low
+        )).makeStreamRequest(
+            messages: [AIMessage(role: .user, content: "Answer directly.")],
+            tools: [],
+            webSearchEvidencePreloaded: true
+        )
+        let body = try JSONSerialization.jsonObject(
+            with: request.httpBody ?? Data()
+        ) as? [String: Any]
+        expect((body?["thinking"] as? [String: Any])?["type"] as? String
+               == "enabled",
+               "GLM effort adjustment disabled Thinking")
+        expect(body?["reasoning_effort"] as? String == "low",
+               "GLM Low effort did not reach the request")
+
+        let optionalRequest = try GLMRequestBuilder(configuration: configuration(
+            model: "glm-5.2",
+            reasoningEffort: .high
+        )).makeStreamRequest(
+            messages: [AIMessage(role: .user, content: "Answer directly.")],
+            tools: [],
+            webSearchEvidencePreloaded: true
+        )
+        let optionalBody = try JSONSerialization.jsonObject(
+            with: optionalRequest.httpBody ?? Data()
+        ) as? [String: Any]
+        expect((optionalBody?["thinking"] as? [String: Any])?["type"] as? String
+               == "enabled",
+               "GLM optional Thinking was disabled by effort adjustment")
+        expect(optionalBody?["reasoning_effort"] == nil,
+               "GLM model without verified effort support received the field")
     }
 
     private static func testNativeTextRequest() throws {
@@ -343,13 +383,17 @@ enum GLMContractTests {
         let config = try configuration(model: "glm-5v-future")
         expect(!config.effectiveCapabilities.imageInput.isEnabled,
                "Broad GLM visual substring matching returned")
+        expect(config.usesNativeWebSearch,
+               "Unknown GLM model lost the standalone Web Search trial path")
         let request = try GLMRequestBuilder(configuration: config).makeStreamRequest(
             messages: [AIMessage(role: .user, content: "Hello")],
-            tools: []
+            tools: [],
+            webSearchEvidencePreloaded: true
         )
         let body = try JSONSerialization.jsonObject(with: request.httpBody ?? Data()) as? [String: Any]
         expect(body?["thinking"] == nil, "Unknown GLM model received thinking")
-        expect(body?["tools"] == nil, "Unknown GLM model received Web Search")
+        expect(body?["tools"] == nil,
+               "Standalone GLM search leaked a tool into the chat request")
     }
 
     private static func testTypedError() throws {

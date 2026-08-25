@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "reviewedAt": "2026-08-25",
+  "providers": [
+    {
+      "id": "openAI",
+      "modelsAPI": "https://platform.openai.com/docs/api-reference/models",
+      "contractSources": ["https://platform.openai.com/docs/api-reference/responses"]
+    },
+    {
+      "id": "anthropic",
+      "modelsAPI": "https://platform.claude.com/docs/en/api/models/list",
+      "contractSources": ["https://platform.claude.com/docs/en/api/messages"]
+    },
+    {
+      "id": "gemini",
+      "modelsAPI": "https://ai.google.dev/api/models",
+      "contractSources": ["https://ai.google.dev/api"]
+    },
+    {
+      "id": "kimi",
+      "modelsAPI": "https://platform.kimi.ai/docs/api/list-models",
+      "contractSources": [
+        "https://platform.kimi.ai/docs/api/overview",
+        "https://platform.kimi.ai/docs/guide/use-official-tools"
+      ]
+    },
+    {
+      "id": "glm",
+      "modelsAPI": null,
+      "contractSources": [
+        "https://docs.bigmodel.cn/api-reference/%E6%A8%A1%E5%9E%8B-api/%E5%AF%B9%E8%AF%9D%E8%A1%A5%E5%85%A8",
+        "https://docs.bigmodel.cn/api-reference/%E5%B7%A5%E5%85%B7-api/%E7%BD%91%E7%BB%9C%E6%90%9C%E7%B4%A2"
+      ]
+    }
+  ]
+}

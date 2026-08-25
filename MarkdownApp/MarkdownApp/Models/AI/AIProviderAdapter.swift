@@ -41,8 +41,6 @@ nonisolated enum AIProviderAdapterFactory {
             return AnthropicAdapter(configuration: configuration)
         case .gemini:
             return GeminiAdapter(configuration: configuration)
-        case .qwen:
-            return QwenAdapter(configuration: configuration)
         case .kimi:
             return KimiAdapter(configuration: configuration)
         case .glm:

@@ -23,13 +23,15 @@ enum FixtureManifestTests {
             from: Data(contentsOf: manifestURL)
         )
         var failures: [String] = []
-        let expectedProviders = Set(["openAI", "anthropic", "gemini", "qwen", "kimi", "glm"])
-        let requiredCases = Set(["request", "stream", "source", "error", "image", "file"])
+        let expectedProviders = Set(["openAI", "anthropic", "gemini", "kimi", "glm"])
+        let requiredCases = Set([
+            "request", "stream", "source", "error", "image", "file", "decision"
+        ])
 
-        if manifest.version != 1 { failures.append("Fixture manifest version changed") }
-        if manifest.verifiedAt != "2026-08-24" { failures.append("Fixture review date is stale") }
+        if manifest.version != 2 { failures.append("Fixture manifest version changed") }
+        if manifest.verifiedAt != "2026-08-25" { failures.append("Fixture review date is stale") }
         if Set(manifest.providers.map(\.id)) != expectedProviders {
-            failures.append("Fixture manifest does not contain exactly the six native Providers")
+            failures.append("Fixture manifest does not contain exactly the five native Providers")
         }
 
         for provider in manifest.providers {

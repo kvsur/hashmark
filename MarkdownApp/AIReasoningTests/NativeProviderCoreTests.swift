@@ -10,7 +10,8 @@ private func config(
     _ provider: AIProvider,
     baseURL: String? = nil,
     model: String? = nil,
-    search: Bool = true
+    search: Bool = true,
+    reasoningEffort: AIReasoningEffort = .low
 ) -> AIConfig {
     let manifest = AIProviderRegistry.manifest(for: provider)
     return AIConfig(
@@ -18,14 +19,17 @@ private func config(
         baseURL: baseURL ?? manifest.defaultBaseURL,
         model: model ?? manifest.defaultModel,
         apiKey: "fixture-key",
-        preferences: AICapabilityPreferences(webSearchEnabled: search)
+        preferences: AICapabilityPreferences(
+            webSearchEnabled: search,
+            reasoningEffort: reasoningEffort
+        )
     )
 }
 
 @main
 enum NativeProviderCoreTests {
     static func main() throws {
-        expect(AIProvider.allCases == [.openAI, .anthropic, .gemini, .qwen, .kimi, .glm],
+        expect(AIProvider.allCases == [.openAI, .anthropic, .gemini, .kimi, .glm],
                "The native provider set changed")
         expect(Set(AIProviderRegistry.manifests.keys) == Set(AIProvider.allCases),
                "The manifest is not exhaustive")
@@ -34,7 +38,6 @@ enum NativeProviderCoreTests {
             (.openAI, "https://api.openai.com/v1/responses"),
             (.anthropic, "https://api.anthropic.com/v1/messages"),
             (.gemini, "https://generativelanguage.googleapis.com/v1beta/interactions"),
-            (.qwen, "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"),
             (.kimi, "https://api.moonshot.cn/v1/chat/completions"),
             (.glm, "https://open.bigmodel.cn/api/paas/v4/chat/completions")
         ]
@@ -43,7 +46,7 @@ enum NativeProviderCoreTests {
             expect(resolved.provider == provider, "\(provider.rawValue) resolved as another provider")
             expect(resolved.endpointURL.absoluteString == expected,
                    "\(provider.rawValue) endpoint was \(resolved.endpointURL.absoluteString)")
-            let expectedReviewDate = [.gemini, .qwen, .kimi, .glm].contains(provider)
+            let expectedReviewDate = [.gemini, .kimi, .glm].contains(provider)
                 ? "2026-08-25"
                 : "2026-08-24"
             expect(resolved.manifest.verifiedAt == expectedReviewDate,
@@ -53,6 +56,13 @@ enum NativeProviderCoreTests {
         let openAI = try AIProviderRegistry.resolve(config(.openAI))
         expect(openAI.manifest.webSearch == .openAIHostedTool(type: "web_search"),
                "OpenAI is not using Responses web_search")
+        let openAIHighReasoning = try AIProviderRegistry.resolve(config(
+            .openAI,
+            reasoningEffort: .high
+        ))
+        expect(openAIHighReasoning.reasoningEffort == .high
+               && openAIHighReasoning.effectiveCapabilities.displayableReasoning.isEnabled,
+               "Reasoning Effort did not reach the resolved configuration")
         let anthropic = try AIProviderRegistry.resolve(config(.anthropic))
         expect(anthropic.manifest.webSearch == .anthropicServerTool(version: "web_search_20260318"),
                "Anthropic tool version changed")
@@ -100,13 +110,13 @@ enum NativeProviderCoreTests {
                "Unknown model received image input")
 
         let gateway = try AIProviderRegistry.resolve(config(
-            .qwen,
+            .kimi,
             baseURL: "https://gateway.example/provider"
         ))
-        expect(gateway.provider == .qwen, "Endpoint override changed Provider identity")
+        expect(gateway.provider == .kimi, "Endpoint override changed Provider identity")
         expect(gateway.endpointURL.absoluteString ==
-               "https://gateway.example/provider/api/v1/services/aigc/text-generation/generation",
-               "Endpoint override did not preserve the Qwen native route")
+               "https://gateway.example/provider/v1/chat/completions",
+               "Endpoint override did not preserve the selected native route")
 
         let empty = AIConfig.empty
         expect(empty.validationIssues == [.missingBaseURL, .missingModel, .missingAPIKey],

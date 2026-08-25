@@ -27,6 +27,7 @@ nonisolated final class GeminiAdapter: AIProviderAdapter, @unchecked Sendable {
     ) -> AsyncThrowingStream<AIStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
+                let webSearch = configuration.usesNativeWebSearch
                 do {
                     let state = await conversationState.context(totalMessageCount: messages.count)
                     let incremental = requestMessages(
@@ -45,7 +46,7 @@ nonisolated final class GeminiAdapter: AIProviderAdapter, @unchecked Sendable {
                         model: configuration.model,
                         messageCount: incremental.count,
                         appToolCount: tools.count,
-                        webSearchEnabled: configuration.effectiveCapabilities.webSearch.isEnabled
+                        webSearchEnabled: webSearch
                     )
                     continuation.yield(.phase(.connecting))
                     let (bytes, response) = try await session.bytes(for: request)
@@ -59,7 +60,7 @@ nonisolated final class GeminiAdapter: AIProviderAdapter, @unchecked Sendable {
 
                     let parser = GeminiStreamParser()
                     var searchGate = AIWebSearchExecutionGate(
-                        isRequired: configuration.effectiveCapabilities.webSearch.isEnabled
+                        isRequired: webSearch
                     )
                     for try await line in bytes.lines {
                         try Task.checkCancellation()
@@ -78,6 +79,11 @@ nonisolated final class GeminiAdapter: AIProviderAdapter, @unchecked Sendable {
                         continuation.yield(event)
                     }
                     guard searchGate.isSatisfied else { throw AIError.webSearchNotExecuted }
+                    if webSearch {
+                        AICapabilityVerificationRecorder.recordNativeSearchSuccess(
+                            configuration: configuration
+                        )
+                    }
                     guard let interactionID = parser.completedInteractionID else {
                         throw GeminiWireError.missingTerminalInteraction
                     }
@@ -88,13 +94,27 @@ nonisolated final class GeminiAdapter: AIProviderAdapter, @unchecked Sendable {
                     await fileService.didCompleteResponse()
                     continuation.finish()
                 } catch is CancellationError {
+                    AICapabilityVerificationRecorder.recordNativeSearchFailure(
+                        CancellationError(), configuration: configuration
+                    )
                     continuation.finish(throwing: CancellationError())
                 } catch let error as AIError {
+                    AICapabilityVerificationRecorder.recordNativeSearchFailure(
+                        error, configuration: configuration
+                    )
                     continuation.finish(throwing: error)
                 } catch let error as GeminiWireError {
-                    continuation.finish(throwing: AIError.stream(String(describing: error)))
+                    let wrapped = AIError.stream(String(describing: error))
+                    AICapabilityVerificationRecorder.recordNativeSearchFailure(
+                        wrapped, configuration: configuration
+                    )
+                    continuation.finish(throwing: wrapped)
                 } catch {
-                    continuation.finish(throwing: AIError.network(error))
+                    let wrapped = AIError.network(error)
+                    AICapabilityVerificationRecorder.recordNativeSearchFailure(
+                        wrapped, configuration: configuration
+                    )
+                    continuation.finish(throwing: wrapped)
                 }
             }
             continuation.onTermination = { @Sendable _ in task.cancel() }

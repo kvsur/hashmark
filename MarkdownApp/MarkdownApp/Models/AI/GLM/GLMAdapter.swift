@@ -31,8 +31,8 @@ nonisolated final class GLMAdapter: AIProviderAdapter, @unchecked Sendable {
     ) -> AsyncThrowingStream<AIStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
+                let webSearch = configuration.usesNativeWebSearch
                 do {
-                    let webSearch = configuration.effectiveCapabilities.webSearch.isEnabled
                     var requestMessages = messages
                     if webSearch {
                         guard let query = GLMWebSearchContract.query(in: messages) else {
@@ -45,6 +45,9 @@ nonisolated final class GLMAdapter: AIProviderAdapter, @unchecked Sendable {
                             requestID: nil
                         ))))
                         let evidence = try await webSearchService.search(query: query)
+                        AICapabilityVerificationRecorder.recordNativeSearchSuccess(
+                            configuration: configuration
+                        )
                         for citation in evidence.citations {
                             continuation.yield(.search(.citation(citation)))
                         }
@@ -96,26 +99,39 @@ nonisolated final class GLMAdapter: AIProviderAdapter, @unchecked Sendable {
                     await fileService.didCompleteResponse()
                     continuation.finish()
                 } catch is CancellationError {
+                    AICapabilityVerificationRecorder.recordNativeSearchFailure(
+                        CancellationError(), configuration: configuration
+                    )
                     continuation.finish(throwing: CancellationError())
                 } catch let error as AIError {
+                    AICapabilityVerificationRecorder.recordNativeSearchFailure(
+                        error, configuration: configuration
+                    )
                     continuation.finish(throwing: error)
                 } catch let error as GLMWireError {
+                    let wrapped: AIError
                     if case .remote(_, let message) = error {
-                        continuation.finish(throwing: AIError.stream(message))
+                        wrapped = .stream(message)
                     } else if case .invalidEvent(let kind, let path) = error {
                         AIDiagnostics.streamDecodeFailure(
                             provider: .glm,
                             kind: kind,
                             path: path
                         )
-                        continuation.finish(
-                            throwing: AIError.stream("invalidEvent(\(kind) at \(path))")
-                        )
+                        wrapped = .stream("invalidEvent(\(kind) at \(path))")
                     } else {
-                        continuation.finish(throwing: AIError.stream(String(describing: error)))
+                        wrapped = .stream(String(describing: error))
                     }
+                    AICapabilityVerificationRecorder.recordNativeSearchFailure(
+                        wrapped, configuration: configuration
+                    )
+                    continuation.finish(throwing: wrapped)
                 } catch {
-                    continuation.finish(throwing: AIError.network(error))
+                    let wrapped = AIError.network(error)
+                    AICapabilityVerificationRecorder.recordNativeSearchFailure(
+                        wrapped, configuration: configuration
+                    )
+                    continuation.finish(throwing: wrapped)
                 }
             }
             continuation.onTermination = { @Sendable _ in task.cancel() }

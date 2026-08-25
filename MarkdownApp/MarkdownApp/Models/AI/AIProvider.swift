@@ -12,7 +12,6 @@ nonisolated enum AIProvider: String, Codable, CaseIterable, Identifiable {
     case openAI
     case anthropic
     case gemini
-    case qwen
     case kimi
     case glm
 
@@ -23,7 +22,6 @@ nonisolated enum AIProvider: String, Codable, CaseIterable, Identifiable {
         case .openAI: "OpenAI"
         case .anthropic: "Anthropic"
         case .gemini: "Google Gemini"
-        case .qwen: "Alibaba Cloud Qwen"
         case .kimi: "Moonshot Kimi"
         case .glm: "Zhipu GLM"
         }
@@ -31,4 +29,3 @@ nonisolated enum AIProvider: String, Codable, CaseIterable, Identifiable {
 
     static let officiallySupported = allCases
 }
-

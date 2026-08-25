@@ -119,7 +119,8 @@ struct AIWritingView: View {
                 prompt: $prompt,
                 attachments: $attachments,
                 store: store,
-                supportsImages: config.effectiveCapabilities?.imageInput.isEnabled == true,
+                supportsImages: config.resolvedProvider?
+                    .allowsKnownSafeRequest(.imageInput) == true,
                 onNeedsConfig: { showConfigEditor = true },
                 onStart: start,
                 onPromptFocusChange: { focused in

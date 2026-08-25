@@ -48,7 +48,7 @@ nonisolated struct OpenAIResponsesRequestBuilder {
         let nativeTools = requestTools(appTools: tools, vectorStoreIDs: allVectorStoreIDs)
         if !nativeTools.isEmpty {
             body["tools"] = .array(nativeTools)
-            if configuration.effectiveCapabilities.webSearch.isEnabled,
+            if configuration.usesNativeWebSearch,
                case .openAIHostedTool(let type) = configuration.manifest.webSearch {
                 body["tool_choice"] = .object([
                     "type": .string("allowed_tools"),
@@ -61,7 +61,7 @@ nonisolated struct OpenAIResponsesRequestBuilder {
         }
 
         var include: [JSONValue] = []
-        if configuration.effectiveCapabilities.webSearch.isEnabled {
+        if configuration.usesNativeWebSearch {
             include.append(.string("web_search_call.action.sources"))
         }
         if !allVectorStoreIDs.isEmpty, configuration.effectiveCapabilities.fileSearch.isEnabled {
@@ -69,8 +69,21 @@ nonisolated struct OpenAIResponsesRequestBuilder {
         }
         if !include.isEmpty { body["include"] = .array(include) }
 
-        if configuration.effectiveCapabilities.displayableReasoning.isEnabled {
-            body["reasoning"] = .object(["generate_summary": .string("auto")])
+        if configuration.allowsKnownSafeRequest(.reasoning) {
+            var reasoning: [String: JSONValue] = [
+                "generate_summary": .string("auto")
+            ]
+            switch configuration.reasoningEffort {
+            case .automatic:
+                break
+            case .low:
+                reasoning["effort"] = .string("low")
+            case .high, .maximum:
+                // High is the strongest value supported across the verified
+                // GPT-5 family; Maximum safely maps to that closest level.
+                reasoning["effort"] = .string("high")
+            }
+            body["reasoning"] = .object(reasoning)
         }
 
         var request = URLRequest(url: configuration.endpointURL)
@@ -149,7 +162,7 @@ nonisolated struct OpenAIResponsesRequestBuilder {
         for attachment in message.attachments {
             switch attachment.kind {
             case .image(let data):
-                guard configuration.effectiveCapabilities.imageInput.isEnabled else {
+                guard configuration.allowsKnownSafeRequest(.imageInput) else {
                     throw OpenAIResponsesWireError.unsupportedInput
                 }
                 content.append(.object([
@@ -158,7 +171,7 @@ nonisolated struct OpenAIResponsesRequestBuilder {
                     "detail": .string("auto")
                 ]))
             case .pdf(let data, let name):
-                guard configuration.effectiveCapabilities.inlinePDF.isEnabled else {
+                guard configuration.allowsKnownSafeRequest(.pdfInput) else {
                     throw OpenAIResponsesWireError.unsupportedInput
                 }
                 content.append(.object([
@@ -200,7 +213,7 @@ nonisolated struct OpenAIResponsesRequestBuilder {
             ])
         }
 
-        if configuration.effectiveCapabilities.webSearch.isEnabled,
+        if configuration.usesNativeWebSearch,
            case .openAIHostedTool(let type) = configuration.manifest.webSearch {
             result.append(.object(["type": .string(type)]))
         }

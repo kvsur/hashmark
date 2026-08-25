@@ -51,9 +51,38 @@ for label in $legacy_labels; do
 done
 
 compatible_occurrences=$(rg -n '/compatible-mode/' "$app_dir" --glob '*.swift' || true)
-if [[ $(print -r -- "$compatible_occurrences" | sed '/^$/d' | wc -l | tr -d ' ') != 1 ]] ||
-   [[ "$compatible_occurrences" != *"QwenRequestBuilder.swift"* ]]; then
-  fail "Qwen compatible-mode must exist only as one fail-closed rejection guard"
+if [[ -n "$compatible_occurrences" ]]; then
+  fail "Compatibility-mode routes remain in production sources"
+fi
+
+removed_provider_pattern='[Qq]''wen|[Dd]''ash[Ss]cope'
+removed_provider_hits=$(rg -n "$removed_provider_pattern" "$app_dir" "$test_dir" || true)
+if [[ -n "$removed_provider_hits" ]]; then
+  fail "Retired provider content remains in current product or maintenance surfaces"
+fi
+
+hardcoded_model_pattern='gpt-5\\.|claude-(fable|mythos|opus|sonnet)|gemini-[0-9]|kimi-k[0-9]|glm-[0-9]'
+if rg -n "$hardcoded_model_pattern" "$app_dir" --glob '*.swift' >/dev/null; then
+  fail "Production Swift contains a maintenance model ID that belongs in the versioned Manifest"
+fi
+
+decision_bypass=$(rg -n \
+  'effectiveCapabilities\\.(webSearch|imageInput|inlinePDF|directFileInput|displayableReasoning)' \
+  "$app_dir/Models/AI/OpenAIResponses" \
+  "$app_dir/Models/AI/Anthropic" \
+  "$app_dir/Models/AI/Gemini" \
+  "$app_dir/Models/AI/Kimi" \
+  "$app_dir/Models/AI/GLM" || true)
+if [[ -n "$decision_bypass" ]]; then
+  fail "A Provider request path bypasses the layered capability decision"
+fi
+
+verification_sources=(
+  "$app_dir/Models/AI/Capabilities/AICapabilityVerificationStore.swift"
+  "$app_dir/Models/AI/Capabilities/AICapabilityVerificationRecorder.swift"
+)
+if rg -n 'apiKey|message\\.content|prompt|httpBody|attachment' $verification_sources >/dev/null; then
+  fail "Capability verification may persist credentials or user content"
 fi
 
 diagnostics=$(sed -n '/enum AIDiagnostics/,/^}/p' "$app_dir/Models/AIClient.swift")

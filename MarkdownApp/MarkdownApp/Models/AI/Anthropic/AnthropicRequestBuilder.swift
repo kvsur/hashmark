@@ -48,7 +48,7 @@ nonisolated struct AnthropicRequestBuilder {
                 "input_schema": tool.parameters
             ])
         }
-        if configuration.effectiveCapabilities.webSearch.isEnabled {
+        if configuration.usesNativeWebSearch {
             guard case .anthropicServerTool(let version) = configuration.manifest.webSearch,
                   version == "web_search_20260318"
             else { throw AnthropicWireError.invalidToolVersion }
@@ -60,7 +60,7 @@ nonisolated struct AnthropicRequestBuilder {
             ]))
         }
         if !nativeTools.isEmpty { body["tools"] = .array(nativeTools) }
-        if configuration.effectiveCapabilities.webSearch.isEnabled {
+        if configuration.usesNativeWebSearch {
             body["tool_choice"] = .object([
                 "type": .string("tool"),
                 "name": .string("web_search"),
@@ -68,8 +68,14 @@ nonisolated struct AnthropicRequestBuilder {
             ])
         }
 
-        if configuration.effectiveCapabilities.displayableReasoning.isEnabled {
+        if configuration.allowsKnownSafeRequest(.reasoning),
+           !configuration.usesNativeWebSearch {
             body["thinking"] = thinkingConfiguration()
+            if configuration.modelStrategyID(key: "reasoningStyle")
+                == "anthropicAdaptiveThinking",
+               let effort = adaptiveEffort {
+                body["output_config"] = .object(["effort": .string(effort)])
+            }
         }
 
         var request = URLRequest(url: configuration.endpointURL)
@@ -93,11 +99,8 @@ nonisolated struct AnthropicRequestBuilder {
     }
 
     private func thinkingConfiguration() -> JSONValue {
-        let adaptiveModels: Set<String> = [
-            "claude-fable-5", "claude-mythos-5", "claude-opus-4-8",
-            "claude-opus-4-7", "claude-sonnet-5"
-        ]
-        if adaptiveModels.contains(configuration.model.lowercased()) {
+        if configuration.modelStrategyID(key: "reasoningStyle")
+            == "anthropicAdaptiveThinking" {
             return .object([
                 "type": .string("adaptive"),
                 "display": .string("summarized")
@@ -105,9 +108,26 @@ nonisolated struct AnthropicRequestBuilder {
         }
         return .object([
             "type": .string("enabled"),
-            "budget_tokens": .number(1_024),
+            "budget_tokens": .number(manualThinkingBudget),
             "display": .string("summarized")
         ])
+    }
+
+    private var adaptiveEffort: String? {
+        switch configuration.reasoningEffort {
+        case .automatic: nil
+        case .low: "low"
+        case .high: "high"
+        case .maximum: "max"
+        }
+    }
+
+    private var manualThinkingBudget: Double {
+        switch configuration.reasoningEffort {
+        case .automatic, .low: 1_024
+        case .high: 8_192
+        case .maximum: 32_768
+        }
     }
 
     private func serialize(
@@ -163,7 +183,7 @@ nonisolated struct AnthropicRequestBuilder {
         for attachment in message.attachments {
             switch attachment.kind {
             case .image(let data):
-                guard configuration.effectiveCapabilities.imageInput.isEnabled,
+                guard configuration.allowsKnownSafeRequest(.imageInput),
                       !data.isEmpty, data.count <= maxInlineImageBytes
                 else { throw AnthropicWireError.unsupportedInput }
                 blocks.append(.object([
@@ -175,7 +195,7 @@ nonisolated struct AnthropicRequestBuilder {
                     ])
                 ]))
             case .pdf(let data, let name):
-                guard configuration.effectiveCapabilities.inlinePDF.isEnabled,
+                guard configuration.allowsKnownSafeRequest(.pdfInput),
                       !data.isEmpty, data.count <= maxRequestPDFBytes
                 else { throw AnthropicWireError.unsupportedInput }
                 blocks.append(.object([

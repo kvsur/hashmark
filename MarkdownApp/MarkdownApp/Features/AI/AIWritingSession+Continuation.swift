@@ -14,7 +14,7 @@ extension AIWritingSession {
               !value.arguments.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               let resolved = config.resolvedProvider,
               resolved.provider == .kimi,
-              resolved.effectiveCapabilities.webSearch.isEnabled,
+              resolved.usesNativeWebSearch,
               resolved.manifest.webSearch.automaticContinuationToolName == value.toolName
         else { return false }
         return true

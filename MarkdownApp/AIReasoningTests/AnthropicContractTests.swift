@@ -17,6 +17,7 @@ private func fixture(_ name: String) throws -> Data {
 enum AnthropicContractTests {
     static func main() throws {
         try testNativeRequest()
+        try testReasoningEffortMapping()
         try testThinkingContinuationOrdering()
         try testNativeStream()
         try testSeparatorlessStream()
@@ -31,15 +32,58 @@ enum AnthropicContractTests {
         }
     }
 
-    private static func configuration(model: String = "claude-fable-5") throws
+    private static func configuration(
+        model: String = "claude-fable-5",
+        webSearch: Bool = true,
+        reasoningEffort: AIReasoningEffort = .low
+    ) throws
         -> ResolvedAIProviderConfiguration
     {
         try AIProviderRegistry.resolve(AIConfig(
             provider: .anthropic,
             baseURL: "https://api.anthropic.com",
             model: model,
-            apiKey: "fixture-key"
+            apiKey: "fixture-key",
+            preferences: AICapabilityPreferences(
+                webSearchEnabled: webSearch,
+                reasoningEffort: reasoningEffort
+            )
         ))
+    }
+
+    private static func testReasoningEffortMapping() throws {
+        let manualRequest = try AnthropicRequestBuilder(configuration: configuration(
+            model: "claude-sonnet-4-6",
+            webSearch: false,
+            reasoningEffort: .maximum
+        )).makeStreamRequest(
+            messages: [AIMessage(role: .user, content: "Answer directly.")],
+            tools: []
+        )
+        let manualBody = try JSONSerialization.jsonObject(
+            with: manualRequest.httpBody ?? Data()
+        ) as? [String: Any]
+        let manualThinking = manualBody?["thinking"] as? [String: Any]
+        expect(manualThinking?["type"] as? String == "enabled"
+               && manualThinking?["budget_tokens"] as? Int == 32_768,
+               "Anthropic manual Maximum effort did not increase its thinking budget")
+
+        let adaptiveRequest = try AnthropicRequestBuilder(configuration: configuration(
+            webSearch: false,
+            reasoningEffort: .low
+        )).makeStreamRequest(
+            messages: [AIMessage(role: .user, content: "Answer directly.")],
+            tools: []
+        )
+        let adaptiveBody = try JSONSerialization.jsonObject(
+            with: adaptiveRequest.httpBody ?? Data()
+        ) as? [String: Any]
+        let thinking = adaptiveBody?["thinking"] as? [String: Any]
+        let output = adaptiveBody?["output_config"] as? [String: Any]
+        expect(thinking?["type"] as? String == "adaptive"
+               && thinking?["display"] as? String == "summarized"
+               && output?["effort"] as? String == "low",
+               "Anthropic adaptive Low effort did not reach the request")
     }
 
     private static func testNativeRequest() throws {
@@ -162,13 +206,17 @@ enum AnthropicContractTests {
     private static func testUnknownModelSafety() throws {
         let config = try configuration(model: "claude-unverified")
         expect(!config.effectiveCapabilities.webSearch.isEnabled,
-               "Unknown Anthropic model received Web Search")
+               "Legacy aggregate unexpectedly claimed unknown Anthropic Web Search")
+        expect(config.usesNativeWebSearch,
+               "Unknown Anthropic model lost the explicit Web Search trial path")
         let request = try AnthropicRequestBuilder(configuration: config).makeStreamRequest(
             messages: [AIMessage(role: .user, content: "Hello")],
             tools: []
         )
         let body = try JSONSerialization.jsonObject(with: request.httpBody ?? Data()) as? [String: Any]
-        expect(body?["tools"] == nil, "Unknown Anthropic model received server tools")
+        let tools = body?["tools"] as? [[String: Any]]
+        expect(tools?.contains(where: { $0["name"] as? String == "web_search" }) == true,
+               "Unknown Anthropic model did not receive the requested trial tool")
         expect(body?["thinking"] == nil, "Unknown Anthropic model received thinking fields")
     }
 

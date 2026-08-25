@@ -2,7 +2,7 @@
 //  AIProviderManifest.swift
 //  MarkdownApp
 //
-//  六家第一方 endpoint、鉴权、当前模型和原生工具机制的唯一事实源。
+//  五家第一方 endpoint、鉴权、当前模型和原生工具机制的唯一事实源。
 //  verifiedAt 必须随官方契约复核更新；模型列表接口只用于发现，不能自动证明高级能力。
 //
 
@@ -18,7 +18,6 @@ nonisolated enum NativeWebSearchMechanism: Equatable {
     case openAIHostedTool(type: String)
     case anthropicServerTool(version: String)
     case geminiGoogleSearch
-    case qwenDashScope
     case kimiFormula(name: String, uri: String, requiresThinkingDisabled: Bool)
     case glmStandaloneAPI
 
@@ -60,17 +59,29 @@ nonisolated struct AIProviderManifest: Equatable {
     let fileMechanisms: Set<NativeFileMechanism>
     let capabilities: ProviderCapabilities
 
-    var documentedModelIDs: [String] { capabilities.documentedModelIDs }
+    var documentedModelIDs: [String] {
+        AIModelManifestRepository.shared.provider(provider)?.documentedModelIDs ?? []
+    }
 }
 
 nonisolated struct ResolvedAIProviderConfiguration: Equatable {
     let manifest: AIProviderManifest
     let endpointURL: URL
+    let baseURL: String
     let model: String
     let apiKey: String
     let effectiveCapabilities: EffectiveProviderCapabilities
+    let profileID: UUID
+    let providerCapabilitySignals: [AIModelCapability: Bool]
+    let providerMetadataObservedAt: Date?
+    let webSearchRequested: Bool
+    let reasoningEffort: AIReasoningEffort
 
     var provider: AIProvider { manifest.provider }
+
+    func modelStrategyID(key: String) -> String? {
+        AIProviderRegistry.modelPolicy(for: provider).strategyID(key: key, model: model)
+    }
 }
 
 nonisolated enum AIConfigValidationIssue: Error, Equatable {
@@ -82,87 +93,71 @@ nonisolated enum AIConfigValidationIssue: Error, Equatable {
 }
 
 nonisolated enum AIProviderRegistry {
+    static let manifestContentVersion = AIModelManifestRepository.shared.contentVersion
+    static let protocolEvidenceVersion = AIModelManifestRepository.shared.protocolEvidenceVersion
+
     static let manifests: [AIProvider: AIProviderManifest] = [
         .openAI: AIProviderManifest(
             provider: .openAI,
-            verifiedAt: "2026-08-24",
-            defaultBaseURL: "https://api.openai.com/v1",
-            defaultModel: "gpt-5.6-terra",
+            verifiedAt: data(for: .openAI).verifiedAt,
+            defaultBaseURL: data(for: .openAI).defaultBaseURL,
+            defaultModel: data(for: .openAI).defaultModel,
             endpointPath: "/v1/responses",
             authentication: .bearer,
             webSearch: .openAIHostedTool(type: "web_search"),
             fileMechanisms: [.directInput, .uploadReference, .hostedRetrieval],
             capabilities: capabilities(
-                reasoning: .conditional(AIProviderCapabilityRules.openAI),
-                search: .conditional(AIProviderCapabilityRules.openAI),
-                image: .conditional(AIProviderCapabilityRules.openAI),
-                pdf: .conditional(AIProviderCapabilityRules.openAI),
-                directFile: .conditional(AIProviderCapabilityRules.openAI),
-                uploadedFile: .conditional(AIProviderCapabilityRules.openAI),
-                fileSearch: .conditional(AIProviderCapabilityRules.openAI)
+                reasoning: support(.reasoning, provider: .openAI),
+                search: support(.nativeWebSearch, provider: .openAI),
+                image: support(.imageInput, provider: .openAI),
+                pdf: support(.pdfInput, provider: .openAI),
+                directFile: support(.genericFileInput, provider: .openAI),
+                uploadedFile: support(.uploadedFile, provider: .openAI),
+                fileSearch: support(.fileSearch, provider: .openAI)
             )
         ),
         .anthropic: AIProviderManifest(
             provider: .anthropic,
-            verifiedAt: "2026-08-24",
-            defaultBaseURL: "https://api.anthropic.com",
-            defaultModel: "claude-fable-5",
+            verifiedAt: data(for: .anthropic).verifiedAt,
+            defaultBaseURL: data(for: .anthropic).defaultBaseURL,
+            defaultModel: data(for: .anthropic).defaultModel,
             endpointPath: "/v1/messages",
             authentication: .anthropic(apiVersion: "2023-06-01"),
             webSearch: .anthropicServerTool(version: "web_search_20260318"),
             fileMechanisms: [.directInput, .uploadReference],
             capabilities: capabilities(
-                reasoning: .conditional(AIProviderCapabilityRules.anthropicReasoning),
-                search: .conditional(AIProviderCapabilityRules.anthropicForcedSearch),
-                image: .conditional(AIProviderCapabilityRules.anthropicInput),
-                pdf: .conditional(AIProviderCapabilityRules.anthropicInput),
-                directFile: .conditional(AIProviderCapabilityRules.anthropicInput),
-                uploadedFile: .conditional(AIProviderCapabilityRules.anthropicInput)
+                reasoning: support(.reasoning, provider: .anthropic),
+                search: support(.nativeWebSearch, provider: .anthropic),
+                image: support(.imageInput, provider: .anthropic),
+                pdf: support(.pdfInput, provider: .anthropic),
+                directFile: support(.genericFileInput, provider: .anthropic),
+                uploadedFile: support(.uploadedFile, provider: .anthropic)
             )
         ),
         .gemini: AIProviderManifest(
             provider: .gemini,
-            verifiedAt: "2026-08-25",
-            defaultBaseURL: "https://generativelanguage.googleapis.com",
-            defaultModel: "gemini-3.7-flash",
+            verifiedAt: data(for: .gemini).verifiedAt,
+            defaultBaseURL: data(for: .gemini).defaultBaseURL,
+            defaultModel: data(for: .gemini).defaultModel,
             endpointPath: "/v1beta/interactions",
             authentication: .googleAPIKey,
             webSearch: .geminiGoogleSearch,
             fileMechanisms: [.directInput, .uploadReference, .hostedRetrieval],
             capabilities: capabilities(
-                reasoning: .conditional(AIProviderCapabilityRules.geminiReasoning),
-                search: .conditional(AIProviderCapabilityRules.geminiSearch),
-                image: .conditional(AIProviderCapabilityRules.geminiMultimodal),
-                pdf: .conditional(AIProviderCapabilityRules.geminiMultimodal),
-                directFile: .conditional(AIProviderCapabilityRules.geminiMultimodal),
-                uploadedFile: .conditional(AIProviderCapabilityRules.geminiMultimodal),
-                fileSearch: .conditional(AIProviderCapabilityRules.geminiFileSearch)
-            )
-        ),
-        .qwen: AIProviderManifest(
-            provider: .qwen,
-            verifiedAt: "2026-08-25",
-            defaultBaseURL: "https://dashscope.aliyuncs.com/api/v1",
-            defaultModel: "qwen3.7-plus",
-            endpointPath: "/api/v1/services/aigc/text-generation/generation",
-            authentication: .bearer,
-            webSearch: .qwenDashScope,
-            fileMechanisms: [.directInput, .uploadReference, .extraction, .hostedRetrieval],
-            capabilities: capabilities(
-                reasoning: .conditional(AIProviderCapabilityRules.qwenReasoning),
-                search: .conditional(AIProviderCapabilityRules.qwenSearch),
-                image: .conditional(AIProviderCapabilityRules.qwenMultimodal),
-                pdf: .conditional(AIProviderCapabilityRules.qwenDocument),
-                directFile: .conditional(AIProviderCapabilityRules.qwenDocument),
-                uploadedFile: .conditional(AIProviderCapabilityRules.qwenDocument),
-                extraction: .conditional(AIProviderCapabilityRules.qwenReasoning)
+                reasoning: support(.reasoning, provider: .gemini),
+                search: support(.nativeWebSearch, provider: .gemini),
+                image: support(.imageInput, provider: .gemini),
+                pdf: support(.pdfInput, provider: .gemini),
+                directFile: support(.genericFileInput, provider: .gemini),
+                uploadedFile: support(.uploadedFile, provider: .gemini),
+                fileSearch: support(.fileSearch, provider: .gemini)
             )
         ),
         .kimi: AIProviderManifest(
             provider: .kimi,
-            verifiedAt: "2026-08-25",
-            defaultBaseURL: "https://api.moonshot.cn/v1",
-            defaultModel: "kimi-k2.6",
+            verifiedAt: data(for: .kimi).verifiedAt,
+            defaultBaseURL: data(for: .kimi).defaultBaseURL,
+            defaultModel: data(for: .kimi).defaultModel,
             endpointPath: "/v1/chat/completions",
             authentication: .bearer,
             webSearch: .kimiFormula(
@@ -172,39 +167,43 @@ nonisolated enum AIProviderRegistry {
             ),
             fileMechanisms: [.directInput, .uploadReference, .extraction],
             capabilities: capabilities(
-                reasoning: .conditional(AIProviderCapabilityRules.kimiReasoning),
+                reasoning: support(.reasoning, provider: .kimi),
                 // Formula 是 Provider 级工具；具体模型清单不应把用户已开启的搜索静默移除。
-                search: .supported,
-                image: .conditional(AIProviderCapabilityRules.kimiVisual),
+                search: support(.nativeWebSearch, provider: .kimi),
+                image: support(.imageInput, provider: .kimi),
                 // Files/file-extract 先解析为文本，再交给聊天模型，属于 Provider 级能力。
-                pdf: .supported,
-                directFile: .supported,
-                uploadedFile: .supported,
-                extraction: .supported
+                pdf: support(.pdfInput, provider: .kimi),
+                directFile: support(.genericFileInput, provider: .kimi),
+                uploadedFile: support(.uploadedFile, provider: .kimi),
+                extraction: support(.fileExtraction, provider: .kimi)
             )
         ),
         .glm: AIProviderManifest(
             provider: .glm,
-            verifiedAt: "2026-08-25",
-            defaultBaseURL: "https://open.bigmodel.cn",
-            defaultModel: "glm-5.3",
+            verifiedAt: data(for: .glm).verifiedAt,
+            defaultBaseURL: data(for: .glm).defaultBaseURL,
+            defaultModel: data(for: .glm).defaultModel,
             endpointPath: "/api/paas/v4/chat/completions",
             authentication: .bearer,
             webSearch: .glmStandaloneAPI,
             fileMechanisms: [.directInput, .uploadReference],
             capabilities: capabilities(
-                reasoning: .conditional(AIProviderCapabilityRules.glmReasoning),
-                search: .conditional(AIProviderCapabilityRules.glmText),
-                image: .conditional(AIProviderCapabilityRules.glmVision),
-                pdf: .conditional(AIProviderCapabilityRules.glmVision),
-                directFile: .conditional(AIProviderCapabilityRules.glmVision),
-                uploadedFile: .conditional(AIProviderCapabilityRules.glmVision)
+                reasoning: support(.reasoning, provider: .glm),
+                search: support(.nativeWebSearch, provider: .glm),
+                image: support(.imageInput, provider: .glm),
+                pdf: support(.pdfInput, provider: .glm),
+                directFile: support(.genericFileInput, provider: .glm),
+                uploadedFile: support(.uploadedFile, provider: .glm)
             )
         )
     ]
 
     static func manifest(for provider: AIProvider) -> AIProviderManifest {
         manifests[provider]!
+    }
+
+    static func modelPolicy(for provider: AIProvider) -> AIManifestProvider {
+        data(for: provider)
     }
 
     static func validationIssues(for config: AIConfig) -> [AIConfigValidationIssue] {
@@ -245,9 +244,15 @@ nonisolated enum AIProviderRegistry {
         return ResolvedAIProviderConfiguration(
             manifest: manifest,
             endpointURL: endpointURL,
+            baseURL: trimmed(config.baseURL),
             model: trimmed(config.model),
             apiKey: trimmed(config.apiKey),
-            effectiveCapabilities: effective
+            effectiveCapabilities: effective,
+            profileID: config.profileID ?? AIModelCatalogScope.legacyProfileID,
+            providerCapabilitySignals: config.providerCapabilitySignals ?? [:],
+            providerMetadataObservedAt: config.providerMetadataObservedAt,
+            webSearchRequested: config.preferences.webSearchEnabled,
+            reasoningEffort: config.preferences.reasoningEffort
         )
     }
 
@@ -292,6 +297,20 @@ nonisolated enum AIProviderRegistry {
             fileExtraction: extraction,
             fileSearch: fileSearch
         )
+    }
+
+    private static func support(
+        _ capability: AIModelCapability,
+        provider: AIProvider
+    ) -> CapabilitySupport {
+        AIProviderCapabilityRules.support(capability, provider: provider)
+    }
+
+    private static func data(for provider: AIProvider) -> AIManifestProvider {
+        guard let value = AIModelManifestRepository.shared.provider(provider) else {
+            preconditionFailure("Missing Manifest data for \(provider.rawValue)")
+        }
+        return value
     }
 
     private static func trimmed(_ value: String) -> String {

@@ -32,10 +32,6 @@ nonisolated enum AIAttachmentPolicy {
             .init(maxCount: 10, maxImageCount: 4, maxImageBytes: 4 << 20,
                   maxDocumentBytes: 8 << 20, maxTotalBytes: 20 << 20,
                   disallowsMixedImageAndDocument: false)
-        case .qwen:
-            .init(maxCount: 8, maxImageCount: 4, maxImageBytes: 4 << 20,
-                  maxDocumentBytes: 8 << 20, maxTotalBytes: 20 << 20,
-                  disallowsMixedImageAndDocument: false)
         case .kimi:
             .init(maxCount: 8, maxImageCount: 4, maxImageBytes: 4 << 20,
                   maxDocumentBytes: 8 << 20, maxTotalBytes: 24 << 20,
@@ -53,13 +49,20 @@ nonisolated enum AIAttachmentPolicy {
     ) throws -> AIAttachmentIntent {
         switch attachment.kind {
         case .documentReference:
+            // Text references are already flattened into visible prompt context. We still
+            // resolve generic-file support, but never turn an unverified binary path into
+            // a hidden upload or block the safe text baseline.
+            _ = configuration.allowsKnownSafeRequest(.genericFileInput)
             return .textContext
         case .image:
-            guard configuration.effectiveCapabilities.imageInput.isEnabled else {
+            guard configuration.allowsKnownSafeRequest(.imageInput) else {
                 throw AIAttachmentIssue.unsupportedByModel
             }
             return .directInput
         case .pdf:
+            guard configuration.allowsKnownSafeRequest(.pdfInput) else {
+                throw AIAttachmentIssue.unsupportedByModel
+            }
             // Kimi 的普通文档契约明确走 Files/extract，不能伪装成视觉图片。
             if configuration.provider == .kimi,
                configuration.effectiveCapabilities.fileExtraction.isEnabled {

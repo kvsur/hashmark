@@ -2,39 +2,90 @@
 //  AIConfigStore.swift
 //  MarkdownApp
 //
-//  AI 配置的本地持久化：以 JSON 存 Library/Application Support/AIConfig.json。
-//  选此目录而非 Documents——不对系统「文件」App 可见，适合放配置与敏感凭证。
-//  只负责磁盘读写，不含 UI 逻辑（遵 CLAUDE.md：逻辑外移）。
+//  Versioned Provider profiles in Application Support. The legacy AIConfig.json is
+//  read once as a lossless migration source and left untouched as a recovery copy.
 //
 
 import Foundation
 
 struct AIConfigStore {
-    private let fileManager = FileManager.default
-    private let fileName = "AIConfig.json"
+    private let fileManager: FileManager
+    private let directoryURL: URL
+    private let now: @Sendable () -> Date
 
-    /// Application Support 下的配置文件 URL。该目录默认可能不存在，写入前需创建。
-    private var fileURL: URL {
-        let dir = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        return dir.appendingPathComponent(fileName)
+    init(
+        fileManager: FileManager = .default,
+        directoryURL: URL? = nil,
+        now: @escaping @Sendable () -> Date = { .now }
+    ) {
+        self.fileManager = fileManager
+        self.directoryURL = directoryURL ?? fileManager.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        )[0]
+        self.now = now
     }
 
-    /// 读取配置；文件缺失或损坏一律返回空默认值（首次进入即空表单）。
     func load() -> AIConfig {
-        guard let data = try? Data(contentsOf: fileURL),
-              let config = try? JSONDecoder().decode(AIConfig.self, from: data)
-        else { return .empty }
-        return config
+        loadDocument().activeProfile?.config ?? .empty
     }
 
-    /// 保存配置：确保目录存在后原子写入 JSON。
+    func load(provider: AIProvider) -> AIConfig {
+        loadDocument().profile(for: provider)?.config
+            ?? AIProviderProfile.makeDefault(provider: provider, at: now()).config
+    }
+
+    func profileID(for provider: AIProvider) -> UUID {
+        loadDocument().profile(for: provider)?.id
+            ?? AIProviderProfile.makeDefault(provider: provider, at: now()).id
+    }
+
+    func loadDocument() -> AISettingsDocument {
+        if let data = try? Data(contentsOf: documentURL),
+           let document = try? JSONDecoder().decode(AISettingsDocument.self, from: data),
+           (try? AISettingsDocumentValidator.validate(document)) != nil {
+            return document
+        }
+        let document = AISettingsDocument.bootstrap(legacy: loadLegacy(), at: now())
+        try? persist(document)
+        return document
+    }
+
     func save(_ config: AIConfig) throws {
-        let url = fileURL
+        var document = loadDocument()
+        document.upsert(config, at: now())
+        try AISettingsDocumentValidator.validate(document)
+        try persist(document)
+    }
+
+    func reset(provider: AIProvider) throws {
+        var document = loadDocument()
+        document.reset(provider: provider, at: now())
+        try AISettingsDocumentValidator.validate(document)
+        try persist(document)
+    }
+
+    private var documentURL: URL {
+        directoryURL.appendingPathComponent("AISettings.json")
+    }
+
+    private var legacyURL: URL {
+        directoryURL.appendingPathComponent("AIConfig.json")
+    }
+
+    private func loadLegacy() -> AIConfig? {
+        guard let data = try? Data(contentsOf: legacyURL) else { return nil }
+        return try? JSONDecoder().decode(AIConfig.self, from: data)
+    }
+
+    private func persist(_ document: AISettingsDocument) throws {
         try fileManager.createDirectory(
-            at: url.deletingLastPathComponent(),
+            at: directoryURL,
             withIntermediateDirectories: true
         )
-        let data = try JSONEncoder().encode(config)
-        try data.write(to: url, options: .atomic)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let data = try encoder.encode(document)
+        try data.write(to: documentURL, options: .atomic)
     }
 }

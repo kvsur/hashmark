@@ -6,7 +6,7 @@
   ],
   "stream": true,
   "thinking": {"type": "enabled"},
-  "reasoning_effort": "max",
+  "reasoning_effort": "low",
   "tools": [
     {
       "type": "function",

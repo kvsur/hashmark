@@ -16,10 +16,12 @@ nonisolated struct GLMRequestBuilder {
         uploadedFiles: [GLMUploadedFile] = [],
         webSearchEvidencePreloaded: Bool = false
     ) throws -> URLRequest {
-        guard !configuration.effectiveCapabilities.webSearch.isEnabled
+        guard !configuration.usesNativeWebSearch
                 || webSearchEvidencePreloaded
         else { throw GLMWireError.missingWebSearchEvidence }
-        let visual = configuration.effectiveCapabilities.imageInput.isEnabled
+        let visual = configuration.allowsKnownSafeRequest(.imageInput)
+            || configuration.allowsKnownSafeRequest(.pdfInput)
+            || configuration.allowsKnownSafeRequest(.genericFileInput)
         let nativeTools = tools.map(functionTool)
 
         var body: [String: JSONValue] = [
@@ -32,11 +34,16 @@ nonisolated struct GLMRequestBuilder {
             // GLM 的最终 SSE chunk 原生携带 usage；不要发送 OpenAI 的 stream_options。
             "stream": .bool(true)
         ]
-        if configuration.effectiveCapabilities.displayableReasoning.isEnabled {
-            if configuration.model.lowercased() == "glm-5.3" {
-                // GLM-5.3 始终推理且不支持关闭；max 与当前官方默认保持一致。
+        if configuration.supportsKnownSafeRequest(.reasoning) {
+            let reasoningStyle = configuration.modelStrategyID(key: "reasoningStyle")
+            if reasoningStyle == "glmAlwaysOnReasoning" {
                 body["thinking"] = .object(["type": .string("enabled")])
-                body["reasoning_effort"] = .string("max")
+                let effort: String = switch configuration.reasoningEffort {
+                case .automatic, .maximum: "max"
+                case .low: "low"
+                case .high: "high"
+                }
+                body["reasoning_effort"] = .string(effort)
             } else {
                 body["thinking"] = .object([
                     "type": .string("enabled"),
@@ -147,14 +154,16 @@ nonisolated struct GLMRequestBuilder {
         for attachment in message.attachments {
             switch attachment.kind {
             case .image(let data):
-                guard !data.isEmpty else { throw GLMWireError.unsupportedInput }
+                guard configuration.allowsKnownSafeRequest(.imageInput), !data.isEmpty else {
+                    throw GLMWireError.unsupportedInput
+                }
                 content.append(mediaBlock(
                     type: "image_url",
                     key: "image_url",
                     url: data.base64EncodedString()
                 ))
             case .pdf(let data, _):
-                guard configuration.effectiveCapabilities.inlinePDF.isEnabled, !data.isEmpty else {
+                guard configuration.allowsKnownSafeRequest(.pdfInput), !data.isEmpty else {
                     throw GLMWireError.unsupportedInput
                 }
                 content.append(mediaBlock(
@@ -167,6 +176,12 @@ nonisolated struct GLMRequestBuilder {
             }
         }
         for file in uploadedFiles {
+            let capability: AIModelCapability = file.mimeType.hasPrefix("image/")
+                ? .imageInput
+                : .genericFileInput
+            guard configuration.allowsKnownSafeRequest(capability) else {
+                throw GLMWireError.unsupportedInput
+            }
             let type = file.mimeType.hasPrefix("image/") ? "image_url" : "file_url"
             content.append(mediaBlock(type: type, key: type, url: file.url))
         }

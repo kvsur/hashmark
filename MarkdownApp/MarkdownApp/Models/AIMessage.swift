@@ -3,7 +3,7 @@
 //  MarkdownApp
 //
 //  一条 AI 对话消息（组装请求用）。与具体上游格式无关——
-//  六家 Provider Adapter 各自把它翻译成第一方原生请求体。
+//  五家 Provider Adapter 各自把它翻译成第一方原生请求体。
 //  为支持 function tool calling，消息可携带：assistant 发起的工具调用（toolCalls），
 //  或对某次调用的回答结果（tool 角色 + toolCallId）。
 //

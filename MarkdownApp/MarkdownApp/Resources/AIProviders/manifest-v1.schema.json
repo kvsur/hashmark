@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hashmark.local/schemas/ai-provider-manifest-v1.json",
+  "title": "Hashmark AI Provider Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "contentVersion", "protocolEvidenceVersion", "providers"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "contentVersion": {"type": "string", "minLength": 1},
+    "protocolEvidenceVersion": {"type": "string", "minLength": 1},
+    "providers": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {"$ref": "#/$defs/provider"}
+    }
+  },
+  "$defs": {
+    "capabilityState": {"enum": ["supported", "unsupported"]},
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/capabilityState"}
+    },
+    "strategies": {"type": "object", "additionalProperties": {"type": "string"}},
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "aliases", "lifecycle", "capabilities", "strategies"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "aliases": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "lifecycle": {"enum": ["active", "deprecated", "shutdown"]},
+        "capabilities": {"$ref": "#/$defs/capabilities"},
+        "strategies": {"$ref": "#/$defs/strategies"}
+      }
+    },
+    "family": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "prefixes", "excludedFragments", "capabilities", "strategies"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "prefixes": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "excludedFragments": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "capabilities": {"$ref": "#/$defs/capabilities"},
+        "strategies": {"$ref": "#/$defs/strategies"}
+      }
+    },
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "verifiedAt", "defaultBaseURL", "defaultModel", "protocolStrategy", "discoveryStrategy", "providerCapabilities", "models", "families"],
+      "properties": {
+        "provider": {"enum": ["openAI", "anthropic", "gemini", "kimi", "glm"]},
+        "verifiedAt": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+        "defaultBaseURL": {"type": "string", "format": "uri"},
+        "defaultModel": {"type": "string", "minLength": 1},
+        "protocolStrategy": {"type": "string", "minLength": 1},
+        "discoveryStrategy": {"type": "string", "minLength": 1},
+        "providerCapabilities": {"$ref": "#/$defs/capabilities"},
+        "models": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/model"}},
+        "families": {"type": "array", "items": {"$ref": "#/$defs/family"}}
+      }
+    }
+  }
+}
+

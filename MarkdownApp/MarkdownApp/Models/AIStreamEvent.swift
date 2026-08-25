@@ -2,7 +2,7 @@
 //  AIStreamEvent.swift
 //  MarkdownApp
 //
-//  六家 Adapter 输出的中立事件。只有 text 能进入 Markdown；reasoning、source、
+//  五家 Adapter 输出的中立事件。只有 text 能进入 Markdown；reasoning、source、
 //  file、usage 和 Provider continuation 始终旁路。
 //
 

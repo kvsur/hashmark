@@ -150,6 +150,24 @@ nonisolated struct EffectiveProviderCapabilities: Equatable {
     var fileSearch: EffectiveCapability
 }
 
-nonisolated struct AICapabilityPreferences: Codable, Equatable {
-    var webSearchEnabled: Bool = true
+nonisolated enum AIReasoningEffort: String, Codable, CaseIterable, Identifiable, Sendable {
+    case automatic
+    case low
+    case high
+    case maximum
+
+    var id: Self { self }
+}
+
+nonisolated struct AICapabilityPreferences: Codable, Equatable, Sendable {
+    var webSearchEnabled: Bool
+    var reasoningEffort: AIReasoningEffort
+
+    init(
+        webSearchEnabled: Bool = true,
+        reasoningEffort: AIReasoningEffort = .low
+    ) {
+        self.webSearchEnabled = webSearchEnabled
+        self.reasoningEffort = reasoningEffort
+    }
 }

@@ -34,6 +34,7 @@ private func parsedEvents(
 enum OpenAIResponsesContractTests {
     static func main() throws {
         try testNativeRequest()
+        try testReasoningEffortMapping()
         try testPreviousResponseContinuation()
         try testTextReasoningStream()
         try testSeparatorlessStream()
@@ -49,13 +50,35 @@ enum OpenAIResponsesContractTests {
         }
     }
 
-    private static func resolvedConfiguration() throws -> ResolvedAIProviderConfiguration {
+    private static func resolvedConfiguration(
+        reasoningEffort: AIReasoningEffort = .low
+    ) throws -> ResolvedAIProviderConfiguration {
         try AIProviderRegistry.resolve(AIConfig(
             provider: .openAI,
             baseURL: "https://api.openai.com/v1",
             model: "gpt-5.6-terra",
-            apiKey: "fixture-key"
+            apiKey: "fixture-key",
+            preferences: AICapabilityPreferences(reasoningEffort: reasoningEffort)
         ))
+    }
+
+    private static func testReasoningEffortMapping() throws {
+        let request = try OpenAIResponsesRequestBuilder(
+            configuration: resolvedConfiguration(reasoningEffort: .low)
+        ).makeStreamRequest(
+            messages: [AIMessage(role: .user, content: "Answer directly.")],
+            instructions: nil,
+            tools: [],
+            previousResponseID: nil
+        )
+        let body = try JSONSerialization.jsonObject(
+            with: request.httpBody ?? Data()
+        ) as? [String: Any]
+        let reasoning = body?["reasoning"] as? [String: Any]
+        expect(reasoning?["effort"] as? String == "low",
+               "OpenAI Low effort did not reach the request")
+        expect(reasoning?["generate_summary"] as? String == "auto",
+               "OpenAI effort adjustment disabled its reasoning summary")
     }
 
     private static func testNativeRequest() throws {

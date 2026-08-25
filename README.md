@@ -65,7 +65,6 @@ Hashmark 采用 BYOK（Bring Your Own Key）方式连接用户选择的 AI 服�
 - OpenAI
 - Anthropic
 - Google Gemini
-- Alibaba Cloud Qwen
 - Moonshot Kimi
 - Zhipu GLM
 
@@ -99,7 +98,7 @@ Hashmark 采用 BYOK（Bring Your Own Key）方式连接用户选择的 AI 服�
 | Markdown | marked + GitHub Markdown CSS |
 | 扩展渲染 | highlight.js、KaTeX、Mermaid |
 | 数据存储 | FileManager、UserDefaults、Application Support |
-| AI | 六家 Provider 的原生请求、流式解析、工具与附件适配 |
+| AI | 五家 Provider 的原生请求、流式解析、工具与附件适配 |
 | 依赖管理 | 无 Swift Package Manager 第三方依赖 |
 
 Web 预览组件的版本与许可证见 [Third-Party Notices](MarkdownApp/MarkdownApp/Resources/WebPreview/THIRD_PARTY_NOTICES.md)。
@@ -176,6 +175,8 @@ AI Provider、附件、搜索、流式事件与配置逻辑提供了独立回归
 ```bash
 MarkdownApp/AIReasoningTests/run-all.sh
 ```
+
+模型目录差异、可选 live snapshot、能力证据与发版边界见 [AI model maintenance runbook](MarkdownApp/AIReasoningTests/AI_MODEL_MAINTENANCE_RUNBOOK.md)。
 
 文件管理和 Markdown 编辑引擎也保留了独立测试用例，位于 `MarkdownApp/FileBrowserTests` 与 `MarkdownApp/MarkdownEditingTests`。新增功能时，请同步补充对应层的测试，并至少完成一次模拟器构建。
 

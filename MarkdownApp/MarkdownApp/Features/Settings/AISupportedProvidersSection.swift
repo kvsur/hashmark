@@ -2,7 +2,7 @@
 //  AISupportedProvidersSection.swift
 //  MarkdownApp
 //
-//  常驻展示六家正式支持范围。品牌名保持官方拼写，不显示兼容协议分组。
+//  常驻展示五家正式支持范围。品牌名保持官方拼写，不显示兼容协议分组。
 //
 
 import SwiftUI
@@ -23,4 +23,3 @@ struct AISupportedProvidersSection: View {
         }
     }
 }
-

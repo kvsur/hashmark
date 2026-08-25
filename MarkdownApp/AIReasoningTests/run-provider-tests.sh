@@ -9,9 +9,10 @@ trap 'rm -rf "$output_dir"' EXIT
 xcrun swiftc \
   "$app_dir/Models/AI/AIProvider.swift" \
   "$app_dir/Models/AI/ProviderCapabilities.swift" \
+  "$app_dir/Models/AI/Manifest/AIModelManifest.swift" \
+  "$app_dir/Models/AI/Discovery/AIModelCatalogScope.swift" \
   "$app_dir/Models/AI/Kimi/KimiModelContract.swift" \
   "$app_dir/Models/AI/Gemini/GeminiModelContract.swift" \
-  "$app_dir/Models/AI/Qwen/QwenModelContract.swift" \
   "$app_dir/Models/AI/GLM/GLMModelContract.swift" \
   "$app_dir/Models/AI/AIProviderCapabilityRules.swift" \
   "$app_dir/Models/AI/AIProviderManifest.swift" \

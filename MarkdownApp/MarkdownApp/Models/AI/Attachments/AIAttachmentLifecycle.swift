@@ -2,7 +2,7 @@
 //  AIAttachmentLifecycle.swift
 //  MarkdownApp
 //
-//  UI 与六家 Adapter 之间的 typed attachment intent/state。原生 file payload 仍由 Provider 所有。
+//  UI 与五家 Adapter 之间的 typed attachment intent/state。原生 file payload 仍由 Provider 所有。
 //
 
 import Foundation

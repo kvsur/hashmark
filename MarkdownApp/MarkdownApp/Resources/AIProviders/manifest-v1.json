@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "contentVersion": "2026.08.25.2",
+  "protocolEvidenceVersion": "native-v2",
+  "providers": [
+    {
+      "provider": "openAI",
+      "verifiedAt": "2026-08-24",
+      "defaultBaseURL": "https://api.openai.com/v1",
+      "defaultModel": "gpt-5.6-terra",
+      "protocolStrategy": "openAIResponses",
+      "discoveryStrategy": "openAIList",
+      "providerCapabilities": {},
+      "models": [
+        {"id":"gpt-5.6","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported","fileSearch":"supported"},"strategies":{}},
+        {"id":"gpt-5.6-sol","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported","fileSearch":"supported"},"strategies":{}},
+        {"id":"gpt-5.6-terra","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported","fileSearch":"supported"},"strategies":{}},
+        {"id":"gpt-5.6-luna","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported","fileSearch":"supported"},"strategies":{}}
+      ],
+      "families": [
+        {"id":"gpt-5","prefixes":["gpt-5."],"excludedFragments":[],"capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported","fileSearch":"supported"},"strategies":{}}
+      ]
+    },
+    {
+      "provider": "anthropic",
+      "verifiedAt": "2026-08-24",
+      "defaultBaseURL": "https://api.anthropic.com",
+      "defaultModel": "claude-fable-5",
+      "protocolStrategy": "anthropicMessages",
+      "discoveryStrategy": "anthropicList",
+      "providerCapabilities": {},
+      "models": [
+        {"id":"claude-fable-5","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported"},"strategies":{"reasoningStyle":"anthropicAdaptiveThinking"}},
+        {"id":"claude-mythos-5","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"unsupported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported"},"strategies":{"reasoningStyle":"anthropicAdaptiveThinking"}},
+        {"id":"claude-opus-4-8","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported"},"strategies":{"reasoningStyle":"anthropicAdaptiveThinking"}},
+        {"id":"claude-opus-4-7","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported"},"strategies":{"reasoningStyle":"anthropicAdaptiveThinking"}},
+        {"id":"claude-opus-4-6","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported"},"strategies":{}},
+        {"id":"claude-sonnet-5","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported"},"strategies":{"reasoningStyle":"anthropicAdaptiveThinking"}},
+        {"id":"claude-sonnet-4-6","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported"},"strategies":{}}
+      ],
+      "families": [
+        {"id":"claude-input","prefixes":["claude-"],"excludedFragments":[],"capabilities":{"writing":"supported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported"},"strategies":{}},
+        {"id":"claude-fable","prefixes":["claude-fable-5-"],"excludedFragments":[],"capabilities":{"reasoning":"supported","nativeWebSearch":"supported"},"strategies":{}},
+        {"id":"claude-mythos","prefixes":["claude-mythos-5-"],"excludedFragments":[],"capabilities":{"reasoning":"supported","nativeWebSearch":"unsupported"},"strategies":{}},
+        {"id":"claude-opus","prefixes":["claude-opus-4-8-","claude-opus-4-7-","claude-opus-4-6-"],"excludedFragments":[],"capabilities":{"reasoning":"supported","nativeWebSearch":"supported"},"strategies":{}},
+        {"id":"claude-sonnet","prefixes":["claude-sonnet-5-","claude-sonnet-4-6-"],"excludedFragments":[],"capabilities":{"reasoning":"supported","nativeWebSearch":"supported"},"strategies":{}}
+      ]
+    },
+    {
+      "provider": "gemini",
+      "verifiedAt": "2026-08-25",
+      "defaultBaseURL": "https://generativelanguage.googleapis.com",
+      "defaultModel": "gemini-3.7-flash",
+      "protocolStrategy": "geminiInteractions",
+      "discoveryStrategy": "geminiList",
+      "providerCapabilities": {},
+      "models": [
+        {"id":"gemini-3.7-flash","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported","fileSearch":"supported"},"strategies":{}},
+        {"id":"gemini-3.6-flash","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported","fileSearch":"supported"},"strategies":{}},
+        {"id":"gemini-3.5-flash","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported","fileSearch":"supported"},"strategies":{}},
+        {"id":"gemini-3.5-flash-lite","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported","fileSearch":"supported"},"strategies":{}},
+        {"id":"gemini-3.1-pro-preview","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported","fileSearch":"supported"},"strategies":{}},
+        {"id":"gemini-3.1-flash-lite","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported","fileSearch":"supported"},"strategies":{}},
+        {"id":"gemini-3-flash-preview","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported","fileSearch":"supported"},"strategies":{}},
+        {"id":"gemini-2.5-pro","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported"},"strategies":{}},
+        {"id":"gemini-2.5-flash","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported"},"strategies":{}},
+        {"id":"gemini-2.5-flash-lite","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported"},"strategies":{}}
+      ],
+      "families": [
+        {"id":"gemini-writing","prefixes":["gemini-3.","gemini-2.5-"],"excludedFragments":["-image","-live","-tts","embedding","robotics","omni"],"capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported"},"strategies":{}},
+        {"id":"gemini-file-search","prefixes":["gemini-3."],"excludedFragments":["-image","-live","-tts","embedding","robotics","omni"],"capabilities":{"fileSearch":"supported"},"strategies":{}}
+      ]
+    },
+    {
+      "provider": "kimi",
+      "verifiedAt": "2026-08-25",
+      "defaultBaseURL": "https://api.moonshot.cn/v1",
+      "defaultModel": "kimi-k2.6",
+      "protocolStrategy": "kimiChat",
+      "discoveryStrategy": "kimiList",
+      "providerCapabilities": {"nativeWebSearch":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported","fileExtraction":"supported"},
+      "models": [
+        {"id":"kimi-k3","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","imageInput":"supported"},"strategies":{"reasoningStyle":"kimiReasoningEffort"}},
+        {"id":"kimi-k2.6","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","imageInput":"supported"},"strategies":{"reasoningStyle":"kimiThinkingToggle"}},
+        {"id":"kimi-k2.5","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","imageInput":"supported"},"strategies":{"reasoningStyle":"kimiThinkingToggle"}}
+      ],
+      "families": [
+        {"id":"kimi-k3","prefixes":["kimi-k3-"],"excludedFragments":[],"capabilities":{"writing":"supported","reasoning":"supported","imageInput":"supported"},"strategies":{"reasoningStyle":"kimiReasoningEffort"}},
+        {"id":"kimi-k2","prefixes":["kimi-k2.6-","kimi-k2.5-"],"excludedFragments":[],"capabilities":{"writing":"supported","reasoning":"supported","imageInput":"supported"},"strategies":{"reasoningStyle":"kimiThinkingToggle"}}
+      ]
+    },
+    {
+      "provider": "glm",
+      "verifiedAt": "2026-08-25",
+      "defaultBaseURL": "https://open.bigmodel.cn",
+      "defaultModel": "glm-5.3",
+      "protocolStrategy": "glmChat",
+      "discoveryStrategy": "unavailable",
+      "providerCapabilities": {},
+      "models": [
+        {"id":"glm-5.3","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported"},"strategies":{"reasoningStyle":"glmAlwaysOnReasoning"}},
+        {"id":"glm-5.2","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported"},"strategies":{}},
+        {"id":"glm-5.1","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported"},"strategies":{}},
+        {"id":"glm-5-turbo","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported"},"strategies":{}},
+        {"id":"glm-5","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported"},"strategies":{}},
+        {"id":"glm-4.7","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported"},"strategies":{}},
+        {"id":"glm-4.6","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported"},"strategies":{}},
+        {"id":"glm-4.5-air","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported"},"strategies":{}},
+        {"id":"glm-4.5-flash","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported"},"strategies":{}},
+        {"id":"glm-5v-turbo","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"unsupported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported"},"strategies":{}},
+        {"id":"glm-4.6v","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"unsupported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported"},"strategies":{}},
+        {"id":"glm-4.6v-flash","aliases":[],"lifecycle":"active","capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"unsupported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported"},"strategies":{}}
+      ],
+      "families": [
+        {"id":"glm-text","prefixes":["glm-5.3-","glm-5.2-","glm-5.1-","glm-5-turbo-","glm-4.7-","glm-4.6-","glm-4.5-air-","glm-4.5-flash-"],"excludedFragments":[],"capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"supported"},"strategies":{}},
+        {"id":"glm-vision","prefixes":["glm-5v-turbo-","glm-4.6v-flash-","glm-4.6v-"],"excludedFragments":[],"capabilities":{"writing":"supported","reasoning":"supported","nativeWebSearch":"unsupported","imageInput":"supported","pdfInput":"supported","genericFileInput":"supported","uploadedFile":"supported"},"strategies":{}}
+      ]
+    }
+  ]
+}

@@ -2,8 +2,8 @@
 //  AIConfigEditorView.swift
 //  MarkdownApp
 //
-//  六家原生 Provider 的统一配置页。用户不需要理解 wire protocol；
-//  Provider 切换只更新该服务的第一方 endpoint/model 默认值。
+//  五家原生 Provider 的统一配置页。用户不需要理解 wire protocol；
+//  Provider 切换恢复稳定 profile；默认 endpoint/model 仅用于首次创建或明确 reset。
 //
 
 import SwiftUI
@@ -18,8 +18,12 @@ struct AIConfigEditorView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var draft = AIConfig.empty
+    @State private var profileDrafts: [AIProvider: AIConfig] = [:]
+    @State private var activeProfileID = AIModelCatalogScope.legacyProfileID
+    @State private var capabilityEvidence: [AICapabilityEvidence] = []
     @State private var errorMessage: String?
     @State private var discoveredModelIDs: [String] = []
+    @State private var catalogSnapshot: AIModelCatalogSnapshot?
     @State private var isRefreshingModels = false
     @State private var modelRefreshMessage: String?
     @State private var isAdvancedEndpointExpanded = false
@@ -27,7 +31,14 @@ struct AIConfigEditorView: View {
 
     private let modelCatalog = AIModelCatalogService()
 
-    private var formState: AIConfigFormState { AIConfigFormState(config: draft) }
+    private var formState: AIConfigFormState {
+        AIConfigFormState(
+            config: draft,
+            catalogSnapshot: catalogSnapshot,
+            profileID: activeProfileID,
+            evidence: capabilityEvidence
+        )
+    }
 
     init(
         store: AIConfigStore,
@@ -35,11 +46,26 @@ struct AIConfigEditorView: View {
     ) {
         self.store = store
         self.modelCatalogStore = modelCatalogStore
-        let loaded = AIConfigFormState.normalizedForEditing(store.load())
-        _draft = State(initialValue: loaded)
-        _discoveredModelIDs = State(
-            initialValue: modelCatalogStore.modelIDs(for: loaded.provider)
+        let document = store.loadDocument()
+        let loaded = AIConfigFormState.normalizedForEditing(
+            document.activeProfile?.config ?? .empty
         )
+        let drafts = Dictionary(uniqueKeysWithValues: document.profiles.map {
+            ($0.provider, $0.config)
+        })
+        let profileID = document.profile(for: loaded.provider)?.id
+            ?? AIModelCatalogScope.legacyProfileID
+        let snapshot = modelCatalogStore.snapshot(
+            profileID: profileID,
+            provider: loaded.provider,
+            endpoint: loaded.baseURL
+        )
+        _draft = State(initialValue: loaded)
+        _profileDrafts = State(initialValue: drafts)
+        _activeProfileID = State(initialValue: profileID)
+        _capabilityEvidence = State(initialValue: AICapabilityVerificationStore().allEvidence())
+        _catalogSnapshot = State(initialValue: snapshot)
+        _discoveredModelIDs = State(initialValue: snapshot?.modelIDs ?? [])
     }
 
     var body: some View {
@@ -52,6 +78,7 @@ struct AIConfigEditorView: View {
                 authenticationSection
                 AICapabilitiesSection(
                     webSearchEnabled: $draft.preferences.webSearchEnabled,
+                    reasoningEffort: $draft.preferences.reasoningEffort,
                     preview: formState.capabilityPreview
                 )
                 validationSection
@@ -68,12 +95,19 @@ struct AIConfigEditorView: View {
         .rebuildsOnLanguageChange()
         .onChange(of: draft.provider) { oldValue, newValue in
             guard oldValue != newValue else { return }
-            draft = AIConfigFormState.applyingProvider(newValue, to: draft)
-            discoveredModelIDs = modelCatalogStore.modelIDs(for: newValue)
+            var outgoing = draft
+            outgoing.provider = oldValue
+            profileDrafts[oldValue] = outgoing
+            let restored = profileDrafts[newValue] ?? store.load(provider: newValue)
+            draft = AIConfigFormState.normalizedForEditing(restored)
+            activeProfileID = store.profileID(for: newValue)
+            loadCachedCatalog()
             modelRefreshMessage = nil
             isAdvancedEndpointExpanded = false
             focusedField = .model
         }
+        .onChange(of: draft.baseURL) { _, _ in loadCachedCatalog() }
+        .onChange(of: draft.model) { _, _ in syncSelectedModelMetadata() }
     }
 
     private var providerSection: some View {
@@ -112,7 +146,7 @@ struct AIConfigEditorView: View {
             }
 
             AIModelFreshnessLabel(
-                status: formState.modelFreshness(discoveredModelIDs: discoveredModelIDs)
+                status: formState.modelFreshness(catalogSnapshot: catalogSnapshot)
             )
 
             if formState.supportsModelRefresh {
@@ -140,7 +174,7 @@ struct AIConfigEditorView: View {
         } header: {
             Text("Model")
         } footer: {
-            Text("Available models come from your provider account. Advanced capabilities still follow the dated verified list.")
+            Text("Available models come from your provider account. Capabilities use provider metadata, verified rules, and local results.")
         }
     }
 
@@ -257,10 +291,17 @@ struct AIConfigEditorView: View {
         modelRefreshMessage = nil
         defer { isRefreshingModels = false }
         do {
-            let snapshot = try await modelCatalog.fetch(for: draft)
+            let profileID = activeProfileID
+            let snapshot = try await modelCatalog.fetch(for: draft, profileID: profileID)
             guard snapshot.provider == requestedProvider, draft.provider == requestedProvider else { return }
             modelCatalogStore.save(snapshot)
-            discoveredModelIDs = snapshot.modelIDs
+            catalogSnapshot = modelCatalogStore.snapshot(
+                profileID: profileID,
+                provider: snapshot.provider,
+                endpoint: draft.baseURL
+            )
+            discoveredModelIDs = catalogSnapshot?.modelIDs ?? snapshot.modelIDs
+            syncSelectedModelMetadata()
             modelRefreshMessage = snapshot.modelIDs.isEmpty
                 ? LocalizationController.string("No available models were returned.")
                 : LocalizationController.string("Available models refreshed.")
@@ -268,6 +309,27 @@ struct AIConfigEditorView: View {
             guard draft.provider == requestedProvider else { return }
             modelRefreshMessage = modelRefreshFailureMessage(error)
         }
+    }
+
+    private func loadCachedCatalog() {
+        let profileID = activeProfileID
+        catalogSnapshot = modelCatalogStore.snapshot(
+            profileID: profileID,
+            provider: draft.provider,
+            endpoint: draft.baseURL
+        )
+        discoveredModelIDs = catalogSnapshot?.modelIDs ?? []
+        syncSelectedModelMetadata()
+    }
+
+    private func syncSelectedModelMetadata() {
+        let selected = catalogSnapshot?.models.first {
+            $0.id.caseInsensitiveCompare(
+                draft.model.trimmingCharacters(in: .whitespacesAndNewlines)
+            ) == .orderedSame
+        }
+        draft.providerCapabilitySignals = selected?.metadata.capabilitySignals
+        draft.providerMetadataObservedAt = selected?.lastSeenAt
     }
 
     private func modelRefreshFailureMessage(_ error: Error) -> String {
@@ -278,6 +340,10 @@ struct AIConfigEditorView: View {
             case .invalidEndpoint:
                 return LocalizationController.string("Check the Base URL before refreshing models.")
             case .invalidResponse:
+                return LocalizationController.string("The provider returned an unreadable model list.")
+            case .emptyResponse:
+                return LocalizationController.string("No available models were returned.")
+            case .paginationLimit:
                 return LocalizationController.string("The provider returned an unreadable model list.")
             case .http:
                 return LocalizationController.string("The provider couldn't refresh models. Check your API Key and region.")

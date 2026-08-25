@@ -34,7 +34,8 @@ private func config(
     baseURL: String? = nil,
     model: String? = nil,
     apiKey: String = "fixture-key",
-    search: Bool = true
+    search: Bool = true,
+    reasoningEffort: AIReasoningEffort = .low
 ) -> AIConfig {
     let manifest = AIProviderRegistry.manifest(for: provider)
     return AIConfig(
@@ -42,7 +43,10 @@ private func config(
         baseURL: baseURL ?? manifest.defaultBaseURL,
         model: model ?? manifest.defaultModel,
         apiKey: apiKey,
-        preferences: AICapabilityPreferences(webSearchEnabled: search)
+        preferences: AICapabilityPreferences(
+            webSearchEnabled: search,
+            reasoningEffort: reasoningEffort
+        )
     )
 }
 
@@ -50,7 +54,7 @@ private func config(
 enum AIConfigFormStateTests {
     static func main() async throws {
         expect(AIConfigFormState.providerOptions == AIProvider.allCases,
-               "The settings form does not expose exactly six native Providers")
+               "The settings form does not expose exactly five native Providers")
 
         for provider in AIProvider.allCases {
             let source = config(provider: provider, search: false)
@@ -60,6 +64,8 @@ enum AIConfigFormStateTests {
             expect(changed.baseURL == manifest.defaultBaseURL, "Provider Base URL default changed")
             expect(changed.model == manifest.defaultModel, "Provider model default changed")
             expect(!changed.preferences.webSearchEnabled, "Provider switch overwrote search preference")
+            expect(changed.preferences.reasoningEffort == .low,
+                   "Provider switch overwrote Reasoning Effort")
         }
 
         let normalized = AIConfigFormState.normalizedForEditing(.empty)
@@ -70,6 +76,14 @@ enum AIConfigFormStateTests {
         let valid = AIConfigFormState(config: config())
         expect(valid.canSave, "Valid native configuration cannot be saved")
         expect(valid.displayedProvider == .openAI, "Displayed Provider is not explicit")
+
+        let lowReasoning = AIConfigFormState(config: config(reasoningEffort: .low))
+        let lowReasoningAvailability = AICapabilityAvailability(
+            lowReasoning.capabilityPreview.reasoning
+        )
+        expect(lowReasoningAvailability == .available
+               || lowReasoningAvailability == .conditional,
+               "Changing Reasoning Effort incorrectly disabled Thinking")
 
         let unknown = AIConfigFormState(config: config(model: "unknown-model"))
         expect(AICapabilityAvailability(unknown.capabilityPreview.webSearch) == .modelNotVerified,
@@ -84,19 +98,6 @@ enum AIConfigFormStateTests {
                "Dated model verification was not exposed")
         expect(openAI.documentedModelIDs.contains("gpt-5.6-terra"),
                "Manifest model choices are missing the Provider default")
-
-        let qwen = AIConfigFormState(config: config(provider: .qwen))
-        expect(qwen.manifest.defaultModel == "qwen3.7-plus",
-               "Qwen settings default did not advance to qwen3.7-plus")
-        expect(qwen.documentedModelIDs.contains("qwen3.8-max")
-               && qwen.documentedModelIDs.contains("qwen3.6-flash"),
-               "Qwen settings omitted the current 3.6-3.8 model families")
-        expect(qwen.endpointPresets.map(\.id) == ["china", "singapore", "hong-kong", "united-states"],
-               "Qwen regional endpoint presets changed")
-        expect(AICapabilityAvailability(qwen.capabilityPreview.inlinePDF) == .conditional,
-               "Qwen extraction-backed PDF attachment is hidden in Settings")
-        expect(AIConfigFormState.applyingProvider(.qwen, to: config()).provider == .qwen,
-               "Endpoint defaults changed Provider identity")
 
         for model in ["kimi-k2.5", "kimi-k3"] {
             let kimi = AIConfigFormState(config: config(
@@ -131,8 +132,9 @@ enum AIConfigFormStateTests {
                "GLM 4.6V Flash file input is hidden in Settings")
 
         try testModelCatalogContracts()
-        try await testModelCatalogPagination()
+        try await testModelCatalogPaginationAndMetadata()
         testModelCatalogPersistence()
+        testSettingsLifecycleStates()
 
         guard CommandLine.arguments.count == 4 else {
             failures.append("Settings source paths were not provided")
@@ -141,8 +143,9 @@ enum AIConfigFormStateTests {
         }
         let editor = try String(contentsOfFile: CommandLine.arguments[1], encoding: .utf8)
         let providers = try String(contentsOfFile: CommandLine.arguments[2], encoding: .utf8)
+        let capabilities = try String(contentsOfFile: CommandLine.arguments[3], encoding: .utf8)
         expect(editor.contains("ForEach(AIConfigFormState.providerOptions)"),
-               "Provider picker is not driven by the six-case model")
+               "Provider picker is not driven by the five-case model")
         expect(!editor.contains("APIProtocol") && !editor.contains("protocolSection"),
                "Compatibility protocol UI is still present")
         expect(!editor.contains("Provider Override") && !editor.contains("Automatic detects"),
@@ -155,10 +158,14 @@ enum AIConfigFormStateTests {
                "Programmatic config loading can still trigger a false Provider switch")
         expect(editor.contains("modelCatalogStore.save(snapshot)"),
                "Refreshed model catalogs are not persisted")
+        expect(editor.contains("reasoningEffort: $draft.preferences.reasoningEffort")
+               && capabilities.contains("Picker(\"Reasoning Effort\"")
+               && !capabilities.contains("Toggle(\"Thinking\""),
+               "Endpoint settings do not expose the persisted Effort picker")
         for provider in AIProvider.allCases {
             expect(providers.contains("AIProvider.officiallySupported") ||
                    providers.contains(provider.displayName),
-                   "Supported list is not sourced from the six Providers")
+                   "Supported list is not sourced from the five Providers")
         }
         finish()
     }
@@ -168,7 +175,6 @@ enum AIConfigFormStateTests {
             (.openAI, "/v1/models", "Authorization"),
             (.anthropic, "/v1/models", "x-api-key"),
             (.gemini, "/v1beta/models", "x-goog-api-key"),
-            (.qwen, "/api/v1/models/permissions", "Authorization"),
             (.kimi, "/v1/models", "Authorization")
         ]
         for (provider, path, authHeader) in routes {
@@ -177,51 +183,14 @@ enum AIConfigFormStateTests {
             expect(request.value(forHTTPHeaderField: authHeader)?.isEmpty == false,
                    "\(provider.rawValue) model list auth is missing")
         }
-        let qwenRequest = try AIModelCatalogService.makeRequest(for: config(provider: .qwen))
-        let qwenItems = URLComponents(url: qwenRequest.url!, resolvingAgainstBaseURL: false)?
-            .queryItems ?? []
-        expect(qwenItems.contains(URLQueryItem(name: "authorization_scope", value: "AUTHORIZED"))
-               && qwenItems.contains(URLQueryItem(name: "action", value: "INFERENCE")),
-               "Qwen China model refresh lost its account permission filters")
-
-        let singapore = try AIModelCatalogService.makeRequest(for: config(
-            provider: .qwen,
-            baseURL: "https://dashscope-intl.aliyuncs.com/api/v1"
-        ))
-        let singaporeItems = URLComponents(url: singapore.url!, resolvingAgainstBaseURL: false)?
-            .queryItems ?? []
-        expect(singapore.url?.path == "/api/v1/models",
-               "Qwen international model refresh left the regional list route")
-        for item in [
-            URLQueryItem(name: "providers", value: "qwen"),
-            URLQueryItem(name: "capabilities", value: "TG"),
-            URLQueryItem(name: "supports", value: "inference"),
-            URLQueryItem(name: "page_no", value: "1")
-        ] {
-            expect(singaporeItems.contains(item),
-                   "Qwen model list lost official query item \(item.name)")
-        }
-
         let openAIData = #"{"data":[{"id":"gpt-5.6-terra"},{"id":"text-embedding-9"}]}"#.data(using: .utf8)!
         let openAIModels = try AIModelCatalogService.parseModelIDs(openAIData, provider: .openAI)
-        expect(openAIModels == ["gpt-5.6-terra"],
-               "OpenAI model discovery admitted a non-writing model")
-        let geminiData = #"{"models":[{"name":"models/gemini-3.6-flash","baseModelId":"gemini-3.6-flash"},{"name":"models/gemini-3.8-flash","baseModelId":"gemini-3.8-flash"},{"name":"models/gemini-embedding-2-preview","baseModelId":"gemini-embedding-2-preview"},{"name":"models/gemini-3.1-flash-image","baseModelId":"gemini-3.1-flash-image"},{"name":"models/gemini-3.1-flash-lite","baseModelId":"gemini-3.1-flash-lite"}]}"#.data(using: .utf8)!
+        expect(openAIModels == ["gpt-5.6-terra", "text-embedding-9"],
+               "OpenAI ID-only discovery discarded an account-visible model")
+        let geminiData = #"{"models":[{"name":"models/gemini-3.6-flash","baseModelId":"gemini-3.6-flash","supportedGenerationMethods":["generateContent"]},{"name":"models/gemini-3.8-flash","baseModelId":"gemini-3.8-flash","supportedGenerationMethods":["generateContent"]},{"name":"models/gemini-embedding-2-preview","baseModelId":"gemini-embedding-2-preview","supportedGenerationMethods":["embedContent"]},{"name":"models/gemini-3.1-flash-image","baseModelId":"gemini-3.1-flash-image","supportedGenerationMethods":["predict"]},{"name":"models/gemini-3.1-flash-lite","baseModelId":"gemini-3.1-flash-lite","supportedGenerationMethods":["streamGenerateContent"]}]}"#.data(using: .utf8)!
         let geminiModels = try AIModelCatalogService.parseModelIDs(geminiData, provider: .gemini)
         expect(geminiModels == ["gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-3.8-flash"],
                "Gemini discovery admitted a non-writing resource or lost a chat model")
-        let qwenData = #"{"success":true,"output":{"total":1,"page_no":1,"page_size":100,"models":[{"model":"qwen3.8-max","provider":"qwen","capabilities":["TG"]}]}}"#.data(using: .utf8)!
-        let qwenModels = try AIModelCatalogService.parseModelIDs(qwenData, provider: .qwen)
-        expect(qwenModels == ["qwen3.8-max"],
-               "Qwen current native model list schema was not parsed")
-        let qwenPermissions = #"{"success":true,"output":{"total":1,"page_no":1,"page_size":200,"permissions":[{"model":"qwen3.7-plus","permissions":{"inference":true}}]}}"#.data(using: .utf8)!
-        let permissionModels = try AIModelCatalogService.parseModelIDs(
-            qwenPermissions,
-            provider: .qwen
-        )
-        expect(permissionModels == ["qwen3.7-plus"],
-               "Qwen China account permissions were not parsed")
-
         do {
             _ = try AIModelCatalogService.makeRequest(for: config(provider: .glm))
             failures.append("GLM undocumented model discovery was guessed")
@@ -255,46 +224,169 @@ enum AIConfigFormStateTests {
         ))
         expect(store.modelIDs(for: .kimi).contains("kimi-k3"),
                "Saving another Provider erased the Kimi model catalog")
+
+        let profileA = UUID()
+        let profileB = UUID()
+        let first = AIModelCatalogSnapshot(
+            profileID: profileA,
+            provider: .openAI,
+            normalizedEndpoint: "https://api.openai.com/v1",
+            models: [AIModelDiscoveryParsing.descriptor(
+                id: "gpt-first",
+                observedAt: Date(timeIntervalSince1970: 3)
+            )],
+            fetchedAt: Date(timeIntervalSince1970: 3)
+        )
+        store.save(first)
+        store.save(AIModelCatalogSnapshot(
+            profileID: profileA,
+            provider: .openAI,
+            normalizedEndpoint: "https://api.openai.com/v1",
+            models: [],
+            fetchedAt: Date(timeIntervalSince1970: 4)
+        ))
+        expect(store.modelIDs(
+            profileID: profileA,
+            provider: .openAI,
+            endpoint: "https://api.openai.com/v1/"
+        ) == ["gpt-first"], "An empty refresh destroyed last-good")
+        expect(store.modelIDs(
+            profileID: profileB,
+            provider: .openAI,
+            endpoint: "https://api.openai.com/v1"
+        ).isEmpty, "Catalog cache leaked across profiles")
+
+        let second = AIModelCatalogSnapshot(
+            profileID: profileA,
+            provider: .openAI,
+            normalizedEndpoint: "https://api.openai.com/v1",
+            models: [AIModelDiscoveryParsing.descriptor(
+                id: "gpt-second",
+                observedAt: Date(timeIntervalSince1970: 5)
+            )],
+            fetchedAt: Date(timeIntervalSince1970: 5)
+        )
+        let diff = store.save(second)
+        expect(diff?.added == ["gpt-second"] && diff?.missing == ["gpt-first"],
+               "Catalog diff did not report added and missing IDs")
+        expect(store.modelIDs(
+            profileID: profileA,
+            provider: .openAI,
+            endpoint: "https://api.openai.com/v1"
+        ) == ["gpt-first", "gpt-second"],
+               "A single missing catalog result erased last-good")
+        expect(first.isStale(at: Date(timeIntervalSince1970: 3 + 86_401)),
+               "Catalog TTL did not mark stale data")
+
+        let legacyData = try? JSONSerialization.data(withJSONObject: [
+            "modelIDsByProvider": ["anthropic": ["claude-legacy"]]
+        ])
+        defaults.set(legacyData, forKey: "AIModelCatalog.v1")
+        expect(store.modelIDs(for: .anthropic) == ["claude-legacy"],
+               "v1 Provider catalog did not migrate on read")
     }
 
-    private static func testModelCatalogPagination() async throws {
+    private static func testSettingsLifecycleStates() {
+        let profileID = UUID()
+        let model = "gpt-account-state"
+        let state = AIConfigFormState(config: config(model: model), profileID: profileID)
+        func snapshot(
+            lifecycle: AIModelLifecycle = .active,
+            missingCount: Int = 0,
+            fetchedAt: Date = .now
+        ) -> AIModelCatalogSnapshot {
+            AIModelCatalogSnapshot(
+                profileID: profileID,
+                provider: .openAI,
+                normalizedEndpoint: "https://api.openai.com/v1",
+                models: [AIModelDescriptor(
+                    id: model,
+                    displayName: "Account State",
+                    metadata: AIModelProviderMetadata(),
+                    lifecycle: lifecycle,
+                    source: .providerAPI,
+                    firstSeenAt: fetchedAt,
+                    lastSeenAt: fetchedAt,
+                    missingCount: missingCount
+                )],
+                fetchedAt: fetchedAt
+            )
+        }
+
+        expect(state.modelFreshness(catalogSnapshot: snapshot()) == .discoveredOnly,
+               "Fresh discovered Settings state changed")
+        expect(state.modelFreshness(catalogSnapshot: snapshot(
+            fetchedAt: .now.addingTimeInterval(-AIModelCatalogSnapshot.cacheTTL - 1)
+        )) == .discoveredStale, "Stale discovered Settings state changed")
+        expect(state.modelFreshness(catalogSnapshot: snapshot(missingCount: 1)) == .missingCandidate,
+               "Missing-candidate Settings state changed")
+        expect(state.modelFreshness(catalogSnapshot: snapshot(lifecycle: .deprecated)) == .deprecated,
+               "Deprecated Settings state changed")
+        expect(state.modelFreshness(catalogSnapshot: snapshot(lifecycle: .shutdown)) == .shutdown,
+               "Shutdown Settings state changed")
+        expect(state.modelFreshness(catalogSnapshot: nil) == .custom,
+               "Custom Settings state changed")
+        expect(AICapabilityAvailability(state.capabilityPreview.decisions[.imageInput]) == .unverified,
+               "Unverified capability Settings state changed")
+    }
+
+    private static func testModelCatalogPaginationAndMetadata() async throws {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [ModelCatalogURLProtocol.self]
         let session = URLSession(configuration: configuration)
-        var requestedPages: [Int] = []
-        ModelCatalogURLProtocol.handler = { request in
-            let components = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)
-            let page = Int(components?.queryItems?.first(where: {
-                $0.name == "page_no"
-            })?.value ?? "") ?? 1
-            requestedPages.append(page)
-            let model = page == 1 ? "qwen3.6-flash" : "qwen3.8-max"
-            let data = Data(
-                #"{"success":true,"output":{"total":2,"page_no":\#(page),"page_size":1,"models":[{"model":"\#(model)"}]}}"#.utf8
-            )
-            return (
-                HTTPURLResponse(
-                    url: request.url!,
-                    statusCode: 200,
-                    httpVersion: "HTTP/1.1",
-                    headerFields: ["Content-Type": "application/json"]
-                )!,
-                data
-            )
-        }
         defer {
             ModelCatalogURLProtocol.handler = nil
             session.invalidateAndCancel()
         }
 
-        let snapshot = try await AIModelCatalogService(session: session).fetch(for: config(
-            provider: .qwen,
-            baseURL: "https://dashscope-intl.aliyuncs.com/api/v1"
-        ))
-        expect(requestedPages == [1, 2],
-               "Qwen model refresh did not follow the native catalog pagination")
-        expect(snapshot.modelIDs == ["qwen3.6-flash", "qwen3.8-max"],
-               "Qwen paginated model refresh lost current models")
+        var anthropicCursors: [String] = []
+        ModelCatalogURLProtocol.handler = { request in
+            let cursor = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?
+                .queryItems?.first(where: { $0.name == "after_id" })?.value
+            anthropicCursors.append(cursor ?? "first")
+            let data = cursor == nil
+                ? Data(#"{"data":[{"id":"claude-first","display_name":"First","created_at":"2026-08-25T00:00:00Z","capabilities":{"image_input":true,"pdf_input":true,"thinking":true}}],"has_more":true,"last_id":"claude-first"}"#.utf8)
+                : Data(#"{"data":[{"id":"claude-second","capabilities":{"image_input":false}}],"has_more":false,"last_id":"claude-second"}"#.utf8)
+            return (
+                HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                data
+            )
+        }
+        let anthropic = try await AIModelCatalogService(
+            session: session,
+            now: { Date(timeIntervalSince1970: 10) }
+        ).fetch(for: config(provider: .anthropic))
+        expect(anthropicCursors == ["first", "claude-first"],
+               "Anthropic cursor pagination did not follow last_id")
+        expect(anthropic.modelIDs == ["claude-first", "claude-second"],
+               "Anthropic paginated models were lost")
+        expect(anthropic.models.first(where: { $0.id == "claude-first" })?
+            .metadata.capabilitySignals[.imageInput] == true,
+               "Anthropic capability metadata was dropped")
+
+        var geminiTokens: [String] = []
+        ModelCatalogURLProtocol.handler = { request in
+            let token = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?
+                .queryItems?.first(where: { $0.name == "pageToken" })?.value
+            geminiTokens.append(token ?? "first")
+            let data = token == nil
+                ? Data(#"{"models":[{"name":"models/gemini-first","baseModelId":"gemini-first","inputTokenLimit":100,"supportedGenerationMethods":["generateContent"],"thinking":true}],"nextPageToken":"next"}"#.utf8)
+                : Data(#"{"models":[{"name":"models/gemini-second","baseModelId":"gemini-second","supportedGenerationMethods":["streamGenerateContent"]}]}"#.utf8)
+            return (
+                HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                data
+            )
+        }
+        let gemini = try await AIModelCatalogService(
+            session: session,
+            now: { Date(timeIntervalSince1970: 11) }
+        ).fetch(for: config(provider: .gemini))
+        expect(geminiTokens == ["first", "next"],
+               "Gemini pageToken pagination was not followed")
+        expect(gemini.modelIDs == ["gemini-first", "gemini-second"],
+               "Gemini paginated models were lost")
+        expect(gemini.models.first?.metadata.inputTokenLimit == 100,
+               "Gemini token metadata was dropped")
     }
 
     private static func finish() {

@@ -2,39 +2,82 @@
 //  AIModelCatalogStore.swift
 //  MarkdownApp
 //
-//  按 Provider 持久化用户账号实际返回的模型列表。它只改善设置页选择体验；
-//  高级能力仍由日期化 manifest 决定，动态列表不能自动取得搜索/图片等权限。
+//  profile + Provider + normalized endpoint scoped v2 cache。失败/空响应不会调用 save，
+//  成功 missing 会保留 last-good 并累积 lifecycle evidence。
 //
 
 import Foundation
 
 struct AIModelCatalogStore {
     private struct Storage: Codable {
+        var version = 2
+        var snapshotsByScope: [String: AIModelCatalogSnapshot] = [:]
+        var diffHistory: [AIModelCatalogDiff] = []
+    }
+
+    private struct LegacyStorage: Codable {
         var modelIDsByProvider: [String: [String]] = [:]
     }
 
     private let defaults: UserDefaults
     private let storageKey: String
+    private let legacyStorageKey: String
 
     init(
         defaults: UserDefaults = .standard,
-        storageKey: String = "AIModelCatalog.v1"
+        storageKey: String = "AIModelCatalog.v2",
+        legacyStorageKey: String = "AIModelCatalog.v1"
     ) {
         self.defaults = defaults
         self.storageKey = storageKey
+        self.legacyStorageKey = legacyStorageKey
     }
 
     func modelIDs(for provider: AIProvider) -> [String] {
-        load().modelIDsByProvider[provider.rawValue] ?? []
+        latestSnapshot(for: provider)?.modelIDs ?? migratedLegacyModelIDs(for: provider)
     }
 
-    func save(_ snapshot: AIModelCatalogSnapshot) {
+    func modelIDs(
+        profileID: UUID,
+        provider: AIProvider,
+        endpoint: String
+    ) -> [String] {
+        snapshot(profileID: profileID, provider: provider, endpoint: endpoint)?.modelIDs ?? []
+    }
+
+    func snapshot(
+        profileID: UUID,
+        provider: AIProvider,
+        endpoint: String
+    ) -> AIModelCatalogSnapshot? {
+        let key = scopeKey(profileID: profileID, provider: provider, endpoint: endpoint)
+        return load().snapshotsByScope[key]
+    }
+
+    func latestSnapshot(for provider: AIProvider) -> AIModelCatalogSnapshot? {
+        load().snapshotsByScope.values
+            .filter { $0.provider == provider }
+            .max { $0.fetchedAt < $1.fetchedAt }
+    }
+
+    func diffHistory(for provider: AIProvider) -> [AIModelCatalogDiff] {
+        load().diffHistory.filter { $0.provider == provider }
+    }
+
+    @discardableResult
+    func save(_ snapshot: AIModelCatalogSnapshot) -> AIModelCatalogDiff? {
+        guard !snapshot.models.isEmpty else { return nil }
         var storage = load()
-        storage.modelIDsByProvider[snapshot.provider.rawValue] = Self.normalized(
-            snapshot.modelIDs
-        )
-        guard let data = try? JSONEncoder().encode(storage) else { return }
-        defaults.set(data, forKey: storageKey)
+        let previous = storage.snapshotsByScope[snapshot.scopeKey]
+        let diff = AIModelCatalogDiffEngine.compare(previous: previous, current: snapshot)
+        let merged = AIModelCatalogDiffEngine.mergeLastGood(previous: previous, current: snapshot)
+        storage.snapshotsByScope[snapshot.scopeKey] = merged
+        if !diff.isEmpty {
+            storage.diffHistory.append(diff)
+            storage.diffHistory = Array(storage.diffHistory.suffix(100))
+        }
+        persist(storage)
+        return diff
     }
 
     private func load() -> Storage {
@@ -44,7 +87,27 @@ struct AIModelCatalogStore {
         return storage
     }
 
-    private static func normalized(_ values: [String]) -> [String] {
+    private func persist(_ storage: Storage) {
+        guard let data = try? JSONEncoder().encode(storage) else { return }
+        defaults.set(data, forKey: storageKey)
+    }
+
+    private func migratedLegacyModelIDs(for provider: AIProvider) -> [String] {
+        guard let data = defaults.data(forKey: legacyStorageKey),
+              let legacy = try? JSONDecoder().decode(LegacyStorage.self, from: data)
+        else { return [] }
+        return normalized(legacy.modelIDsByProvider[provider.rawValue] ?? [])
+    }
+
+    private func scopeKey(
+        profileID: UUID,
+        provider: AIProvider,
+        endpoint: String
+    ) -> String {
+        "\(profileID.uuidString.lowercased())|\(provider.rawValue)|\(AIModelCatalogScope.normalizedEndpoint(endpoint))"
+    }
+
+    private func normalized(_ values: [String]) -> [String] {
         let trimmed = values
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }

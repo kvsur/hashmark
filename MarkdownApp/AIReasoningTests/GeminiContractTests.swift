@@ -29,6 +29,7 @@ private func events(_ name: String, omittingSeparators: Bool = false) throws -> 
 enum GeminiContractTests {
     static func main() throws {
         try testNativeRequest()
+        try testReasoningEffortMapping()
         try testCurrentCapabilityContracts()
         try testStatefulContinuation()
         try testSearchStream()
@@ -45,15 +46,34 @@ enum GeminiContractTests {
         }
     }
 
-    private static func configuration(model: String = "gemini-3.7-flash") throws
+    private static func configuration(
+        model: String = "gemini-3.7-flash",
+        reasoningEffort: AIReasoningEffort = .low
+    ) throws
         -> ResolvedAIProviderConfiguration
     {
         try AIProviderRegistry.resolve(AIConfig(
             provider: .gemini,
             baseURL: "https://generativelanguage.googleapis.com",
             model: model,
-            apiKey: "fixture-key"
+            apiKey: "fixture-key",
+            preferences: AICapabilityPreferences(reasoningEffort: reasoningEffort)
         ))
+    }
+
+    private static func testReasoningEffortMapping() throws {
+        let request = try GeminiRequestBuilder(configuration: configuration(
+            reasoningEffort: .maximum
+        )).makeStreamRequest(
+            messages: [AIMessage(role: .user, content: "Answer directly.")],
+            tools: []
+        )
+        let body = try JSONSerialization.jsonObject(
+            with: request.httpBody ?? Data()
+        ) as? [String: Any]
+        let generation = body?["generation_config"] as? [String: Any]
+        expect(generation?["thinking_level"] as? String == "high",
+               "Gemini Maximum effort did not map to its strongest level")
     }
 
     private static func testNativeRequest() throws {
@@ -198,7 +218,10 @@ enum GeminiContractTests {
             tools: []
         )
         let body = try JSONSerialization.jsonObject(with: request.httpBody ?? Data()) as? [String: Any]
-        expect(body?["tools"] == nil, "Unknown Gemini model received Google Search")
+        let tools = body?["tools"] as? [[String: Any]]
+        expect(config.usesNativeWebSearch
+               && tools?.contains(where: { $0["type"] as? String == "google_search" }) == true,
+               "Unknown Gemini model lost the explicit Google Search trial path")
         expect(body?["generation_config"] == nil, "Unknown Gemini model received thinking config")
     }
 

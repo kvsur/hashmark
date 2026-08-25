@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 2,
+  "protocolEvidenceVersion": "native-v2",
+  "provider": "openAI",
+  "endpoint": "https://api.openai.com/v1",
+  "capturedAt": "2026-08-25T00:00:00Z",
+  "models": [
+    {
+      "id": "gpt-new",
+      "displayName": "Shared Model",
+      "lifecycle": "active",
+      "metadata": {"createdAt": "100", "owner": "openai"}
+    },
+    {
+      "id": "gpt-retiring",
+      "displayName": "Retiring Model",
+      "lifecycle": "deprecated",
+      "metadata": {"owner": "openai"}
+    },
+    {
+      "id": "gpt-stable",
+      "displayName": "Stable Model",
+      "lifecycle": "active",
+      "metadata": {"inputTokenLimit": "200", "owner": "openai"}
+    }
+  ]
+}

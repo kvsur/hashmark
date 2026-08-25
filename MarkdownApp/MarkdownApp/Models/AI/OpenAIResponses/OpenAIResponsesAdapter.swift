@@ -33,6 +33,7 @@ nonisolated final class OpenAIResponsesAdapter: AIProviderAdapter, @unchecked Se
     ) -> AsyncThrowingStream<AIStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
+                let webSearch = configuration.usesNativeWebSearch
                 do {
                     let state = await conversationState.context(totalMessageCount: messages.count)
                     let incrementalMessages = requestMessages(
@@ -59,7 +60,7 @@ nonisolated final class OpenAIResponsesAdapter: AIProviderAdapter, @unchecked Se
                         model: configuration.model,
                         messageCount: incrementalMessages.count,
                         appToolCount: tools.count,
-                        webSearchEnabled: configuration.effectiveCapabilities.webSearch.isEnabled
+                        webSearchEnabled: webSearch
                     )
                     continuation.yield(.phase(.connecting))
 
@@ -77,7 +78,7 @@ nonisolated final class OpenAIResponsesAdapter: AIProviderAdapter, @unchecked Se
 
                     let parser = OpenAIResponsesStreamParser()
                     var searchGate = AIWebSearchExecutionGate(
-                        isRequired: configuration.effectiveCapabilities.webSearch.isEnabled
+                        isRequired: webSearch
                     )
                     for try await line in bytes.lines {
                         try Task.checkCancellation()
@@ -97,6 +98,11 @@ nonisolated final class OpenAIResponsesAdapter: AIProviderAdapter, @unchecked Se
                         continuation.yield(event)
                     }
                     guard searchGate.isSatisfied else { throw AIError.webSearchNotExecuted }
+                    if webSearch {
+                        AICapabilityVerificationRecorder.recordNativeSearchSuccess(
+                            configuration: configuration
+                        )
+                    }
                     guard let responseID = parser.completedResponseID else {
                         throw AIError.stream("missing_terminal_response")
                     }
@@ -107,13 +113,27 @@ nonisolated final class OpenAIResponsesAdapter: AIProviderAdapter, @unchecked Se
                     await fileService.didCompleteResponse()
                     continuation.finish()
                 } catch is CancellationError {
+                    AICapabilityVerificationRecorder.recordNativeSearchFailure(
+                        CancellationError(), configuration: configuration
+                    )
                     continuation.finish(throwing: CancellationError())
                 } catch let error as AIError {
+                    AICapabilityVerificationRecorder.recordNativeSearchFailure(
+                        error, configuration: configuration
+                    )
                     continuation.finish(throwing: error)
                 } catch let error as OpenAIResponsesWireError {
-                    continuation.finish(throwing: AIError.stream(String(describing: error)))
+                    let wrapped = AIError.stream(String(describing: error))
+                    AICapabilityVerificationRecorder.recordNativeSearchFailure(
+                        wrapped, configuration: configuration
+                    )
+                    continuation.finish(throwing: wrapped)
                 } catch {
-                    continuation.finish(throwing: AIError.network(error))
+                    let wrapped = AIError.network(error)
+                    AICapabilityVerificationRecorder.recordNativeSearchFailure(
+                        wrapped, configuration: configuration
+                    )
+                    continuation.finish(throwing: wrapped)
                 }
             }
             continuation.onTermination = { @Sendable _ in task.cancel() }

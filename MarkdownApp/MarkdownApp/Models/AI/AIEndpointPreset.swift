@@ -23,13 +23,6 @@ nonisolated enum AIEndpointPresets {
             [preset("global", "Global", "https://api.anthropic.com")]
         case .gemini:
             [preset("global", "Global", "https://generativelanguage.googleapis.com")]
-        case .qwen:
-            [
-                preset("china", "China", "https://dashscope.aliyuncs.com/api/v1"),
-                preset("singapore", "Singapore", "https://dashscope-intl.aliyuncs.com/api/v1"),
-                preset("hong-kong", "Hong Kong", "https://cn-hongkong.dashscope.aliyuncs.com/api/v1"),
-                preset("united-states", "United States", "https://dashscope-us.aliyuncs.com/api/v1")
-            ]
         case .kimi:
             [preset("china", "China", "https://api.moonshot.cn/v1")]
         case .glm:

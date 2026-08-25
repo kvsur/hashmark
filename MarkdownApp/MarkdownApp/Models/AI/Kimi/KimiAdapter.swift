@@ -28,9 +28,9 @@ nonisolated final class KimiAdapter: AIProviderAdapter, @unchecked Sendable {
     ) -> AsyncThrowingStream<AIStreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
+                let webSearch = configuration.usesNativeWebSearch
                 do {
                     let requestBuilder = KimiRequestBuilder(configuration: configuration)
-                    let webSearch = configuration.effectiveCapabilities.webSearch.isEnabled
                     let formulaTools: [JSONValue]
                     if webSearch {
                         formulaTools = [try await formulaService.webSearchTool()]
@@ -52,6 +52,9 @@ nonisolated final class KimiAdapter: AIProviderAdapter, @unchecked Sendable {
                         continuation.yield(.search(.started(activity)))
                         AIDiagnostics.streamEvent(provider: .kimi, kind: "search")
                         let result = try await formulaService.executeWebSearch(arguments: arguments)
+                        AICapabilityVerificationRecorder.recordNativeSearchSuccess(
+                            configuration: configuration
+                        )
                         requestMessages = KimiFormulaContract.appendingWebSearchResult(
                             to: messages,
                             callID: "web_search:\(UUID().uuidString)",
@@ -103,13 +106,27 @@ nonisolated final class KimiAdapter: AIProviderAdapter, @unchecked Sendable {
                     await fileService.didCompleteResponse()
                     continuation.finish()
                 } catch is CancellationError {
+                    AICapabilityVerificationRecorder.recordNativeSearchFailure(
+                        CancellationError(), configuration: configuration
+                    )
                     continuation.finish(throwing: CancellationError())
                 } catch let error as AIError {
+                    AICapabilityVerificationRecorder.recordNativeSearchFailure(
+                        error, configuration: configuration
+                    )
                     continuation.finish(throwing: error)
                 } catch let error as KimiWireError {
-                    continuation.finish(throwing: AIError.stream(String(describing: error)))
+                    let wrapped = AIError.stream(String(describing: error))
+                    AICapabilityVerificationRecorder.recordNativeSearchFailure(
+                        wrapped, configuration: configuration
+                    )
+                    continuation.finish(throwing: wrapped)
                 } catch {
-                    continuation.finish(throwing: AIError.network(error))
+                    let wrapped = AIError.network(error)
+                    AICapabilityVerificationRecorder.recordNativeSearchFailure(
+                        wrapped, configuration: configuration
+                    )
+                    continuation.finish(throwing: wrapped)
                 }
             }
             continuation.onTermination = { @Sendable _ in task.cancel() }

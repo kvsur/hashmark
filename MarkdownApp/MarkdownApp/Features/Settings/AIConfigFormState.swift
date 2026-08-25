@@ -2,7 +2,7 @@
 //  AIConfigFormState.swift
 //  MarkdownApp
 //
-//  六家原生 Provider 共用设置页的纯状态派生。Provider 显式选择，能力只由日期化
+//  五家原生 Provider 共用设置页的纯状态派生。Provider 显式选择，能力只由日期化
 //  manifest + exact model + 用户偏好决定。
 //
 
@@ -14,11 +14,16 @@ nonisolated struct AIConfigCapabilityPreview: Equatable {
     let imageInput: EffectiveCapability?
     let inlinePDF: EffectiveCapability?
     let files: EffectiveCapability?
+    let decisions: [AIModelCapability: AICapabilityDecision]
 }
 
 nonisolated enum AIModelFreshnessStatus: Equatable {
     case manifestVerified(date: String)
     case discoveredOnly
+    case discoveredStale
+    case missingCandidate
+    case deprecated
+    case shutdown
     case custom
 }
 
@@ -29,6 +34,7 @@ nonisolated enum AICapabilityAvailability: Equatable {
     case preferenceDisabled
     case providerUnsupported
     case modelNotVerified
+    case unverified
     case separateServiceRequired
     case incompatibleCombination
 
@@ -47,10 +53,37 @@ nonisolated enum AICapabilityAvailability: Equatable {
         case .unavailable(.incompatibleCombination): self = .incompatibleCombination
         }
     }
+
+    init(_ decision: AICapabilityDecision?) {
+        guard let decision else {
+            self = .needsConfiguration
+            return
+        }
+        switch decision.state {
+        case .supported: self = .available
+        case .unsupported: self = .modelNotVerified
+        case .unverified: self = .unverified
+        }
+    }
 }
 
 nonisolated struct AIConfigFormState: Equatable {
     let config: AIConfig
+    let catalogSnapshot: AIModelCatalogSnapshot?
+    let profileID: UUID
+    let evidence: [AICapabilityEvidence]
+
+    init(
+        config: AIConfig,
+        catalogSnapshot: AIModelCatalogSnapshot? = nil,
+        profileID: UUID = AIModelCatalogScope.legacyProfileID,
+        evidence: [AICapabilityEvidence] = []
+    ) {
+        self.config = config
+        self.catalogSnapshot = catalogSnapshot
+        self.profileID = profileID
+        self.evidence = evidence
+    }
 
     var validationIssues: [AIConfigValidationIssue] { config.validationIssues }
     var canSave: Bool { validationIssues.isEmpty }
@@ -81,9 +114,15 @@ nonisolated struct AIConfigFormState: Equatable {
                 webSearch: nil,
                 imageInput: nil,
                 inlinePDF: nil,
-                files: nil
+                files: nil,
+                decisions: [:]
             )
         }
+        let decisions = previewResolvedProvider?.capabilityDecisions(
+            profileID: profileID,
+            descriptor: selectedDescriptor,
+            evidence: evidence
+        ) ?? [:]
         return AIConfigCapabilityPreview(
             reasoning: capabilities.displayableReasoning,
             webSearch: capabilities.webSearch,
@@ -92,7 +131,8 @@ nonisolated struct AIConfigFormState: Equatable {
                 capabilities.inlinePDF,
                 capabilities.fileExtraction
             ]),
-            files: Self.combinedFileCapability(capabilities)
+            files: Self.combinedFileCapability(capabilities),
+            decisions: decisions
         )
     }
 
@@ -101,6 +141,24 @@ nonisolated struct AIConfigFormState: Equatable {
     func modelFreshness(discoveredModelIDs: [String]) -> AIModelFreshnessStatus {
         if case .manifestVerified = modelFreshness { return modelFreshness }
         return discoveredModelIDs.contains(normalizedModel) ? .discoveredOnly : .custom
+    }
+
+    func modelFreshness(catalogSnapshot: AIModelCatalogSnapshot?) -> AIModelFreshnessStatus {
+        let descriptor = catalogSnapshot?.models.first {
+            $0.id.caseInsensitiveCompare(normalizedModel) == .orderedSame
+        }
+        if descriptor?.lifecycle == .shutdown { return .shutdown }
+        if descriptor?.lifecycle == .deprecated { return .deprecated }
+        if (descriptor?.missingCount ?? 0) > 0 { return .missingCandidate }
+        let manifestLifecycle = AIProviderRegistry.modelPolicy(for: config.provider)
+            .lifecycle(model: normalizedModel)
+        if manifestLifecycle == .shutdown { return .shutdown }
+        if manifestLifecycle == .deprecated { return .deprecated }
+        if case .manifestVerified = modelFreshness { return modelFreshness }
+        if descriptor != nil {
+            return catalogSnapshot?.isStale() == true ? .discoveredStale : .discoveredOnly
+        }
+        return .custom
     }
 
     func modelOptions(discoveredModelIDs: [String]) -> [String] {
@@ -141,6 +199,12 @@ nonisolated struct AIConfigFormState: Equatable {
 
     private var normalizedModel: String {
         config.model.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private var selectedDescriptor: AIModelDescriptor? {
+        catalogSnapshot?.models.first {
+            $0.id.caseInsensitiveCompare(normalizedModel) == .orderedSame
+        }
     }
 
     private static func combinedFileCapability(

@@ -41,8 +41,18 @@ nonisolated struct GeminiRequestBuilder {
         if let previousInteractionID {
             body["previous_interaction_id"] = .string(previousInteractionID)
         }
-        if configuration.effectiveCapabilities.displayableReasoning.isEnabled {
-            body["generation_config"] = .object(["thinking_level": .string("low")])
+        if configuration.allowsKnownSafeRequest(.reasoning) {
+            let level: String
+            switch configuration.reasoningEffort {
+            case .automatic, .low:
+                level = "low"
+            case .high, .maximum:
+                // Gemini's strongest portable Interactions level is high.
+                level = "high"
+            }
+            body["generation_config"] = .object([
+                "thinking_level": .string(level)
+            ])
         }
 
         var nativeTools = tools.map { tool in
@@ -53,7 +63,7 @@ nonisolated struct GeminiRequestBuilder {
                 "parameters": tool.parameters
             ])
         }
-        if configuration.effectiveCapabilities.webSearch.isEnabled {
+        if configuration.usesNativeWebSearch {
             nativeTools.append(.object(["type": .string("google_search")]))
         }
         if !allStoreNames.isEmpty,
@@ -64,7 +74,7 @@ nonisolated struct GeminiRequestBuilder {
             ]))
         }
         if !nativeTools.isEmpty { body["tools"] = .array(nativeTools) }
-        if configuration.effectiveCapabilities.webSearch.isEnabled {
+        if configuration.usesNativeWebSearch {
             body["tool_choice"] = .object([
                 "allowed_tools": .object([
                     "mode": .string("any"),
@@ -159,7 +169,7 @@ nonisolated struct GeminiRequestBuilder {
         for attachment in message.attachments {
             switch attachment.kind {
             case .image(let data):
-                guard configuration.effectiveCapabilities.imageInput.isEnabled,
+                guard configuration.allowsKnownSafeRequest(.imageInput),
                       !data.isEmpty, data.count <= maxInlineBytes
                 else { throw GeminiWireError.unsupportedInput }
                 content.append(.object([
@@ -168,7 +178,7 @@ nonisolated struct GeminiRequestBuilder {
                     "mime_type": .string("image/jpeg")
                 ]))
             case .pdf(let data, _):
-                guard configuration.effectiveCapabilities.inlinePDF.isEnabled,
+                guard configuration.allowsKnownSafeRequest(.pdfInput),
                       !data.isEmpty, data.count <= maxInlineBytes
                 else { throw GeminiWireError.unsupportedInput }
                 content.append(.object([
