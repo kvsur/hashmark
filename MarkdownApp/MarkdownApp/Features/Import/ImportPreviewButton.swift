@@ -11,7 +11,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ImportPreviewButton: View {
-    let store: FileStore
+    @EnvironmentObject private var documentLibrary: DocumentLibraryController
     /// 导入成功后回调（供上层刷新文件列表）。
     var onImported: () -> Void = {}
 
@@ -33,7 +33,7 @@ struct ImportPreviewButton: View {
             handleImport(result)
         }
         .sheet(item: $document) { doc in
-            ReadOnlyPreviewView(store: store, sourceURL: doc.url, title: doc.title, markdown: doc.markdown, onImported: onImported)
+            ReadOnlyPreviewView(sourceURL: doc.url, title: doc.title, markdown: doc.markdown, onImported: onImported)
         }
         .alert("Cannot Open File", isPresented: errorBinding) {
             Button("OK", role: .cancel) {}
@@ -50,15 +50,18 @@ struct ImportPreviewButton: View {
             errorMessage = error.localizedDescription
         case .success(let urls):
             guard let url = urls.first else { return }
-            guard let text = store.readExternalText(at: url) else {
-                errorMessage = LocalizationController.string("Could not read the file. It may not be a text file, or access was denied.")
-                return
+            Task {
+                do {
+                    let text = try await documentLibrary.readExternalText(at: url)
+                    document = ImportedDocument(
+                        url: url,
+                        title: url.deletingPathExtension().lastPathComponent,
+                        markdown: text
+                    )
+                } catch {
+                    errorMessage = LocalizationController.string("Could not read the file. It may not be a text file, or access was denied.")
+                }
             }
-            document = ImportedDocument(
-                url: url,
-                title: url.deletingPathExtension().lastPathComponent,
-                markdown: text
-            )
         }
     }
 
@@ -73,13 +76,4 @@ struct ImportPreviewButton: View {
         if let markdown = UTType("net.daringfireball.markdown") { types.append(markdown) }
         return types
     }()
-}
-
-/// 被选中、待只读预览的外部文档。
-struct ImportedDocument: Identifiable {
-    let id = UUID()
-    /// 外部文件原始 URL（供只读预览判断是否可导入）。
-    let url: URL
-    let title: String
-    let markdown: String
 }

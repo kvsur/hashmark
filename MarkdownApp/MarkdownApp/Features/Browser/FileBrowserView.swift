@@ -9,7 +9,7 @@
 import SwiftUI
 
 struct FileBrowserView: View {
-    let store: FileStore
+    @EnvironmentObject private var documentLibrary: DocumentLibraryController
     let directory: URL
     /// 是否为根目录（根用「文档」作标题）。
     var isRoot: Bool = false
@@ -35,11 +35,9 @@ struct FileBrowserView: View {
     var body: some View {
         Group {
             if nodes.isEmpty {
-                ContentUnavailableView(
-                    "Empty Folder",
-                    systemImage: "folder",
-                    description: Text("Tap + in the top right to create a folder or document")
-                )
+                AppEmptyStateView("Empty Folder", systemImage: "folder") {
+                    Text("Tap + in the top right to create a folder or document")
+                }
             } else {
                 List {
                     ForEach(nodes) { node in
@@ -67,7 +65,7 @@ struct FileBrowserView: View {
             if isRoot {
                 ToolbarItem(placement: .topBarTrailing) {
                     // 导入成功后刷新本目录列表（sheet 关闭不会触发 onAppear）。
-                    ImportPreviewButton(store: store, onImported: reload)
+                    ImportPreviewButton(onImported: reload)
                 }
             }
         }
@@ -91,8 +89,9 @@ struct FileBrowserView: View {
             }
         }
         .onAppear(perform: reload)
+        .reloadsOnLibraryRevision(documentLibrary.revision, perform: reload)
         // 外部导入完成后由上层递增 reloadToken，触发首页列表刷新。
-        .onChange(of: reloadToken) { _, _ in reload() }
+        .onChange(of: reloadToken) { _ in reload() }
         .alert("Action Failed", isPresented: errorBinding) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -135,7 +134,7 @@ struct FileBrowserView: View {
             titleVisibility: .visible
         ) {
             Button("Delete", role: .destructive) {
-                perform { try store.delete(node) }
+                perform { try await documentLibrary.delete(node) }
             }
         } message: {
             if node.isFolder {
@@ -168,19 +167,19 @@ struct FileBrowserView: View {
         switch sheet {
         case .newFolder:
             NameInputSheet(title: "New Folder", placeholder: "Folder name") { name in
-                perform { _ = try store.createFolder(named: name, in: directory) }
+                perform { _ = try await documentLibrary.createFolder(named: name, in: directory) }
             }
         case .newMarkdown:
             NameInputSheet(title: "New Document", placeholder: "Document name") { name in
-                perform { _ = try store.createMarkdown(named: name, in: directory) }
+                perform { _ = try await documentLibrary.createMarkdown(named: name, in: directory) }
             }
         case .rename(let node):
             NameInputSheet(title: "Rename", placeholder: "New name", initialName: node.displayName) { name in
-                perform { _ = try store.rename(node, to: name) }
+                perform { _ = try await documentLibrary.rename(node, to: name) }
             }
         case .move(let node):
             DirectoryPicker(
-                store: store,
+                rootURL: documentLibrary.activeRootURL,
                 title: "Move To",
                 prompt: "Move “\(node.displayName)” to",
                 confirmLabel: "Move Here",
@@ -189,8 +188,7 @@ struct FileBrowserView: View {
                 // 移到原目录 = 无操作，避免 move() 因重名把自己复制成「name 2」。
                 let currentParent = node.url.deletingLastPathComponent().standardizedFileURL
                 guard targetDir.standardizedFileURL != currentParent else { return }
-                _ = try store.move(node, to: targetDir)
-                reload()
+                _ = try await documentLibrary.move(node, to: targetDir)
             }
         }
     }
@@ -208,18 +206,29 @@ struct FileBrowserView: View {
     // MARK: - 逻辑
 
     private func reload() {
-        nodes = store.contents(of: directory)
+        Task {
+            do {
+                nodes = try await documentLibrary.contents(of: directory)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
     }
 
     /// AI 生成整篇被接受：以内容首行推断文件名，新建 .md 写入并请求打开。
     private func createDocument(from content: String) {
-        do {
-            let url = try store.createMarkdown(named: Self.suggestedName(from: content), in: directory)
-            try store.writeText(content, to: url)
-            reload()
-            onOpenDocument?(DocumentNode(url: url, kind: .markdown, modifiedAt: .now))
-        } catch {
-            errorMessage = error.localizedDescription
+        Task {
+            do {
+                let url = try await documentLibrary.createMarkdown(
+                    named: Self.suggestedName(from: content),
+                    in: directory
+                )
+                try await documentLibrary.writeText(content, to: url)
+                reload()
+                onOpenDocument?(DocumentNode(url: url, kind: .markdown, modifiedAt: .now))
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 
@@ -237,12 +246,14 @@ struct FileBrowserView: View {
     }
 
     /// 执行一次会修改磁盘的操作，成功后刷新列表，失败则记录错误。
-    private func perform(_ action: () throws -> Void) {
-        do {
-            try action()
-            reload()
-        } catch {
-            errorMessage = error.localizedDescription
+    private func perform(_ action: @escaping () async throws -> Void) {
+        Task {
+            do {
+                try await action()
+                reload()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 

@@ -10,7 +10,7 @@
 import SwiftUI
 
 struct DocumentSwitcherSheet: View {
-    let store: FileStore
+    @EnvironmentObject private var documentLibrary: DocumentLibraryController
     /// 当前正在查看的文档 URL，用来在树里高亮。
     let currentURL: URL
     /// 选中某文档时回调（回调后本弹层关闭）。
@@ -23,11 +23,9 @@ struct DocumentSwitcherSheet: View {
         NavigationStack {
             Group {
                 if roots.isEmpty {
-                    ContentUnavailableView(
-                        "No Documents",
-                        systemImage: "folder",
-                        description: Text("Create a document on the home screen first")
-                    )
+                    AppEmptyStateView("No Documents", systemImage: "folder") {
+                        Text("Create a document on the home screen first")
+                    }
                 } else {
                     List {
                         OutlineGroup(roots, children: \.children) { item in
@@ -43,9 +41,14 @@ struct DocumentSwitcherSheet: View {
                     Button("Done") { dismiss() }
                 }
             }
-            .onAppear { roots = store.tree(of: store.rootURL) }
+            .onAppear(perform: reload)
+            .reloadsOnLibraryRevision(documentLibrary.revision, perform: reload)
         }
         .rebuildsOnLanguageChange()
+    }
+
+    private func reload() {
+        Task { roots = (try? await documentLibrary.tree()) ?? [] }
     }
 
     @ViewBuilder

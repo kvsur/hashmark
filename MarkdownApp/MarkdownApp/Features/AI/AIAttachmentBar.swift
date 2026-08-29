@@ -14,7 +14,6 @@ import UniformTypeIdentifiers
 
 struct AIAttachmentBar: View {
     @Binding var attachments: [AIAttachment]
-    let store: FileStore
     /// 当前接口是否自声明支持图片（视觉）。关闭时图片按钮不开相册、改为引导去配置页。
     let supportsImages: Bool
     /// 图片按钮在未开启「支持图片」时的动作：跳转 AI 配置页（由外层承接呈现）。
@@ -116,7 +115,7 @@ struct AIAttachmentBar: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .onChange(of: photoItems) { _, items in
+        .onChange(of: photoItems) { items in
             guard !items.isEmpty else { return }
             Task { await processPhotos(items) }
         }
@@ -131,7 +130,7 @@ struct AIAttachmentBar: View {
                 .ignoresSafeArea()
         }
         .sheet(isPresented: $showReferencePicker) {
-            DocumentReferencePicker(store: store, alreadySelected: referencedURLs) { picked in
+            DocumentReferencePicker(alreadySelected: referencedURLs) { picked in
                 // 替换全部文档引用（保留图片）：picker 已把用户保留的项一并回传，无需逐项去重。
                 attachments.removeAll { $0.referencedURL != nil }
                 attachments.append(contentsOf: picked)

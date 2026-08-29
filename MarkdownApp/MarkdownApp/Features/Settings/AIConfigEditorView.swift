@@ -27,6 +27,8 @@ struct AIConfigEditorView: View {
     @State private var isRefreshingModels = false
     @State private var modelRefreshMessage: String?
     @State private var isAdvancedEndpointExpanded = false
+    /// iOS 16 的 onChange 只提供新值；显式保存上一个 Provider 以延续 profile 切换语义。
+    @State private var previousProvider: AIProvider
     @FocusState private var focusedField: Field?
 
     private let modelCatalog = AIModelCatalogService()
@@ -66,6 +68,7 @@ struct AIConfigEditorView: View {
         _capabilityEvidence = State(initialValue: AICapabilityVerificationStore().allEvidence())
         _catalogSnapshot = State(initialValue: snapshot)
         _discoveredModelIDs = State(initialValue: snapshot?.modelIDs ?? [])
+        _previousProvider = State(initialValue: loaded.provider)
     }
 
     var body: some View {
@@ -93,8 +96,10 @@ struct AIConfigEditorView: View {
             Text(errorMessage ?? "")
         }
         .rebuildsOnLanguageChange()
-        .onChange(of: draft.provider) { oldValue, newValue in
+        .onChange(of: draft.provider) { newValue in
+            let oldValue = previousProvider
             guard oldValue != newValue else { return }
+            previousProvider = newValue
             var outgoing = draft
             outgoing.provider = oldValue
             profileDrafts[oldValue] = outgoing
@@ -106,8 +111,8 @@ struct AIConfigEditorView: View {
             isAdvancedEndpointExpanded = false
             focusedField = .model
         }
-        .onChange(of: draft.baseURL) { _, _ in loadCachedCatalog() }
-        .onChange(of: draft.model) { _, _ in syncSelectedModelMetadata() }
+        .onChange(of: draft.baseURL) { _ in loadCachedCatalog() }
+        .onChange(of: draft.model) { _ in syncSelectedModelMetadata() }
     }
 
     private var providerSection: some View {

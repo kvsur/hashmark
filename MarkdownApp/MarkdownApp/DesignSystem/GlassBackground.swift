@@ -4,7 +4,7 @@
 //
 //  液态玻璃背景的统一封装（关键抽象层）。
 //  - iOS 26+：使用系统原生 Liquid Glass（.glassEffect）。
-//  - iOS 18–25：优雅降级为材质模糊（.ultraThinMaterial）。
+//  - iOS 16–25：优雅降级为材质模糊（.ultraThinMaterial）。
 //
 //  全 App 通过 `.glassBackground()` 调用，把「可用性判断」收敛到这一个地方，
 //  避免在业务代码里到处写 if #available。
@@ -23,7 +23,7 @@ struct GlassBackground: ViewModifier {
             // iOS 26+ 原生液态玻璃
             content.glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius))
         } else {
-            // iOS 18–25 材质降级
+            // iOS 16–25 材质降级
             content.background(
                 .ultraThinMaterial,
                 in: RoundedRectangle(cornerRadius: cornerRadius)

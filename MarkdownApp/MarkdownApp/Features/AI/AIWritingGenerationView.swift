@@ -9,7 +9,7 @@
 import SwiftUI
 
 struct AIWritingGenerationView: View {
-    @Bindable var session: AIWritingSession
+    @ObservedObject var session: AIWritingSession
     @Binding var streamingScroll: AIStreamingScrollState
     @Binding var scrollToLatestToken: Int
     @Binding var reasoningDisclosure: AIReasoningDisclosureState

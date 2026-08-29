@@ -3,16 +3,16 @@
 //  MarkdownApp
 //
 //  用户偏好存储服务：以 UserDefaults 持久化外观主题与界面语言（不进 Documents）。
-//  @Observable 供根视图响应式应用主题/语言；写入即落盘。
+//  ObservableObject 供 iOS 16+ 根视图响应式应用主题/语言；写入即落盘。
 //
 
+import Combine
 import Foundation
 
-@Observable
-final class SettingsStore {
+final class SettingsStore: ObservableObject {
     /// 外观主题。写入即持久化；缺省 .system（跟随系统）。
     /// 主题的实际应用（窗口级）在 ContentView 监听变化后交给 InterfaceStyleController。
-    var theme: ThemePreference {
+    @Published var theme: ThemePreference {
         didSet { defaults.set(theme.rawValue, forKey: Keys.theme) }
     }
 
@@ -21,7 +21,7 @@ final class SettingsStore {
     /// 为什么在 didSet 里就把语言应用下去（主题却是在 ContentView 的 onChange 里应用）：
     /// 取词发生在 SwiftUI 重渲染的过程中，而 onChange 在重渲染之后才执行——
     /// 那样这一帧会用旧语言包取词，界面会慢一拍。didSet 与赋值同步，能确保重渲染时语言包已就位。
-    var language: LanguagePreference {
+    @Published var language: LanguagePreference {
         didSet {
             defaults.set(language.rawValue, forKey: Keys.language)
             LocalizationController.apply(language)
