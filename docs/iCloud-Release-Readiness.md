@@ -22,6 +22,7 @@
 
 - `PrivacyInfo.xcprivacy` 明确声明不跟踪用户，也没有跟踪域名。
 - AI 是用户主动发起、使用自有密钥直连 Provider 的功能。发送的提示词、文档/文件内容归类为 Other User Content，用户选择的图片归类为 Photos or Videos；用途仅为 App Functionality，不用于跟踪。由于 Provider 可通过用户自己的账号识别请求，两类数据按 linked 声明。
+- AI 数据分享授权按 Provider 与规范化 Endpoint 隔离；首次发送前必须明确授权，接收方变化时重新授权，用户可在对应 AI 配置中撤回。底层 `AIClientFactory` 同时执行未授权拒绝，避免 UI 路径遗漏后直接联网。
 - 文件修改时间用于展示最近活动时间和排序，声明 Required Reason `DDA9.1`；该时间及其派生信息不得发送到设备外。
 - `UserDefaults` 仅保存本 App 的主题、语言、存储模式和 AI 目录状态，声明 Required Reason `CA92.1`。
 - iCloud Drive 文稿由 Apple 的系统服务同步；Hashmark 自己没有中转服务器。
@@ -48,10 +49,10 @@ App Store Connect 导出使用仓库中的 `MarkdownApp/AppStoreExportOptions.pl
 
 - Distribution App ID 已启用 iCloud Documents，生产 provisioning profile 包含同一容器。
 - App Privacy 回答与本清单及 `PrivacyInfo.xcprivacy` 一致；若增加 Provider、分析 SDK、崩溃上报或自有服务，必须重新审计。
-- 配置公开可访问的隐私政策 URL，并明确 iCloud 与各 AI Provider 的数据处理边界。
+- 将 `https://kvsur.github.io/hashmark/privacy/` 配置为隐私政策 URL；上传前确认其无需登录且可在移动网络访问。政策需与 `docs/privacy/index.html`、实际数据流及 App 内入口一致。
 - 上传归档后通过 App Store Connect 的自动校验，并检查生成的 privacy report。
 - 提交 iPhone/iPad 截图、年龄分级、出口合规答案和审核说明；审核说明应注明 iCloud 默认关闭以及 AI 采用 BYOK。
 
 ## 发布阻断条件
 
-出现下列任一情况不得发布：容器或签名不一致、隐私清单缺失/无效、iOS 16 或当前系统运行时失败、迁移故障会改变旧模式或丢失唯一副本、关闭同步会删除云端内容、两台同账户物理设备的最终同步验收未通过。
+出现下列任一情况不得发布：容器或签名不一致、隐私清单缺失/无效、公开隐私政策不可访问、App 内无隐私政策入口、AI 可在未授权时发送用户数据、iOS 16 或当前系统运行时失败、迁移故障会改变旧模式或丢失唯一副本、关闭同步会删除云端内容、两台同账户物理设备的最终同步验收未通过。

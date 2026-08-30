@@ -2,7 +2,7 @@
 //  AboutView.swift
 //  MarkdownApp
 //
-//  关于：展示开发者联系方式。目前仅提供 email（可点，唤起邮件）。
+//  关于：展示开发者联系方式与审核要求的法律入口。
 //
 
 import SwiftUI
@@ -19,6 +19,12 @@ struct AboutView: View {
                     LabeledContent("Contact Email") {
                         // mailto 链接：点击唤起系统邮件；URL 常量固定，强解包安全。
                         Link(email, destination: URL(string: "mailto:\(email)")!)
+                    }
+                }
+
+                Section("Legal") {
+                    Link(destination: AppLinks.privacyPolicy) {
+                        Label("Privacy Policy", systemImage: "hand.raised")
                     }
                 }
             }

@@ -11,6 +11,11 @@ import SwiftUI
 struct AIConfigEditorView: View {
     let store: AIConfigStore
     private let modelCatalogStore: AIModelCatalogStore
+    private let consentStore: AIDataSharingConsentStore
+
+    private enum PendingConsentAction {
+        case refreshModels
+    }
 
     private enum Field: Hashable {
         case baseURL, model, apiKey
@@ -27,6 +32,8 @@ struct AIConfigEditorView: View {
     @State private var isRefreshingModels = false
     @State private var modelRefreshMessage: String?
     @State private var isAdvancedEndpointExpanded = false
+    @State private var hasDataSharingConsent: Bool
+    @State private var pendingConsentAction: PendingConsentAction?
     /// iOS 16 的 onChange 只提供新值；显式保存上一个 Provider 以延续 profile 切换语义。
     @State private var previousProvider: AIProvider
     @FocusState private var focusedField: Field?
@@ -44,10 +51,12 @@ struct AIConfigEditorView: View {
 
     init(
         store: AIConfigStore,
-        modelCatalogStore: AIModelCatalogStore = AIModelCatalogStore()
+        modelCatalogStore: AIModelCatalogStore = AIModelCatalogStore(),
+        consentStore: AIDataSharingConsentStore = AIDataSharingConsentStore()
     ) {
         self.store = store
         self.modelCatalogStore = modelCatalogStore
+        self.consentStore = consentStore
         let document = store.loadDocument()
         let loaded = AIConfigFormState.normalizedForEditing(
             document.activeProfile?.config ?? .empty
@@ -69,6 +78,7 @@ struct AIConfigEditorView: View {
         _catalogSnapshot = State(initialValue: snapshot)
         _discoveredModelIDs = State(initialValue: snapshot?.modelIDs ?? [])
         _previousProvider = State(initialValue: loaded.provider)
+        _hasDataSharingConsent = State(initialValue: consentStore.hasConsent(for: loaded))
     }
 
     var body: some View {
@@ -79,6 +89,7 @@ struct AIConfigEditorView: View {
                 modelSection
                 endpointSection
                 authenticationSection
+                dataSharingSection
                 AICapabilitiesSection(
                     webSearchEnabled: $draft.preferences.webSearchEnabled,
                     reasoningEffort: $draft.preferences.reasoningEffort,
@@ -95,6 +106,12 @@ struct AIConfigEditorView: View {
         } message: {
             Text(errorMessage ?? "")
         }
+        .alert("AI Data Sharing", isPresented: consentPromptBinding) {
+            Button("Not Now", role: .cancel) { pendingConsentAction = nil }
+            Button("Allow and Continue") { allowPendingAction() }
+        } message: {
+            Text(AIDataSharingConsentCopy.message(for: draft))
+        }
         .rebuildsOnLanguageChange()
         .onChange(of: draft.provider) { newValue in
             let oldValue = previousProvider
@@ -107,11 +124,15 @@ struct AIConfigEditorView: View {
             draft = AIConfigFormState.normalizedForEditing(restored)
             activeProfileID = store.profileID(for: newValue)
             loadCachedCatalog()
+            refreshConsentStatus()
             modelRefreshMessage = nil
             isAdvancedEndpointExpanded = false
             focusedField = .model
         }
-        .onChange(of: draft.baseURL) { _ in loadCachedCatalog() }
+        .onChange(of: draft.baseURL) { _ in
+            loadCachedCatalog()
+            refreshConsentStatus()
+        }
         .onChange(of: draft.model) { _ in syncSelectedModelMetadata() }
     }
 
@@ -156,7 +177,7 @@ struct AIConfigEditorView: View {
 
             if formState.supportsModelRefresh {
                 Button {
-                    Task { await refreshModels() }
+                    requestModelRefresh()
                 } label: {
                     if isRefreshingModels {
                         HStack(spacing: 8) {
@@ -230,6 +251,40 @@ struct AIConfigEditorView: View {
         }
     }
 
+    private var dataSharingSection: some View {
+        Section {
+            LabeledContent("Destination") {
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(verbatim: draft.provider.displayName)
+                    Text(verbatim: AIDataSharingRecipient(config: draft).displayEndpoint)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+
+            if hasDataSharingConsent {
+                Label("Allowed for This Provider", systemImage: "checkmark.shield")
+                    .foregroundStyle(.secondary)
+                Button("Withdraw AI Data Sharing Consent", role: .destructive) {
+                    consentStore.revoke(for: draft)
+                    refreshConsentStatus()
+                }
+            } else {
+                Label("Permission will be requested before connecting.", systemImage: "hand.raised")
+                    .foregroundStyle(.secondary)
+            }
+
+            Link(destination: AppLinks.privacyPolicy) {
+                Label("Privacy Policy", systemImage: "doc.text")
+            }
+        } header: {
+            Text("Data Sharing")
+        } footer: {
+            Text("Withdrawing permission stops future requests to this provider and endpoint. It does not delete data already processed by the provider.")
+        }
+    }
+
     @ViewBuilder
     private var validationSection: some View {
         if !formState.validationIssues.isEmpty {
@@ -254,7 +309,7 @@ struct AIConfigEditorView: View {
             Button("Cancel") { dismiss() }
         }
         ToolbarItem(placement: .confirmationAction) {
-            Button("Save") { save() }
+            Button("Save") { requestSave() }
                 .disabled(!formState.canSave)
                 .accessibilityHint(formState.canSave
                     ? "Saves this AI configuration."
@@ -262,14 +317,42 @@ struct AIConfigEditorView: View {
         }
     }
 
-    private func save() {
+    private func requestSave() {
         guard formState.canSave else { return }
+        save()
+    }
+
+    private func save() {
         do {
             try store.save(draft)
             dismiss()
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func requestModelRefresh() {
+        guard !isRefreshingModels else { return }
+        guard consentStore.hasConsent(for: draft) else {
+            pendingConsentAction = .refreshModels
+            return
+        }
+        Task { await refreshModels() }
+    }
+
+    private func allowPendingAction() {
+        guard let action = pendingConsentAction else { return }
+        consentStore.grant(for: draft)
+        pendingConsentAction = nil
+        refreshConsentStatus()
+        switch action {
+        case .refreshModels:
+            Task { await refreshModels() }
+        }
+    }
+
+    private func refreshConsentStatus() {
+        hasDataSharingConsent = consentStore.hasConsent(for: draft)
     }
 
     private var endpointPresetSelection: Binding<String> {
@@ -374,5 +457,12 @@ struct AIConfigEditorView: View {
 
     private var errorBinding: Binding<Bool> {
         Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
+    }
+
+    private var consentPromptBinding: Binding<Bool> {
+        Binding(
+            get: { pendingConsentAction != nil },
+            set: { if !$0 { pendingConsentAction = nil } }
+        )
     }
 }

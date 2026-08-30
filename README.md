@@ -88,7 +88,9 @@ Hashmark 采用 BYOK（Bring Your Own Key）方式连接用户选择的 AI 服�
 - 主题和语言偏好保存在本机；AI 接口地址、模型与 API Key 保存在本机的 `Application Support` 目录。
 - Markdown 预览在本机完成，不会为了渲染正文而上传文档。
 - AI 功能默认不需要配置。只有在用户主动发起 AI 请求时，相关提示词、文档上下文及用户选择的附件才会发送至所配置的 Provider；数据处理同时受对应 Provider 的隐私条款约束。
+- 首次连接每个 Provider 与接口地址前，App 会明确说明将发送的数据并请求授权；授权可在对应 AI 配置中撤回。
 - Hashmark 当前不通过自有中转服务代理 AI 请求，App 会直接连接用户配置的接口地址。
+- 完整说明见 [Hashmark Privacy Policy](https://kvsur.github.io/hashmark/privacy/)（GitHub Pages 启用后生效）。
 
 ## 技术栈
 

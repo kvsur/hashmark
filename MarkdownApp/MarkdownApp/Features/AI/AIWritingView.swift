@@ -43,8 +43,10 @@ struct AIWritingView: View {
     /// 当前 AI 配置的本地副本：用于读取 Registry 解析出的附件能力。
     @State private var config: AIConfig
     @State private var showConfigEditor = false
+    @State private var showDataSharingConsent = false
 
     private let aiConfigStore = AIConfigStore()
+    private let consentStore = AIDataSharingConsentStore()
 
     init(config: AIConfig, action: AIAction, context: String? = nil, contextPreview: String? = nil, title: LocalizedStringKey, onAccept: @escaping (String) -> Void) {
         self.action = action
@@ -100,6 +102,15 @@ struct AIWritingView: View {
         .confirmationDialog("Discard this generation?", isPresented: $showDiscardConfirm, titleVisibility: .visible) {
             Button("Discard", role: .destructive) { session.cancel(); dismiss() }
             Button("Keep Going", role: .cancel) {}
+        }
+        .alert("AI Data Sharing", isPresented: $showDataSharingConsent) {
+            Button("Not Now", role: .cancel) {}
+            Button("Allow and Continue") {
+                consentStore.grant(for: config)
+                beginGeneration()
+            }
+        } message: {
+            Text(AIDataSharingConsentCopy.message(for: config))
         }
         // 当前 Provider/模型未确认图片能力时，入口可引导到配置页；关闭后重载能力状态。
         .sheet(isPresented: $showConfigEditor, onDismiss: reloadConfig) {
@@ -224,6 +235,15 @@ struct AIWritingView: View {
             tools: Self.sessionTools(for: action)
         )
 
+        guard consentStore.hasConsent(for: latestConfig) else {
+            showDataSharingConsent = true
+            return
+        }
+
+        beginGeneration()
+    }
+
+    private func beginGeneration() {
         // 附件（图片+引用文档）随首轮消息带下去：图片走多模态块、文档引用注入 user 文本。
         // 精修/重新生成不重复带图——refine 走 refineMessages（无附件），regenerate 复用已含图的首条消息。
         reasoningDisclosure.beginTurn()

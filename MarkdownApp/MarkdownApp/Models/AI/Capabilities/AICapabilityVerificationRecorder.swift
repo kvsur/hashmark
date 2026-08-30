@@ -28,7 +28,7 @@ nonisolated enum AICapabilityFailureClassifier {
             return .network
         case .webSearchNotExecuted, .stream:
             return .invalidRequest
-        case .notConfigured, .invalidURL, .providerUnavailable,
+        case .notConfigured, .dataSharingConsentRequired, .invalidURL, .providerUnavailable,
              .webSearchUnavailable:
             return .invalidRequest
         }

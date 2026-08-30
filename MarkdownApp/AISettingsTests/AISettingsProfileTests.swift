@@ -87,6 +87,47 @@ enum AISettingsProfileTests {
         expect(rebuilt.load(provider: .kimi) == kimi,
                "Reset leaked into another Provider profile")
 
+        let consentSuite = "AIDataSharingConsentTests-\(UUID().uuidString)"
+        let consentDefaults = UserDefaults(suiteName: consentSuite)!
+        defer { consentDefaults.removePersistentDomain(forName: consentSuite) }
+        let consentStore = AIDataSharingConsentStore(
+            defaults: consentDefaults,
+            storageKey: "consent-test"
+        )
+        var consentConfig = AIConfig(
+            provider: .openAI,
+            baseURL: "HTTPS://User:Secret@API.Example.com/v1/?token=hidden#fragment",
+            model: "gpt-test",
+            apiKey: "secret"
+        )
+        expect(!consentStore.hasConsent(for: consentConfig),
+               "A new recipient unexpectedly inherited consent")
+        let recipient = AIDataSharingRecipient(config: consentConfig)
+        expect(!recipient.scopeID.contains("Secret") && !recipient.scopeID.contains("hidden"),
+               "Consent scope persisted URL credentials or query data")
+        consentStore.grant(for: consentConfig)
+        expect(consentStore.hasConsent(for: consentConfig),
+               "Granted recipient did not retain consent")
+
+        consentConfig.baseURL = "https://api.example.com/v1"
+        expect(consentStore.hasConsent(for: consentConfig),
+               "Equivalent normalized endpoint lost consent")
+        consentConfig.baseURL = "https://api.example.com/v2"
+        expect(!consentStore.hasConsent(for: consentConfig),
+               "Changed endpoint path reused old consent")
+        consentConfig.baseURL = "https://api.example.com/v1"
+        consentConfig.provider = .anthropic
+        expect(!consentStore.hasConsent(for: consentConfig),
+               "Changed Provider reused old consent")
+        consentConfig.provider = .openAI
+        consentStore.revoke(for: consentConfig)
+        expect(!consentStore.hasConsent(for: consentConfig),
+               "Revoked recipient still had consent")
+        consentStore.grant(for: consentConfig)
+        consentStore.revokeAll()
+        expect(!consentStore.hasConsent(for: consentConfig),
+               "Revoke-all left a consent scope behind")
+
         if failures.isEmpty {
             print("AISettingsProfileTests: PASS")
         } else {
