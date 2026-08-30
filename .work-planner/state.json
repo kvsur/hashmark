@@ -1,11 +1,11 @@
 {
   "version": "1.3.0",
   "created_at": "2026-08-30 00:06:44",
-  "updated_at": "2026-08-30 12:32:53",
+  "updated_at": "2026-08-30 12:41:15",
   "current_step": "S2",
   "next_step": "补齐 S2.2 的 Beta Review 联系人姓名与国际格式电话；Apple 权限恢复后继续 S1 会员、协议与后台访问核对。",
   "overall_status": "in_progress",
-  "completion_rate": "26%",
+  "completion_rate": "28%",
   "all_steps": [
     {
       "id": "S1",
@@ -53,14 +53,15 @@
       "start_at": "2026-08-30 00:15:38",
       "done_at": "2026-08-30 12:32:53",
       "depends_on": [],
-      "refs": ["C2", "C6", "C12", "C13", "C14", "C15", "C17"],
+      "refs": ["C2", "C6", "C12", "C13", "C14", "C15", "C17", "C18"],
       "notes": [
         "2026-08-30 发布前审计发现 App 目前只有 PrivacyInfo.xcprivacy，没有公开隐私政策 URL、App 内政策入口，也尚未确认第三方 AI 数据发送前的明确授权门禁。",
         "Apple App Review Guidelines 5.1.1 要求元数据和 App 内均提供易访问的隐私政策；5.1.2 要求向第三方 AI 分享个人数据前明确披露接收方并取得授权。",
         "2026-08-30 用户确认使用现有 kvsur/hashmark 仓库的 GitHub Pages 托管公开隐私政策。",
         "S2a.3 2026-08-30 已从公网验证 https://kvsur.github.io/hashmark/privacy/ 返回 HTTP 200、UTF-8 HTML，并包含中英文政策、五家 AI Provider 与联系邮箱。",
         "S2a.6 2026-08-30 已在 master c1010e0 通过 RegressionAudit、AISettingsProfileTests 和已连接 iPhone 的 Release 签名构建；隐私清单、iCloud entitlement 与 dSYM 检查通过，App 已安装并成功启动。拒绝、允许、更换 Endpoint 与撤回四项交互仍待人在真机点击确认。",
-        "S2a.6 2026-08-30 用户完成真机验收：拒绝不发送、允许后可生成、更换 Endpoint 重新询问、撤回后再次阻断、App 内隐私链接可打开，五项均 PASS。S2a 验证条件全部满足。"
+        "S2a.6 2026-08-30 用户完成真机验收：拒绝不发送、允许后可生成、更换 Endpoint 重新询问、撤回后再次阻断、App 内隐私链接可打开，五项均 PASS。S2a 验证条件全部满足。",
+        "S2a.7 2026-08-30 用户扩大隐私页语言一致性要求；已完成七语言静态正文、下拉选择、App 显式 lang 参数、系统首选语言匹配和英文最终回退。RegressionAudit、Debug 模拟器构建、七语言浏览器路由及 390 px 移动布局验证均通过。"
       ],
       "sub_steps": [
         { "id": "S2a.1", "name": "审计本地、iCloud、AI、附件和联网数据流", "status": "done" },
@@ -68,9 +69,10 @@
         { "id": "S2a.3", "name": "发布无需登录的公开 HTTPS 隐私政策 URL", "status": "done" },
         { "id": "S2a.4", "name": "在关于页增加七语言 Privacy Policy 入口", "status": "done" },
         { "id": "S2a.5", "name": "实现按 Provider/Endpoint 的明确授权与撤回门禁", "status": "done" },
-        { "id": "S2a.6", "name": "增加回归测试并完成构建与真机验证", "status": "done" }
+        { "id": "S2a.6", "name": "增加回归测试并完成构建与真机验证", "status": "done" },
+        { "id": "S2a.7", "name": "补齐七语言隐私政策、下拉切换与显式语言路由", "status": "done" }
       ],
-      "verify": "政策 URL 公开可用，App 内可打开；未授权时任何提示词、文稿或附件均不会发往第三方 AI，授权与撤回路径可验证。"
+      "verify": "政策 URL 公开可用，App 内可打开；七语言路由、下拉切换与回退规则可验证；未授权时任何提示词、文稿或附件均不会发往第三方 AI，授权与撤回路径可验证。"
     },
     {
       "id": "S3",
@@ -179,6 +181,7 @@
     "2026-08-30 新增发布阻断 S2a：外部 TestFlight 前补齐公开隐私政策、App 内入口和第三方 AI 明确授权。",
     "2026-08-30 用户确认 GitHub Pages 托管方案，S2a 开始执行。",
     "2026-08-30 已完成数据流审计、双语政策页面、七语言 App 内入口和 Provider/Endpoint 授权门禁；全套 AI 回归、Debug/Release 模拟器编译及 Release iOS arm64 无签名编译通过。公开 URL 与真机交互仍待验证。",
-    "2026-08-30 用户确认由其部署 GitHub Pages，并要求提交及推送当前分支内容。"
+    "2026-08-30 用户确认由其部署 GitHub Pages，并要求提交及推送当前分支内容。",
+    "2026-08-30 S2a 在原验收完成后追加七语言隐私政策一致性要求，已重新验证并保持 done。"
   ]
 }
