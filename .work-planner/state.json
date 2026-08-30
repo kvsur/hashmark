@@ -1,11 +1,11 @@
 {
   "version": "1.3.0",
   "created_at": "2026-08-30 00:06:44",
-  "updated_at": "2026-08-30 11:32:42",
-  "current_step": "S2a",
-  "next_step": "完成 S2a.6 真机授权交互验收：拒绝不发送、允许后可生成、更换 Endpoint 重新询问、撤回后再次阻断。",
+  "updated_at": "2026-08-30 11:48:00",
+  "current_step": "S2",
+  "next_step": "补齐 S2.2 的 Beta Review 联系人姓名与国际格式电话；同时在已安装的真机版本完成 S2a.6 四项授权交互验收。",
   "overall_status": "in_progress",
-  "completion_rate": "13%",
+  "completion_rate": "23%",
   "all_steps": [
     {
       "id": "S1",
@@ -28,16 +28,20 @@
     {
       "id": "S2",
       "name": "准备 TestFlight Beta 交接材料",
-      "status": "pending",
+      "status": "in_progress",
+      "start_at": "2026-08-30 11:48:00",
       "depends_on": [],
       "refs": ["C8", "C9"],
-      "notes": [],
+      "notes": [
+        "2026-08-30 已新增 docs/TestFlight-Beta-Handoff.md，包含中英文 Beta 描述、What to Test、Beta Review Notes、反馈邮箱和不保存真实邮箱的熟人邀请模板。",
+        "S2.2 反馈邮箱已采用 App 内现有联系邮箱 hello1024lc@gmail.com；审核联系人姓名与国际格式电话仍待用户填写，未在公开仓库猜测或保存个人信息。"
+      ],
       "sub_steps": [
-        { "id": "S2.1", "name": "起草中英文 Beta App Description", "status": "pending" },
-        { "id": "S2.2", "name": "确认反馈邮箱和 Beta Review 联系资料", "status": "pending" },
-        { "id": "S2.3", "name": "起草中英文 What to Test", "status": "pending" },
-        { "id": "S2.4", "name": "起草 Beta Review Notes", "status": "pending" },
-        { "id": "S2.5", "name": "建立熟人测试邀请名单模板", "status": "pending" }
+        { "id": "S2.1", "name": "起草中英文 Beta App Description", "status": "done" },
+        { "id": "S2.2", "name": "确认反馈邮箱和 Beta Review 联系资料", "status": "in_progress" },
+        { "id": "S2.3", "name": "起草中英文 What to Test", "status": "done" },
+        { "id": "S2.4", "name": "起草 Beta Review Notes", "status": "done" },
+        { "id": "S2.5", "name": "建立熟人测试邀请名单模板", "status": "done" }
       ],
       "verify": "所有字段可直接粘贴进 App Store Connect，且不包含秘密、API Key 或测试者无权访问的数据。"
     },
@@ -52,7 +56,8 @@
         "2026-08-30 发布前审计发现 App 目前只有 PrivacyInfo.xcprivacy，没有公开隐私政策 URL、App 内政策入口，也尚未确认第三方 AI 数据发送前的明确授权门禁。",
         "Apple App Review Guidelines 5.1.1 要求元数据和 App 内均提供易访问的隐私政策；5.1.2 要求向第三方 AI 分享个人数据前明确披露接收方并取得授权。",
         "2026-08-30 用户确认使用现有 kvsur/hashmark 仓库的 GitHub Pages 托管公开隐私政策。",
-        "S2a.3 2026-08-30 已从公网验证 https://kvsur.github.io/hashmark/privacy/ 返回 HTTP 200、UTF-8 HTML，并包含中英文政策、五家 AI Provider 与联系邮箱。"
+        "S2a.3 2026-08-30 已从公网验证 https://kvsur.github.io/hashmark/privacy/ 返回 HTTP 200、UTF-8 HTML，并包含中英文政策、五家 AI Provider 与联系邮箱。",
+        "S2a.6 2026-08-30 已在 master c1010e0 通过 RegressionAudit、AISettingsProfileTests 和已连接 iPhone 的 Release 签名构建；隐私清单、iCloud entitlement 与 dSYM 检查通过，App 已安装并成功启动。拒绝、允许、更换 Endpoint 与撤回四项交互仍待人在真机点击确认。"
       ],
       "sub_steps": [
         { "id": "S2a.1", "name": "审计本地、iCloud、AI、附件和联网数据流", "status": "done" },
