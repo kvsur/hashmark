@@ -25,12 +25,12 @@ Opaque signatures, encrypted content, thought signatures and Provider continuati
 | Provider | Generation route | Search ownership |
 |---|---|---|
 | OpenAI | Responses `/v1/responses` | Hosted `web_search` |
-| Anthropic | Messages `/v1/messages` | Versioned server tool; exact MiniMax official hosts use client-executed Coding Plan search |
+| Anthropic | Messages `/v1/messages` | Versioned server tool |
 | Gemini | Interactions `/v1beta/interactions` | Google Search grounding |
 | Kimi | Moonshot chat completions + Formula API | `moonshot/web-search:latest` Fiber continuation |
 | GLM | BigModel chat completions | Native `web_search` chat tool |
 
-No OpenAI Chat Completions compatibility route, custom Provider fallback or cross-Provider generation serializer is permitted. Endpoint-specific extensions must be exact-host, typed contracts inside the selected Provider adapter; the sole current extension is MiniMax Coding Plan search while generation remains Anthropic Messages wire format.
+No OpenAI Chat Completions compatibility route, host inference, custom Provider fallback or cross-Provider serializer is permitted.
 
 ## Capability authority
 
@@ -43,7 +43,7 @@ Model data, aliases, lifecycle and safe strategy IDs live in `Resources/AIProvid
 - Direct image/PDF input, upload/reference, extraction and hosted retrieval remain distinct intents.
 - Provider file references carry Provider identity and expiry metadata and cannot cross adapters.
 - Unsupported, expired or oversized inputs fail during preflight; the app never silently drops or downgrades them.
-- Hosted/server search never enters the ordinary UI client-tool loop. Kimi Formula and MiniMax Coding Plan search execute inside their typed Provider adapters and return bounded Provider-owned results for synthesis.
+- Hosted/server search never enters the ordinary client-tool loop. Only Kimi's typed built-in continuation follows its bounded Provider-owned path.
 - Cancelled or interrupted partial text may be copied or retried, but cannot be accepted into the document.
 
 ## Regression evidence
