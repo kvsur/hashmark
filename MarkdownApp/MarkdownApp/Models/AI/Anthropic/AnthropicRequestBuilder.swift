@@ -50,7 +50,7 @@ nonisolated struct AnthropicRequestBuilder {
         }
         if usesAnthropicHostedWebSearch {
             guard case .anthropicServerTool(let version) = configuration.manifest.webSearch,
-                  version == "web_search_20250305"
+                  version == "web_search_20260318"
             else { throw AnthropicWireError.invalidToolVersion }
             nativeTools.append(.object([
                 "type": .string(version),

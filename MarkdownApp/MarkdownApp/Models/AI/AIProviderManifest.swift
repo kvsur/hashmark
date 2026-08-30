@@ -123,7 +123,7 @@ nonisolated enum AIProviderRegistry {
             defaultModel: data(for: .anthropic).defaultModel,
             endpointPath: "/v1/messages",
             authentication: .anthropic(apiVersion: "2023-06-01"),
-            webSearch: .anthropicServerTool(version: "web_search_20250305"),
+            webSearch: .anthropicServerTool(version: "web_search_20260318"),
             fileMechanisms: [.directInput, .uploadReference],
             capabilities: capabilities(
                 reasoning: support(.reasoning, provider: .anthropic),
