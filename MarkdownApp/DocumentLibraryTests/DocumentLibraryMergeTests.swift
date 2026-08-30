@@ -11,6 +11,7 @@ enum DocumentLibraryMergeTests {
         try testRecursiveMergeDedupesAndPreservesDivergence()
         try testFileFolderCollisionsPreserveBothSides()
         try testExistingConflictNamesNeverOverwrite()
+        try testCopiedFilesPreserveModificationDatesAndActivityOrder()
         print("DocumentLibraryMergeTests: PASS")
     }
 
@@ -79,6 +80,39 @@ enum DocumentLibraryMergeTests {
         }
     }
 
+    private static func testCopiedFilesPreserveModificationDatesAndActivityOrder() throws {
+        try withRoots { source, destination in
+            let newestDate = Date(timeIntervalSince1970: 1_700_000_000)
+            let oldestDate = Date(timeIntervalSince1970: 1_600_000_000)
+            let newestSource = source.appendingPathComponent("Newest.md")
+            let oldestSource = source.appendingPathComponent("Oldest.md")
+            try write("newest", to: newestSource)
+            try write("oldest", to: oldestSource)
+            try setModificationDate(newestDate, for: newestSource)
+            try setModificationDate(oldestDate, for: oldestSource)
+
+            _ = try service().merge(from: source, into: destination)
+
+            let newestDestination = destination.appendingPathComponent("Newest.md")
+            let oldestDestination = destination.appendingPathComponent("Oldest.md")
+            let copiedNewestDate = try modificationDate(of: newestDestination)
+            let copiedOldestDate = try modificationDate(of: oldestDestination)
+            expect(
+                copiedNewestDate == newestDate,
+                "a copied document must retain its source modification date"
+            )
+            expect(
+                copiedOldestDate == oldestDate,
+                "copy order must not replace document activity dates"
+            )
+            let orderedNames = DocumentActivityResolver().records(in: destination).map { $0.url.lastPathComponent }
+            expect(
+                orderedNames == ["Newest.md", "Oldest.md"],
+                "documents restored from iCloud must remain ordered by their original activity"
+            )
+        }
+    }
+
     private static func service() -> DocumentLibraryMergeService {
         DocumentLibraryMergeService(
             coordinator: DirectFileAccessCoordinator(),
@@ -105,6 +139,14 @@ enum DocumentLibraryMergeTests {
 
     private static func read(_ url: URL) throws -> String {
         try String(contentsOf: url, encoding: .utf8)
+    }
+
+    private static func setModificationDate(_ date: Date, for url: URL) throws {
+        try FileManager.default.setAttributes([.modificationDate: date], ofItemAtPath: url.path)
+    }
+
+    private static func modificationDate(of url: URL) throws -> Date? {
+        try FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as? Date
     }
 
     private static func expect(_ condition: @autoclosure () throws -> Bool, _ message: String) rethrows {

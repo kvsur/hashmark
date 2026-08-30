@@ -177,14 +177,23 @@ nonisolated struct DocumentLibraryMergeService: @unchecked Sendable {
             destinationURL = requestedDestination
         }
 
-        let sourceData = try coordinator.read(at: sourceURL) { try Data(contentsOf: $0) }
-        try coordinator.readWrite(reading: sourceURL, writing: destinationURL) { coordinatedSource, coordinatedDestination in
+        let sourceData = try coordinator.readWrite(reading: sourceURL, writing: destinationURL) { coordinatedSource, coordinatedDestination in
             let data = try Data(contentsOf: coordinatedSource)
+            let sourceModificationDate = try coordinatedSource.resourceValues(
+                forKeys: [.contentModificationDateKey]
+            ).contentModificationDate
             try fileManager.createDirectory(
                 at: coordinatedDestination.deletingLastPathComponent(),
                 withIntermediateDirectories: true
             )
             try data.write(to: coordinatedDestination, options: .atomic)
+            if let sourceModificationDate {
+                try fileManager.setAttributes(
+                    [.modificationDate: sourceModificationDate],
+                    ofItemAtPath: coordinatedDestination.path
+                )
+            }
+            return data
         }
         let destinationData = try coordinator.read(at: destinationURL) { try Data(contentsOf: $0) }
         guard Self.sha256(sourceData) == Self.sha256(destinationData) else {
