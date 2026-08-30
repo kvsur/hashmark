@@ -17,7 +17,7 @@ struct FileBrowserView: View {
     /// （该预览由 ContentView 弹出，sheet 关闭不会触发本视图的 onAppear）。仅根目录接线。
     /// 放在 onOpenDocument 之前，让闭包参数保持在末位，ContentView 可用尾随闭包传入。
     var reloadToken: Int = 0
-    /// 生成新文档后请求打开它（导航栈由上层 ContentView 持有）。仅根目录使用。
+    /// 生成新文档后请求打开它（导航栈由上层 ContentView 持有）。
     var onOpenDocument: ((DocumentNode) -> Void)? = nil
 
     @State private var nodes: [DocumentNode] = []
@@ -27,7 +27,7 @@ struct FileBrowserView: View {
     /// 设置页开关（仅根目录露出入口）。
     @State private var showingSettings = false
 
-    // 首页 AI 写作入口（仅根目录）：过配置门槛后弹 AI 会话，接受即新建文档并打开。
+    // 目录级 AI 写作入口：过配置门槛后弹 AI 会话，接受即在当前目录新建文档并打开。
     private let aiConfigStore = AIConfigStore()
     @State private var aiTrigger = false
     @State private var aiLaunch: AILaunch?
@@ -71,19 +71,17 @@ struct FileBrowserView: View {
         }
         .sheet(item: $sheet, content: sheetContent)
         .sheet(isPresented: $showingSettings) { SettingsView() }
-        // 首页大号 AI 入口：悬浮在底部（仅根目录），比工具栏按钮显著。
+        // 目录级 AI 入口：悬浮在底部，根目录和任意层级子目录均显示。
         .safeAreaInset(edge: .bottom) {
-            if isRoot {
-                HomeAIButton { aiTrigger = true }
-                    .padding(.bottom, 8)
-            }
+            BrowserAIWritingButton { aiTrigger = true }
+                .padding(.bottom, 8)
         }
         // AI 门槛：配置齐全才进入会话，否则提示并可跳配置页。
         .aiConfigGate(trigger: $aiTrigger, store: aiConfigStore) { config in
             aiLaunch = AILaunch(config: config, action: .custom)
         }
         .sheet(item: $aiLaunch) { launch in
-            // 首页生成整篇：无上下文、自由 prompt、允许反问。
+            // 当前目录生成整篇：无上下文、自由 prompt、允许反问。
             AIWritingView(config: launch.config, action: launch.action, context: nil, title: "AI Writing") { result in
                 createDocument(from: result)
             }

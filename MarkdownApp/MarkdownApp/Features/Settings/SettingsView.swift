@@ -2,7 +2,7 @@
 //  SettingsView.swift
 //  MarkdownApp
 //
-//  设置页：主题 / 语言 / AI 接口配置 / 关于。经主页左上角齿轮按钮以 sheet 弹出。
+//  设置页：AI 接口配置 / 文档 / 语言 / 主题 / 关于。经主页左上角齿轮按钮以 sheet 弹出。
 //  本视图只负责「怎么显示」，主题读写走 environment 里的 SettingsStore、
 //  AI 配置读写走 AIConfigStore（逻辑外移）。多个二级弹层用 SettingsSheet 枚举统一驱动。
 //
@@ -22,17 +22,8 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Appearance") {
-                    Picker("Theme", selection: $settings.theme) {
-                        ForEach(ThemePreference.allCases) { pref in
-                            Text(pref.label).tag(pref)
-                        }
-                    }
-                    .tallSegmentedPicker()
-                }
-
-                Section("Language") {
-                    disclosureRow("Switch Language", systemImage: "globe") { sheet = .language }
+                Section("AI") {
+                    disclosureRow("AI Endpoint", systemImage: "sparkles") { sheet = .aiConfig }
                 }
 
                 Section("Documents") {
@@ -56,8 +47,17 @@ struct SettingsView: View {
                     }
                 }
 
-                Section("AI") {
-                    disclosureRow("AI Endpoint", systemImage: "sparkles") { sheet = .aiConfig }
+                Section("Language") {
+                    disclosureRow("Switch Language", systemImage: "globe") { sheet = .language }
+                }
+
+                Section("Appearance") {
+                    Picker("Theme", selection: $settings.theme) {
+                        ForEach(ThemePreference.allCases) { pref in
+                            Text(pref.label).tag(pref)
+                        }
+                    }
+                    .tallSegmentedPicker()
                 }
 
                 Section {

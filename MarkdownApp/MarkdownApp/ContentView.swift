@@ -25,14 +25,19 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            FileBrowserView(directory: documentLibrary.activeRootURL, isRoot: true, reloadToken: homeReloadToken) { newDoc in
-                // 首页 AI 生成新文档后，直接推入栈进入编辑/预览。
-                path.append(newDoc)
-            }
+            FileBrowserView(
+                directory: documentLibrary.activeRootURL,
+                isRoot: true,
+                reloadToken: homeReloadToken,
+                onOpenDocument: openDocument
+            )
             .navigationDestination(for: DocumentNode.self) { node in
                     // 同一目的地按类型分流：文件夹继续下钻，文档进入文档屏（预览/编辑）。
                     if node.isFolder {
-                        FileBrowserView(directory: node.url)
+                        FileBrowserView(
+                            directory: node.url,
+                            onOpenDocument: openDocument
+                        )
                     } else {
                         DocumentView(node: node)
                     }
@@ -88,6 +93,11 @@ struct ContentView: View {
         // 语言无需在此处理：取词由 LocalizationController 的取词拦截统一负责，
         // 语言包在 SettingsStore 写入偏好时即同步就位（onChange 太晚，会慢一帧），
         // Locale 的环境注入则在 App 根部完成（见 MarkdownAppApp）。
+    }
+
+    /// 所有目录共用同一导航回调；AI 接受结果后直接打开刚创建的文档。
+    private func openDocument(_ node: DocumentNode) {
+        path.append(node)
     }
 }
 
