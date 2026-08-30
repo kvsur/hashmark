@@ -8,5 +8,14 @@
 import Foundation
 
 nonisolated enum AppLinks {
-    static let privacyPolicy = URL(string: "https://kvsur.github.io/hashmark/privacy/")!
+    private static let privacyPolicyBase = URL(string: "https://kvsur.github.io/hashmark/privacy/")!
+
+    /// 隐私页优先使用 URL 中的语言，避免 App 内已切换语言时被 Safari 的系统语言覆盖。
+    static var privacyPolicy: URL {
+        var components = URLComponents(url: privacyPolicyBase, resolvingAgainstBaseURL: false)!
+        components.queryItems = [
+            URLQueryItem(name: "lang", value: LocalizationController.resolved.rawValue)
+        ]
+        return components.url ?? privacyPolicyBase
+    }
 }

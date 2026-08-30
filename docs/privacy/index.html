@@ -9,29 +9,27 @@
   <style>
     :root {
       color-scheme: light dark;
-      --page: #ffffff;
+      --page: #fbfbfd;
       --section: #f5f5f7;
       --nav: rgba(255, 255, 255, 0.82);
       --text: #1d1d1f;
       --muted: #6e6e73;
       --line: #d2d2d7;
       --accent: #0066cc;
-      --segment: #e8e8ed;
-      --segment-active: #ffffff;
-      --segment-active-text: #1d1d1f;
+      --control: rgba(232, 232, 237, 0.82);
+      --control-hover: #e2e2e7;
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --page: #000000;
+        --page: #0f0f11;
         --section: #1d1d1f;
         --nav: rgba(22, 22, 23, 0.82);
         --text: #f5f5f7;
         --muted: #a1a1a6;
         --line: #424245;
         --accent: #2997ff;
-        --segment: #2c2c2e;
-        --segment-active: #f5f5f7;
-        --segment-active-text: #1d1d1f;
+        --control: rgba(44, 44, 46, 0.9);
+        --control-hover: #3a3a3c;
       }
     }
     * { box-sizing: border-box; }
@@ -71,7 +69,11 @@
       text-align: center;
     }
     .hero-inner { width: min(760px, 100%); margin: 0 auto; }
-    h1, h2 { line-height: 1.08; }
+    h1, h2 {
+      line-height: 1.08;
+      overflow-wrap: anywhere;
+      hyphens: auto;
+    }
     h1 {
       margin: 8px 0 18px;
       font-size: clamp(46px, 8vw, 72px);
@@ -98,36 +100,42 @@
       letter-spacing: -0.018em;
     }
     .meta { color: var(--muted); margin: 0; font-size: 17px; }
-    .languages {
+    .language-control {
       display: inline-flex;
-      gap: 4px;
+      align-items: center;
       margin-top: 30px;
-      padding: 4px;
-      border-radius: 999px;
-      background: var(--segment);
+      border-radius: 12px;
     }
-    .language-option {
-      appearance: none;
-      border: 0;
-      border-radius: 999px;
-      min-width: 92px;
-      padding: 8px 15px;
-      background: transparent;
-      color: var(--muted);
+    .language-select {
+      min-width: 176px;
+      min-height: 42px;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      padding: 8px 12px;
+      background: var(--control);
+      color: var(--text);
       font: inherit;
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 600;
       line-height: 1.2;
       cursor: pointer;
+      transition: background-color 160ms ease, border-color 160ms ease;
     }
-    .language-option[aria-pressed="true"] {
-      background: var(--segment-active);
-      color: var(--segment-active-text);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-    }
-    .language-option:focus-visible {
+    .language-select:hover { background: var(--control-hover); }
+    .language-select:focus-visible {
       outline: 3px solid var(--accent);
-      outline-offset: 2px;
+      outline-offset: 3px;
+    }
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
     }
     .localized-copy[hidden], .policy-panel[hidden] { display: none; }
     .policy-panel {
@@ -147,9 +155,20 @@
     @media (max-width: 600px) {
       .site-nav-inner { width: calc(100% - 32px); }
       .hero { padding: 58px 20px 52px; }
-      h1 { font-size: 44px; }
+      h1 { font-size: clamp(34px, 11vw, 44px); }
       .policy-panel { width: calc(100% - 40px); padding: 58px 0 76px; }
       h2 { margin-top: 44px; padding-top: 42px; font-size: 25px; }
+      .language-select { min-width: 168px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .language-select { transition: none; }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      .site-nav {
+        background: var(--page);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
     }
   </style>
 </head>
@@ -157,32 +176,31 @@
   <div class="site-nav">
     <div class="site-nav-inner">
       <span class="wordmark">Hashmark</span>
-      <span class="nav-section">
-        <span class="localized-copy" data-language-copy="en">Privacy</span>
-        <span class="localized-copy" data-language-copy="zh-Hans" lang="zh-Hans" hidden>隐私</span>
-      </span>
+      <span class="nav-section" id="nav-section-title">Privacy</span>
     </div>
   </div>
   <main>
     <header class="hero">
       <div class="hero-inner">
         <div class="eyebrow">Hashmark</div>
-        <h1>
-          <span class="localized-copy" data-language-copy="en">Privacy Policy</span>
-          <span class="localized-copy" data-language-copy="zh-Hans" lang="zh-Hans" hidden>隐私政策</span>
-        </h1>
-        <p class="meta">
-          <span class="localized-copy" data-language-copy="en">Effective date: August 30, 2026</span>
-          <span class="localized-copy" data-language-copy="zh-Hans" lang="zh-Hans" hidden>生效日期：2026 年 8 月 30 日</span>
-        </p>
-        <nav class="languages" id="language-selector" aria-label="Policy language">
-          <button class="language-option" type="button" data-language-option="en" aria-controls="english" aria-pressed="true">English</button>
-          <button class="language-option" type="button" data-language-option="zh-Hans" aria-controls="chinese" aria-pressed="false" lang="zh-Hans">简体中文</button>
-        </nav>
+        <h1 id="policy-title">Privacy Policy</h1>
+        <p class="meta" id="effective-date">Effective date: August 30, 2026</p>
+        <div class="language-control">
+          <label class="visually-hidden" for="language-selector" id="language-selector-label">Policy language</label>
+          <select class="language-select" id="language-selector" aria-labelledby="language-selector-label">
+            <option value="en">English</option>
+            <option value="zh-Hans">简体中文</option>
+            <option value="zh-Hant">繁體中文</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+            <option value="de">Deutsch</option>
+            <option value="ru">Русский</option>
+          </select>
+        </div>
       </div>
     </header>
 
-    <article class="policy-panel" id="english" lang="en">
+    <article class="policy-panel" id="policy-en" data-policy-language="en" lang="en">
       <h2>1. Overview</h2>
       <p>Hashmark is a Markdown editor for iPhone and iPad. Your documents are stored on your device by default. Hashmark does not operate an account system, advertising network, analytics service, or developer-controlled server, and it does not track you.</p>
 
@@ -225,7 +243,7 @@
       <p>For privacy questions, contact <a href="mailto:hello1024lc@gmail.com">hello1024lc@gmail.com</a>.</p>
     </article>
 
-    <article class="policy-panel" id="chinese" lang="zh-Hans" hidden>
+    <article class="policy-panel" id="policy-zh-Hans" data-policy-language="zh-Hans" lang="zh-Hans" hidden>
         <h2>1. 概述</h2>
         <p>Hashmark 是一款适用于 iPhone 和 iPad 的 Markdown 编辑器。文稿默认存储在你的设备上。Hashmark 不运营账号系统、广告网络、分析服务或开发者控制的服务器，也不会跟踪你。</p>
 
@@ -268,17 +286,302 @@
         <p>如有隐私问题，请联系 <a href="mailto:hello1024lc@gmail.com">hello1024lc@gmail.com</a>。</p>
     </article>
 
+    <article class="policy-panel" id="policy-zh-Hant" data-policy-language="zh-Hant" lang="zh-Hant" hidden>
+      <h2>1. 概覽</h2>
+      <p>Hashmark 是一款適用於 iPhone 和 iPad 的 Markdown 編輯器。文件預設儲存在你的裝置上。Hashmark 不營運帳號系統、廣告網路、分析服務或由開發者控制的伺服器，也不會追蹤你。</p>
+
+      <h2>2. 文件與本機資料</h2>
+      <p>文件、草稿、復原副本、App 偏好設定、AI 服務提供者設定和 API 金鑰均儲存在裝置上的 Hashmark App 容器內。檔案修改日期僅用於本機排序和顯示最近活動。Hashmark 不會將這些資訊傳送給開發者。</p>
+      <p>你可以在 Hashmark 或「檔案」App 中刪除文件。刪除 Hashmark 會移除僅儲存在本機 App 容器中的資料，但仍可能受到你與 Apple 管理的裝置備份影響。</p>
+
+      <h2>3. 選用的 iCloud 文件同步</h2>
+      <p>iCloud 同步預設關閉。啟用後，文件會傳輸至 Hashmark 的 iCloud Drive 容器，並由 Apple 依照你的 Apple 帳號、Apple 條款及隱私權政策處理。Hashmark 不會在開發者伺服器上另存副本。</p>
+      <p>關閉同步時，Hashmark 會先下載本機副本，且不會刪除雲端副本。你可以在「檔案」App 或 iCloud 設定中管理或刪除雲端副本。</p>
+
+      <h2>4. 選用的 AI 功能</h2>
+      <p>AI 功能為選用功能，並使用你自己的 API 金鑰。Hashmark 目前支援 OpenAI、Anthropic、Google Gemini、Moonshot Kimi 和 Zhipu GLM。你也可以為所選服務提供者的原生 API 格式設定自訂端點。</p>
+      <p>首次連線至某個服務提供者和端點前，Hashmark 會顯示資料接收方並要求你的許可。你允許後，為完成你主動要求的操作，Hashmark 可能將下列資料直接傳送至該服務提供者或自訂端點：</p>
+      <ul>
+        <li>你的 API 金鑰和所選模型資訊。</li>
+        <li>提示詞、選取的文字、文件內容和後續回答。</li>
+        <li>你明確加入的圖片、相機照片、PDF、文字檔或 Hashmark 文件。</li>
+        <li>你啟用服務提供者原生網路搜尋時產生的搜尋查詢。</li>
+      </ul>
+      <p>這些要求不會經過 Hashmark 開發者伺服器。所選服務提供者或自訂端點可能將要求與你的帳號連結，並依照其自身條款及隱私權政策保留或使用資料。請勿傳送你無權分享的資訊。使用自訂端點時，你有責任評估該端點的營運者。</p>
+      <p>你可以在「設定 → AI 端點 → 資料共享」中撤回目前服務提供者和端點的許可。撤回會阻止未來的要求，但無法刪除服務提供者已處理的資訊。如需行使與其持有資料相關的權利，請聯絡該服務提供者或端點營運者。</p>
+
+      <h2>5. 相機、照片與檔案</h2>
+      <p>只有在你主動選擇相應操作後，Hashmark 才會存取相機、照片或檔案。所選內容會保留在裝置上，除非你明確將其加入 AI 要求、透過系統分享表單分享、儲存匯出的圖片，或依照上述方式啟用 iCloud。</p>
+
+      <h2>6. 追蹤、分析與廣告</h2>
+      <p>Hashmark 不使用廣告識別碼、追蹤技術、第三方分析 SDK 或開發者營運的當機回報服務。Apple 可能依照其政策提供 TestFlight 和 App Store 診斷資訊。</p>
+
+      <h2>7. 保留與刪除</h2>
+      <p>本機內容會保留到你刪除內容或移除 App 為止。iCloud 內容會保留到你從 iCloud 刪除為止。Hashmark 會嘗試釋放為 AI 要求建立的暫時服務提供者檔案參照，但服務提供者端的保留期間由該服務提供者或自訂端點控制。Hashmark 開發者無法直接擷取或刪除由 Apple、AI 服務提供者或自訂端點持有的資料。</p>
+
+      <h2>8. 兒童</h2>
+      <p>Hashmark 並非以兒童為對象，也不會透過開發者營運的服務故意收集兒童的個人資訊。未取得適當授權前，請勿將兒童的個人資訊傳送給 AI 服務提供者。</p>
+
+      <h2>9. 政策變更</h2>
+      <p>當 Hashmark 的功能或資料處理方式有所變更時，本政策可能會更新。頁面頂端的生效日期表示最新版本。</p>
+
+      <h2>10. 聯絡方式</h2>
+      <p>如有隱私權問題，請聯絡 <a href="mailto:hello1024lc@gmail.com">hello1024lc@gmail.com</a>。</p>
+    </article>
+
+    <article class="policy-panel" id="policy-ja" data-policy-language="ja" lang="ja" hidden>
+      <h2>1. 概要</h2>
+      <p>Hashmarkは、iPhoneとiPad向けのMarkdownエディタです。書類は初期設定では端末上に保存されます。Hashmarkは、アカウントシステム、広告ネットワーク、分析サービス、開発者が管理するサーバを運営しておらず、ユーザーを追跡しません。</p>
+
+      <h2>2. 書類とローカルデータ</h2>
+      <p>書類、下書き、復旧用コピー、Appの設定、AIプロバイダの設定、APIキーは、端末上のHashmarkのAppコンテナ内に保存されます。ファイルの更新日時は、最近のアクティビティの並べ替えと表示のために端末内でのみ使用されます。Hashmarkがこれらの情報を開発者へ送信することはありません。</p>
+      <p>書類はHashmarkまたは「ファイル」Appから削除できます。Hashmarkを削除すると、ローカルのAppコンテナにのみ保存されているデータは削除されます。ただし、ユーザーとAppleが管理する端末バックアップの影響を受ける場合があります。</p>
+
+      <h2>3. 任意のiCloud書類同期</h2>
+      <p>iCloud同期は初期設定ではオフです。有効にすると、書類はHashmarkのiCloud Driveコンテナへ転送され、ユーザーのApple Account、Appleの規約、プライバシーポリシーに基づいてAppleが処理します。Hashmarkが開発者のサーバに別のコピーを保持することはありません。</p>
+      <p>同期をオフにする際は、Hashmarkが先にローカルコピーをダウンロードします。クラウド上のコピーは削除されません。クラウド上のコピーは「ファイル」AppまたはiCloud設定で管理、削除できます。</p>
+
+      <h2>4. 任意のAI機能</h2>
+      <p>AI機能は任意であり、ユーザー自身のAPIキーを使用します。Hashmarkは現在、OpenAI、Anthropic、Google Gemini、Moonshot Kimi、Zhipu GLMに対応しています。選択したプロバイダのネイティブAPI形式に対応するカスタムエンドポイントも設定できます。</p>
+      <p>プロバイダとエンドポイントへ初めて接続する前に、Hashmarkはデータの送信先を表示し、許可を求めます。許可した場合、ユーザーが要求した処理を行うために、次のデータがそのプロバイダまたはカスタムエンドポイントへ直接送信されることがあります。</p>
+      <ul>
+        <li>APIキーと選択したモデルの情報。</li>
+        <li>プロンプト、選択したテキスト、書類のコンテキスト、追加の回答。</li>
+        <li>ユーザーが明示的に添付した画像、カメラ写真、PDF、テキストファイル、Hashmarkの書類。</li>
+        <li>プロバイダのネイティブWeb検索を有効にした場合の検索クエリ。</li>
+      </ul>
+      <p>これらのリクエストはHashmark開発者のサーバを経由しません。選択したプロバイダまたはカスタムエンドポイントは、独自の規約とプライバシーポリシーに基づき、リクエストをユーザーのアカウントに関連付け、データを保持または使用する場合があります。共有する権限のない情報を送信しないでください。カスタムエンドポイントを使用する場合、その運営者を評価する責任はユーザーにあります。</p>
+      <p>現在のプロバイダとエンドポイントに対する許可は、「設定 → AIエンドポイント → データ共有」で撤回できます。撤回すると今後のリクエストは停止しますが、プロバイダがすでに処理した情報は削除されません。プロバイダが保持するデータに関する権利を行使する場合は、そのプロバイダまたはエンドポイントの運営者にお問い合わせください。</p>
+
+      <h2>5. カメラ、写真、ファイル</h2>
+      <p>カメラ、写真、ファイルへのアクセスは、ユーザーが対応する操作を選択した場合にのみ行われます。選択した内容は、AIリクエストへ明示的に添付する、システムの共有シートで共有する、書き出した画像を保存する、または上記の方法でiCloudを有効にする場合を除き、端末上に保持されます。</p>
+
+      <h2>6. 追跡、分析、広告</h2>
+      <p>Hashmarkは、広告識別子、追跡技術、第三者の分析SDK、開発者が運営するクラッシュ報告サービスを使用しません。Appleは、独自のポリシーに基づいてTestFlightおよびApp Storeの診断情報を提供する場合があります。</p>
+
+      <h2>7. 保持と削除</h2>
+      <p>ローカルの内容は、ユーザーが削除するかAppを削除するまで保持されます。iCloudの内容は、ユーザーがiCloudから削除するまで保持されます。Hashmarkは、AIリクエストのために作成した一時的なプロバイダ側ファイル参照の解放を試みますが、プロバイダ側の保持期間は、そのプロバイダまたはカスタムエンドポイントによって管理されます。Hashmarkの開発者は、Apple、AIプロバイダ、カスタムエンドポイントが保持するデータを直接取得または削除できません。</p>
+
+      <h2>8. 子ども</h2>
+      <p>Hashmarkは子どもを対象としておらず、開発者が運営するサービスを通じて子どもの個人情報を意図的に収集しません。適切な権限がない限り、子どもの個人情報をAIプロバイダへ送信しないでください。</p>
+
+      <h2>9. 変更</h2>
+      <p>Hashmarkの機能またはデータの取り扱いが変更された場合、本ポリシーを更新することがあります。ページ上部の発効日が最新バージョンを示します。</p>
+
+      <h2>10. お問い合わせ</h2>
+      <p>プライバシーに関するお問い合わせは、<a href="mailto:hello1024lc@gmail.com">hello1024lc@gmail.com</a>までご連絡ください。</p>
+    </article>
+
+    <article class="policy-panel" id="policy-ko" data-policy-language="ko" lang="ko" hidden>
+      <h2>1. 개요</h2>
+      <p>Hashmark는 iPhone 및 iPad용 Markdown 편집기입니다. 문서는 기본적으로 사용자의 기기에 저장됩니다. Hashmark는 계정 시스템, 광고 네트워크, 분석 서비스 또는 개발자가 관리하는 서버를 운영하지 않으며 사용자를 추적하지 않습니다.</p>
+
+      <h2>2. 문서 및 로컬 데이터</h2>
+      <p>문서, 초안, 복구 사본, App 환경설정, AI 제공업체 설정 및 API 키는 기기의 Hashmark App 컨테이너 안에 저장됩니다. 파일 수정 날짜는 최근 활동을 정렬하고 표시하기 위해 기기에서만 사용됩니다. Hashmark는 이 정보를 개발자에게 전송하지 않습니다.</p>
+      <p>Hashmark 또는 파일 App에서 문서를 삭제할 수 있습니다. Hashmark를 삭제하면 로컬 App 컨테이너에만 저장된 데이터가 삭제됩니다. 다만 사용자와 Apple이 관리하는 기기 백업의 영향을 받을 수 있습니다.</p>
+
+      <h2>3. 선택적 iCloud 문서 동기화</h2>
+      <p>iCloud 동기화는 기본적으로 꺼져 있습니다. 사용자가 활성화하면 문서가 Hashmark의 iCloud Drive 컨테이너로 전송되며 Apple이 사용자의 Apple Account, Apple 약관 및 개인정보 처리방침에 따라 처리합니다. Hashmark는 개발자 서버에 별도의 사본을 보관하지 않습니다.</p>
+      <p>동기화를 끄면 Hashmark가 먼저 로컬 사본을 다운로드하며 클라우드 사본은 삭제하지 않습니다. 파일 App 또는 iCloud 설정에서 클라우드 사본을 관리하거나 삭제할 수 있습니다.</p>
+
+      <h2>4. 선택적 AI 기능</h2>
+      <p>AI 기능은 선택 사항이며 사용자의 API 키를 사용합니다. Hashmark는 현재 OpenAI, Anthropic, Google Gemini, Moonshot Kimi 및 Zhipu GLM을 지원합니다. 선택한 제공업체의 기본 API 형식에 맞는 사용자 지정 엔드포인트를 설정할 수도 있습니다.</p>
+      <p>제공업체와 엔드포인트에 처음 연결하기 전에 Hashmark는 데이터 수신자를 표시하고 사용자의 허가를 요청합니다. 사용자가 허용하면 요청한 작업을 수행하기 위해 다음 데이터가 해당 제공업체 또는 사용자 지정 엔드포인트로 직접 전송될 수 있습니다.</p>
+      <ul>
+        <li>API 키와 선택한 모델 정보.</li>
+        <li>프롬프트, 선택한 텍스트, 문서 컨텍스트 및 후속 답변.</li>
+        <li>사용자가 명시적으로 첨부한 이미지, 카메라 사진, PDF, 텍스트 파일 또는 Hashmark 문서.</li>
+        <li>제공업체의 기본 웹 검색을 활성화했을 때의 검색어.</li>
+      </ul>
+      <p>이러한 요청은 Hashmark 개발자 서버를 거치지 않습니다. 선택한 제공업체 또는 사용자 지정 엔드포인트는 자체 약관과 개인정보 처리방침에 따라 요청을 사용자 계정과 연결하고 데이터를 보관하거나 사용할 수 있습니다. 공유할 권한이 없는 정보를 전송하지 마십시오. 사용자 지정 엔드포인트를 사용하는 경우 해당 운영자를 평가할 책임은 사용자에게 있습니다.</p>
+      <p>현재 제공업체 및 엔드포인트에 대한 허가는 설정 → AI 엔드포인트 → 데이터 공유에서 철회할 수 있습니다. 철회하면 향후 요청은 중단되지만 제공업체가 이미 처리한 정보는 삭제되지 않습니다. 제공업체가 보유한 데이터와 관련된 권리를 행사하려면 해당 제공업체 또는 엔드포인트 운영자에게 문의하십시오.</p>
+
+      <h2>5. 카메라, 사진 및 파일</h2>
+      <p>카메라, 사진 및 파일 접근은 사용자가 해당 작업을 선택한 경우에만 이루어집니다. 선택한 콘텐츠는 AI 요청에 명시적으로 첨부하거나, 시스템 공유 시트로 공유하거나, 내보낸 이미지를 저장하거나, 위에서 설명한 방식으로 iCloud를 활성화하지 않는 한 기기에 남아 있습니다.</p>
+
+      <h2>6. 추적, 분석 및 광고</h2>
+      <p>Hashmark는 광고 식별자, 추적 기술, 제3자 분석 SDK 또는 개발자가 운영하는 충돌 보고 서비스를 사용하지 않습니다. Apple은 자체 정책에 따라 TestFlight 및 App Store 진단 정보를 제공할 수 있습니다.</p>
+
+      <h2>7. 보관 및 삭제</h2>
+      <p>로컬 콘텐츠는 사용자가 삭제하거나 App을 제거할 때까지 보관됩니다. iCloud 콘텐츠는 사용자가 iCloud에서 삭제할 때까지 보관됩니다. Hashmark는 AI 요청을 위해 생성된 임시 제공업체 파일 참조를 해제하려고 시도하지만 제공업체 측 보관 기간은 해당 제공업체 또는 사용자 지정 엔드포인트가 관리합니다. Hashmark 개발자는 Apple, AI 제공업체 또는 사용자 지정 엔드포인트가 보유한 데이터를 직접 조회하거나 삭제할 수 없습니다.</p>
+
+      <h2>8. 아동</h2>
+      <p>Hashmark는 아동을 대상으로 하지 않으며 개발자가 운영하는 서비스를 통해 아동의 개인정보를 고의로 수집하지 않습니다. 적절한 권한 없이 아동의 개인정보를 AI 제공업체로 전송하지 마십시오.</p>
+
+      <h2>9. 변경</h2>
+      <p>Hashmark의 기능 또는 데이터 처리 방식이 변경되면 이 정책이 업데이트될 수 있습니다. 페이지 상단의 시행일이 최신 버전을 나타냅니다.</p>
+
+      <h2>10. 문의</h2>
+      <p>개인정보 보호 관련 문의는 <a href="mailto:hello1024lc@gmail.com">hello1024lc@gmail.com</a>으로 연락해 주십시오.</p>
+    </article>
+
+    <article class="policy-panel" id="policy-de" data-policy-language="de" lang="de" hidden>
+      <h2>1. Überblick</h2>
+      <p>Hashmark ist ein Markdown-Editor für iPhone und iPad. Deine Dokumente werden standardmäßig auf deinem Gerät gespeichert. Hashmark betreibt kein Kontosystem, Werbenetzwerk, keinen Analysedienst und keinen vom Entwickler kontrollierten Server. Hashmark verfolgt dich nicht.</p>
+
+      <h2>2. Dokumente und lokale Daten</h2>
+      <p>Dokumente, Entwürfe, Wiederherstellungskopien, App-Einstellungen, Einstellungen für KI-Anbieter und API-Schlüssel werden im App-Container von Hashmark auf deinem Gerät gespeichert. Änderungsdaten von Dateien werden nur lokal verwendet, um letzte Aktivitäten zu sortieren und anzuzeigen. Hashmark sendet diese Informationen nicht an den Entwickler.</p>
+      <p>Du kannst Dokumente in Hashmark oder in der Dateien-App löschen. Wenn du Hashmark löschst, werden Daten entfernt, die nur im lokalen App-Container gespeichert sind. Von dir und Apple verwaltete Gerätesicherungen können davon unberührt bleiben.</p>
+
+      <h2>3. Optionale iCloud-Dokumente</h2>
+      <p>Die iCloud-Synchronisierung ist standardmäßig deaktiviert. Wenn du sie aktivierst, werden deine Dokumente in den iCloud Drive-Container von Hashmark übertragen und von Apple gemäß deinem Apple Account sowie den Bedingungen und Datenschutzrichtlinien von Apple verarbeitet. Hashmark speichert keine separate Kopie auf einem Entwickler-Server.</p>
+      <p>Beim Deaktivieren der Synchronisierung lädt Hashmark zunächst eine lokale Kopie herunter und löscht die Cloud-Kopie nicht. Du kannst die Cloud-Kopie in der Dateien-App oder in deinen iCloud-Einstellungen verwalten oder löschen.</p>
+
+      <h2>4. Optionale KI-Funktionen</h2>
+      <p>KI-Funktionen sind optional und verwenden deinen eigenen API-Schlüssel. Hashmark unterstützt derzeit OpenAI, Anthropic, Google Gemini, Moonshot Kimi und Zhipu GLM. Du kannst außerdem einen benutzerdefinierten Endpunkt für das native API-Format des ausgewählten Anbieters konfigurieren.</p>
+      <p>Vor der ersten Verbindung mit einem Anbieter und Endpunkt zeigt Hashmark den Empfänger an und bittet um deine Erlaubnis. Wenn du zustimmst, kann Hashmark die folgenden Daten direkt an diesen Anbieter oder benutzerdefinierten Endpunkt senden, um die von dir angeforderte Aktion auszuführen:</p>
+      <ul>
+        <li>Deinen API-Schlüssel und Informationen zum ausgewählten Modell.</li>
+        <li>Deine Eingabe, ausgewählten Text, Dokumentkontext und weitere Antworten.</li>
+        <li>Bilder, Kamerafotos, PDF-Dateien, Textdateien oder Hashmark-Dokumente, die du ausdrücklich anhängst.</li>
+        <li>Suchanfragen, wenn du die native Websuche des Anbieters aktivierst.</li>
+      </ul>
+      <p>Diese Anfragen laufen nicht über einen Server des Hashmark-Entwicklers. Der ausgewählte Anbieter oder benutzerdefinierte Endpunkt kann Anfragen deinem Konto zuordnen und Daten gemäß eigenen Bedingungen und Datenschutzrichtlinien speichern oder verwenden. Sende keine Informationen, zu deren Weitergabe du nicht berechtigt bist. Bei benutzerdefinierten Endpunkten bist du für die Bewertung des Betreibers verantwortlich.</p>
+      <p>Du kannst die Erlaubnis für den aktuellen Anbieter und Endpunkt unter Einstellungen → KI-Endpunkt → Datenfreigabe widerrufen. Der Widerruf verhindert zukünftige Anfragen, kann jedoch keine Informationen löschen, die der Anbieter bereits verarbeitet hat. Wende dich an den Anbieter oder Endpunktbetreiber, um Rechte in Bezug auf die dort gespeicherten Daten auszuüben.</p>
+
+      <h2>5. Kamera, Fotos und Dateien</h2>
+      <p>Der Zugriff auf Kamera, Fotos und Dateien erfolgt nur, nachdem du die entsprechende Aktion ausgewählt hast. Ausgewählte Inhalte bleiben auf dem Gerät, sofern du sie nicht ausdrücklich an eine KI-Anfrage anhängst, über das System-Teilen-Menü weitergibst, ein exportiertes Bild speicherst oder iCloud wie oben beschrieben aktivierst.</p>
+
+      <h2>6. Tracking, Analyse und Werbung</h2>
+      <p>Hashmark verwendet keine Werbekennungen, Tracking-Technologien, Analyse-SDKs von Drittanbietern oder einen vom Entwickler betriebenen Absturzberichtsdienst. Apple kann gemäß eigenen Richtlinien Diagnoseinformationen aus TestFlight und dem App Store bereitstellen.</p>
+
+      <h2>7. Speicherung und Löschung</h2>
+      <p>Lokale Inhalte bleiben gespeichert, bis du sie löschst oder die App entfernst. iCloud-Inhalte bleiben gespeichert, bis du sie aus iCloud löschst. Hashmark versucht, temporäre Dateireferenzen des Anbieters freizugeben, die für eine KI-Anfrage erstellt wurden. Die anbieterseitige Speicherdauer wird jedoch vom Anbieter oder benutzerdefinierten Endpunkt bestimmt. Der Entwickler von Hashmark kann Daten, die von Apple, einem KI-Anbieter oder einem benutzerdefinierten Endpunkt gespeichert werden, nicht direkt abrufen oder löschen.</p>
+
+      <h2>8. Kinder</h2>
+      <p>Hashmark richtet sich nicht an Kinder und erfasst über einen vom Entwickler betriebenen Dienst nicht wissentlich personenbezogene Daten von Kindern. Sende ohne entsprechende Berechtigung keine personenbezogenen Daten eines Kindes an einen KI-Anbieter.</p>
+
+      <h2>9. Änderungen</h2>
+      <p>Diese Richtlinie kann aktualisiert werden, wenn sich die Funktionen oder Datenpraktiken von Hashmark ändern. Das Datum oben auf der Seite kennzeichnet die aktuelle Version.</p>
+
+      <h2>10. Kontakt</h2>
+      <p>Bei Fragen zum Datenschutz kontaktiere <a href="mailto:hello1024lc@gmail.com">hello1024lc@gmail.com</a>.</p>
+    </article>
+
+    <article class="policy-panel" id="policy-ru" data-policy-language="ru" lang="ru" hidden>
+      <h2>1. Общая информация</h2>
+      <p>Hashmark представляет собой редактор Markdown для iPhone и iPad. По умолчанию документы хранятся на вашем устройстве. Hashmark не использует систему учетных записей, рекламную сеть, службу аналитики или сервер под управлением разработчика и не отслеживает вас.</p>
+
+      <h2>2. Документы и локальные данные</h2>
+      <p>Документы, черновики, резервные копии для восстановления, настройки приложения, настройки поставщиков ИИ и ключи API хранятся в контейнере приложения Hashmark на вашем устройстве. Даты изменения файлов используются только локально для сортировки и отображения недавних действий. Hashmark не отправляет эту информацию разработчику.</p>
+      <p>Вы можете удалить документы в Hashmark или приложении «Файлы». При удалении Hashmark удаляются данные, хранящиеся только в локальном контейнере приложения. При этом могут сохраняться резервные копии устройства, которыми управляете вы и Apple.</p>
+
+      <h2>3. Необязательная синхронизация документов iCloud</h2>
+      <p>По умолчанию синхронизация iCloud отключена. Если вы включите ее, документы будут передаваться в контейнер Hashmark в iCloud Drive и обрабатываться Apple в соответствии с вашей учетной записью Apple Account, условиями Apple и политикой конфиденциальности Apple. Hashmark не хранит отдельную копию на сервере разработчика.</p>
+      <p>При отключении синхронизации Hashmark сначала загружает локальную копию и не удаляет облачную копию. Облачной копией можно управлять или удалить ее в приложении «Файлы» либо настройках iCloud.</p>
+
+      <h2>4. Необязательные функции ИИ</h2>
+      <p>Функции ИИ являются необязательными и используют ваш собственный ключ API. В настоящее время Hashmark поддерживает OpenAI, Anthropic, Google Gemini, Moonshot Kimi и Zhipu GLM. Вы также можете настроить собственную конечную точку для нативного формата API выбранного поставщика.</p>
+      <p>Перед первым подключением к поставщику и конечной точке Hashmark показывает получателя данных и запрашивает ваше разрешение. Если вы разрешите передачу, Hashmark может отправить следующие данные непосредственно этому поставщику или собственной конечной точке для выполнения запрошенного действия:</p>
+      <ul>
+        <li>Ваш ключ API и сведения о выбранной модели.</li>
+        <li>Ваш запрос, выбранный текст, контекст документа и последующие ответы.</li>
+        <li>Изображения, фотографии с камеры, PDF-файлы, текстовые файлы или документы Hashmark, которые вы явно прикрепляете.</li>
+        <li>Поисковые запросы, если вы включаете встроенный веб-поиск поставщика.</li>
+      </ul>
+      <p>Эти запросы не проходят через сервер разработчика Hashmark. Выбранный поставщик или собственная конечная точка может связать запросы с вашей учетной записью и хранить либо использовать данные в соответствии со своими условиями и политикой конфиденциальности. Не отправляйте информацию, которой вы не имеете права делиться. При использовании собственной конечной точки вы обязаны самостоятельно оценить ее оператора.</p>
+      <p>Вы можете отозвать разрешение для текущего поставщика и конечной точки в разделе «Настройки → Конечная точка ИИ → Передача данных». Отзыв остановит будущие запросы, но не удалит информацию, уже обработанную поставщиком. Чтобы воспользоваться правами в отношении данных, хранящихся у поставщика, обратитесь к нему или оператору конечной точки.</p>
+
+      <h2>5. Камера, фотографии и файлы</h2>
+      <p>Доступ к камере, фотографиям и файлам осуществляется только после выбора соответствующего действия. Выбранные материалы остаются на устройстве, если только вы явно не прикрепите их к запросу ИИ, не отправите через системное меню «Поделиться», не сохраните экспортированное изображение или не включите iCloud, как описано выше.</p>
+
+      <h2>6. Отслеживание, аналитика и реклама</h2>
+      <p>Hashmark не использует рекламные идентификаторы, технологии отслеживания, сторонние SDK аналитики или службу отчетов о сбоях под управлением разработчика. Apple может предоставлять диагностические данные TestFlight и App Store в соответствии со своими политиками.</p>
+
+      <h2>7. Хранение и удаление</h2>
+      <p>Локальные материалы хранятся, пока вы не удалите их или приложение. Материалы iCloud хранятся, пока вы не удалите их из iCloud. Hashmark пытается освобождать временные ссылки на файлы поставщика, созданные для запроса ИИ, но срок хранения у поставщика определяется поставщиком или собственной конечной точкой. Разработчик Hashmark не может напрямую получить или удалить данные, хранящиеся у Apple, поставщика ИИ или собственной конечной точки.</p>
+
+      <h2>8. Дети</h2>
+      <p>Hashmark не предназначен для детей и сознательно не собирает персональные данные детей через службу под управлением разработчика. Не отправляйте персональные данные ребенка поставщику ИИ без соответствующего разрешения.</p>
+
+      <h2>9. Изменения</h2>
+      <p>Эта политика может обновляться при изменении функций Hashmark или способов обработки данных. Дата вступления в силу в верхней части страницы обозначает последнюю версию.</p>
+
+      <h2>10. Контакты</h2>
+      <p>По вопросам конфиденциальности обращайтесь по адресу <a href="mailto:hello1024lc@gmail.com">hello1024lc@gmail.com</a>.</p>
+    </article>
+
     <footer>Hashmark · iPhone &amp; iPad</footer>
   </main>
   <script>
     (() => {
-      const languageOptions = Array.from(document.querySelectorAll("[data-language-option]"));
-      const localizedCopies = Array.from(document.querySelectorAll("[data-language-copy]"));
       const languageSelector = document.getElementById("language-selector");
+      const languageSelectorLabel = document.getElementById("language-selector-label");
+      const navSectionTitle = document.getElementById("nav-section-title");
+      const policyTitle = document.getElementById("policy-title");
+      const effectiveDate = document.getElementById("effective-date");
       const description = document.querySelector('meta[name="description"]');
-      const panels = {
-        en: document.getElementById("english"),
-        "zh-Hans": document.getElementById("chinese")
+      const panels = Array.from(document.querySelectorAll("[data-policy-language]"));
+      const copy = {
+        en: {
+          nav: "Privacy",
+          title: "Privacy Policy",
+          date: "Effective date: August 30, 2026",
+          label: "Policy language",
+          description: "Privacy Policy for the Hashmark Markdown editor for iPhone and iPad."
+        },
+        "zh-Hans": {
+          nav: "隐私",
+          title: "隐私政策",
+          date: "生效日期：2026 年 8 月 30 日",
+          label: "隐私政策语言",
+          description: "Hashmark iPhone 与 iPad Markdown 编辑器隐私政策。"
+        },
+        "zh-Hant": {
+          nav: "隱私權",
+          title: "隱私權政策",
+          date: "生效日期：2026 年 8 月 30 日",
+          label: "隱私權政策語言",
+          description: "Hashmark iPhone 與 iPad Markdown 編輯器隱私權政策。"
+        },
+        ja: {
+          nav: "プライバシー",
+          title: "プライバシーポリシー",
+          date: "発効日：2026年8月30日",
+          label: "ポリシーの言語",
+          description: "iPhoneとiPad向けMarkdownエディタHashmarkのプライバシーポリシー。"
+        },
+        ko: {
+          nav: "개인정보 보호",
+          title: "개인정보 처리방침",
+          date: "시행일: 2026년 8월 30일",
+          label: "정책 언어",
+          description: "iPhone 및 iPad용 Markdown 편집기 Hashmark의 개인정보 처리방침입니다."
+        },
+        de: {
+          nav: "Datenschutz",
+          title: "Datenschutzrichtlinie",
+          date: "Gültig ab: 30. August 2026",
+          label: "Sprache der Richtlinie",
+          description: "Datenschutzrichtlinie für den Hashmark Markdown-Editor für iPhone und iPad."
+        },
+        ru: {
+          nav: "Конфиденциальность",
+          title: "Политика конфиденциальности",
+          date: "Дата вступления в силу: 30 августа 2026 г.",
+          label: "Язык политики",
+          description: "Политика конфиденциальности редактора Markdown Hashmark для iPhone и iPad."
+        }
+      };
+
+      const normalizeLanguage = (value) => {
+        if (!value) return null;
+        const language = value.trim().replaceAll("_", "-").toLowerCase();
+        if (language.startsWith("zh-hant") || /^zh-(tw|hk|mo)(-|$)/.test(language)) {
+          return "zh-Hant";
+        }
+        if (language.startsWith("zh")) return "zh-Hans";
+        if (language.startsWith("ja")) return "ja";
+        if (language.startsWith("ko")) return "ko";
+        if (language.startsWith("de")) return "de";
+        if (language.startsWith("ru")) return "ru";
+        if (language.startsWith("en")) return "en";
+        return null;
+      };
+
+      const languageFromQuery = () => {
+        const params = new URLSearchParams(window.location.search);
+        return normalizeLanguage(params.get("lang"));
       };
 
       const languageFromHash = () => {
@@ -292,51 +595,46 @@
         const languages = navigator.languages?.length
           ? navigator.languages
           : [navigator.language || "en"];
-        return languages.some((language) => language.toLowerCase().startsWith("zh"))
-          ? "zh-Hans"
-          : "en";
+        return languages.map(normalizeLanguage).find(Boolean) || "en";
       };
 
-      const showLanguage = (language, updateHash = false) => {
-        const selected = language === "zh-Hans" ? "zh-Hans" : "en";
+      const showLanguage = (language, updateURL = false) => {
+        const selected = copy[language] ? language : "en";
+        const selectedCopy = copy[selected];
         document.documentElement.lang = selected;
-        document.title = selected === "zh-Hans"
-          ? "Hashmark 隐私政策"
-          : "Hashmark Privacy Policy";
-        languageSelector.setAttribute(
-          "aria-label",
-          selected === "zh-Hans" ? "隐私政策语言" : "Policy language"
-        );
-        description.content = selected === "zh-Hans"
-          ? "Hashmark iPhone 与 iPad Markdown 编辑器隐私政策。"
-          : "Privacy Policy for the Hashmark Markdown editor for iPhone and iPad.";
+        document.title = `Hashmark ${selectedCopy.title}`;
+        description.content = selectedCopy.description;
+        navSectionTitle.textContent = selectedCopy.nav;
+        policyTitle.textContent = selectedCopy.title;
+        effectiveDate.textContent = selectedCopy.date;
+        languageSelectorLabel.textContent = selectedCopy.label;
+        languageSelector.value = selected;
 
-        Object.entries(panels).forEach(([key, panel]) => {
-          panel.hidden = key !== selected;
-        });
-        localizedCopies.forEach((copy) => {
-          copy.hidden = copy.dataset.languageCopy !== selected;
-        });
-        languageOptions.forEach((option) => {
-          option.setAttribute("aria-pressed", String(option.dataset.languageOption === selected));
+        panels.forEach((panel) => {
+          panel.hidden = panel.dataset.policyLanguage !== selected;
         });
 
-        if (updateHash) {
-          const hash = selected === "zh-Hans" ? "#chinese" : "#english";
-          history.replaceState(null, "", hash);
+        if (updateURL) {
+          const url = new URL(window.location.href);
+          url.searchParams.set("lang", selected);
+          url.hash = "";
+          history.replaceState(null, "", url);
         }
       };
 
-      languageOptions.forEach((option) => {
-        option.addEventListener("click", () => {
-          showLanguage(option.dataset.languageOption, true);
-        });
+      languageSelector.addEventListener("change", () => {
+        showLanguage(languageSelector.value, true);
       });
-      window.addEventListener("hashchange", () => {
-        showLanguage(languageFromHash() || preferredLanguage());
+      window.addEventListener("popstate", () => {
+        showLanguage(languageFromQuery() || preferredLanguage());
       });
 
-      showLanguage(languageFromHash() || preferredLanguage());
+      const queryLanguage = languageFromQuery();
+      const legacyLanguage = languageFromHash();
+      showLanguage(
+        queryLanguage || legacyLanguage || preferredLanguage(),
+        !queryLanguage || Boolean(legacyLanguage)
+      );
     })();
   </script>
 </body>

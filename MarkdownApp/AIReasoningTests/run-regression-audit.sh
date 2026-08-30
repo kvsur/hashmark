@@ -117,6 +117,18 @@ done
 
 rg -q --fixed-strings 'https://kvsur.github.io/hashmark/privacy/' "$app_links" \
   || fail "App privacy URL does not match the GitHub Pages target"
+for policy_language in en zh-Hans zh-Hant ja ko de ru; do
+  rg -q --fixed-strings "value=\"$policy_language\"" "$privacy_page" \
+    || fail "Privacy policy selector is missing language: $policy_language"
+  rg -q --fixed-strings "data-policy-language=\"$policy_language\"" "$privacy_page" \
+    || fail "Privacy policy content is missing language: $policy_language"
+done
+rg -q --fixed-strings 'URLSearchParams(window.location.search)' "$privacy_page" \
+  || fail "Privacy policy does not read the explicit lang query parameter"
+rg -q --fixed-strings 'navigator.languages' "$privacy_page" \
+  || fail "Privacy policy does not fall back to the browser language"
+rg -q --fixed-strings 'URLQueryItem(name: "lang", value: LocalizationController.resolved.rawValue)' "$app_links" \
+  || fail "App privacy link does not carry the resolved App language"
 rg -q --fixed-strings 'AppLinks.privacyPolicy' "$about_view" \
   || fail "About screen does not expose the privacy policy"
 rg -q --fixed-strings 'AIDataSharingConsentStore().hasConsent' "$app_dir/Models/AIClient.swift" \
