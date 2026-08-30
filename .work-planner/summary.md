@@ -58,6 +58,7 @@ Hashmark 的功能开发、调试与真机验证已经完成；本计划把当�
 | C13 | Apple App Privacy 配置说明 | `https://developer.apple.com/help/app-store-connect/manage-app-information/manage-app-privacy/` | S2a/S3 公开隐私 URL 与后台隐私回答 |
 | C14 | 当前“关于”页 | `MarkdownApp/MarkdownApp/Features/Settings/AboutView.swift` | S2a 添加易访问隐私政策入口的位置 |
 | C15 | Hashmark 数据流审计 | `.work-planner/context/s2a-data-flow-audit-2026-08-30.md` | S2a 政策内容、App Privacy 回答与 AI 授权边界的事实基线 |
+| C16 | App Store Connect 账户未启用提示 | `.work-planner/context/app-store-connect-itunes-connect-not-enabled-2026-08-30.md` | S1 二次身份审核提交后仍未开通 App Store Connect 的最新证据 |
 
 ## Assumptions and Open Questions
 
