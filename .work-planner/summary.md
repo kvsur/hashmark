@@ -59,6 +59,7 @@ Hashmark 的功能开发、调试与真机验证已经完成；本计划把当�
 | C14 | 当前“关于”页 | `MarkdownApp/MarkdownApp/Features/Settings/AboutView.swift` | S2a 添加易访问隐私政策入口的位置 |
 | C15 | Hashmark 数据流审计 | `.work-planner/context/s2a-data-flow-audit-2026-08-30.md` | S2a 政策内容、App Privacy 回答与 AI 授权边界的事实基线 |
 | C16 | App Store Connect 账户未启用提示 | `.work-planner/context/app-store-connect-itunes-connect-not-enabled-2026-08-30.md` | S1 二次身份审核提交后仍未开通 App Store Connect 的最新证据 |
+| C17 | S2a 真机隐私授权验收 | `.work-planner/context/s2a-device-consent-verification-2026-08-30.md` | S2a 拒绝、允许、更换 Endpoint、撤回及隐私链接的最终真机证据 |
 
 ## Assumptions and Open Questions
 
