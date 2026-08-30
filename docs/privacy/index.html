@@ -9,76 +9,180 @@
   <style>
     :root {
       color-scheme: light dark;
-      --page: #f5f5f1;
-      --surface: rgba(255, 255, 255, 0.78);
-      --text: #171714;
-      --muted: #686861;
-      --line: rgba(23, 23, 20, 0.12);
-      --accent: #2e5d48;
+      --page: #ffffff;
+      --section: #f5f5f7;
+      --nav: rgba(255, 255, 255, 0.82);
+      --text: #1d1d1f;
+      --muted: #6e6e73;
+      --line: #d2d2d7;
+      --accent: #0066cc;
+      --segment: #e8e8ed;
+      --segment-active: #ffffff;
+      --segment-active-text: #1d1d1f;
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --page: #111210;
-        --surface: rgba(30, 31, 28, 0.82);
-        --text: #f1f0e9;
-        --muted: #b0afa7;
-        --line: rgba(241, 240, 233, 0.14);
-        --accent: #9bc8ae;
+        --page: #000000;
+        --section: #1d1d1f;
+        --nav: rgba(22, 22, 23, 0.82);
+        --text: #f5f5f7;
+        --muted: #a1a1a6;
+        --line: #424245;
+        --accent: #2997ff;
+        --segment: #2c2c2e;
+        --segment-active: #f5f5f7;
+        --segment-active-text: #1d1d1f;
       }
     }
     * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
     body {
       margin: 0;
       background: var(--page);
       color: var(--text);
-      font: 16px/1.7 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+      font: 17px/1.58 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+      letter-spacing: -0.012em;
+      -webkit-font-smoothing: antialiased;
     }
-    main {
-      width: min(760px, calc(100% - 32px));
-      margin: 48px auto 80px;
+    .site-nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 1px solid var(--line);
+      background: var(--nav);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
     }
-    header, article {
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-radius: 22px;
-      padding: clamp(24px, 5vw, 48px);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
+    .site-nav-inner {
+      width: min(980px, calc(100% - 44px));
+      height: 52px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
-    article { margin-top: 18px; }
-    h1, h2 { letter-spacing: -0.025em; line-height: 1.2; }
-    h1 { margin: 0 0 12px; font-size: clamp(34px, 8vw, 56px); }
-    h2 { margin: 36px 0 10px; font-size: 22px; }
-    h2:first-child { margin-top: 0; }
-    p, li { max-width: 68ch; }
-    ul { padding-left: 1.25rem; }
+    .wordmark { font-size: 20px; font-weight: 600; letter-spacing: -0.022em; }
+    .nav-section { color: var(--muted); font-size: 13px; font-weight: 500; }
+    main { min-height: calc(100vh - 52px); }
+    .hero {
+      border-bottom: 1px solid var(--line);
+      background: var(--section);
+      padding: 88px 24px 76px;
+      text-align: center;
+    }
+    .hero-inner { width: min(760px, 100%); margin: 0 auto; }
+    h1, h2 { line-height: 1.08; }
+    h1 {
+      margin: 8px 0 18px;
+      font-size: clamp(46px, 8vw, 72px);
+      font-weight: 700;
+      letter-spacing: -0.048em;
+    }
+    h2 {
+      margin: 56px 0 17px;
+      padding-top: 52px;
+      border-top: 1px solid var(--line);
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: -0.032em;
+    }
+    h2:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+    p { margin: 0 0 18px; }
+    ul { margin: 2px 0 22px; padding-left: 1.3rem; }
+    li { margin: 8px 0; padding-left: 3px; }
     a { color: var(--accent); text-underline-offset: 3px; }
-    .eyebrow { color: var(--accent); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-    .meta { color: var(--muted); margin: 0; }
-    .languages { display: flex; gap: 14px; margin-top: 22px; }
-    .languages a { font-weight: 600; }
-    .notice {
-      border-left: 3px solid var(--accent);
-      padding-left: 16px;
+    .eyebrow {
       color: var(--muted);
+      font-size: 19px;
+      font-weight: 600;
+      letter-spacing: -0.018em;
     }
-    .divider { border: 0; border-top: 1px solid var(--line); margin: 48px 0; }
-    footer { color: var(--muted); margin-top: 22px; text-align: center; font-size: 14px; }
+    .meta { color: var(--muted); margin: 0; font-size: 17px; }
+    .languages {
+      display: inline-flex;
+      gap: 4px;
+      margin-top: 30px;
+      padding: 4px;
+      border-radius: 999px;
+      background: var(--segment);
+    }
+    .language-option {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      min-width: 92px;
+      padding: 8px 15px;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.2;
+      cursor: pointer;
+    }
+    .language-option[aria-pressed="true"] {
+      background: var(--segment-active);
+      color: var(--segment-active-text);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    }
+    .language-option:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .localized-copy[hidden], .policy-panel[hidden] { display: none; }
+    .policy-panel {
+      width: min(740px, calc(100% - 48px));
+      margin: 0 auto;
+      padding: 80px 0 104px;
+    }
+    footer {
+      border-top: 1px solid var(--line);
+      background: var(--section);
+      color: var(--muted);
+      padding: 30px 24px 34px;
+      text-align: center;
+      font-size: 12px;
+      letter-spacing: 0;
+    }
+    @media (max-width: 600px) {
+      .site-nav-inner { width: calc(100% - 32px); }
+      .hero { padding: 58px 20px 52px; }
+      h1 { font-size: 44px; }
+      .policy-panel { width: calc(100% - 40px); padding: 58px 0 76px; }
+      h2 { margin-top: 44px; padding-top: 42px; font-size: 25px; }
+    }
   </style>
 </head>
 <body>
+  <div class="site-nav">
+    <div class="site-nav-inner">
+      <span class="wordmark">Hashmark</span>
+      <span class="nav-section">
+        <span class="localized-copy" data-language-copy="en">Privacy</span>
+        <span class="localized-copy" data-language-copy="zh-Hans" lang="zh-Hans" hidden>隐私</span>
+      </span>
+    </div>
+  </div>
   <main>
-    <header>
-      <div class="eyebrow">Hashmark</div>
-      <h1>Privacy Policy</h1>
-      <p class="meta">Effective date: August 30, 2026</p>
-      <nav class="languages" aria-label="Language">
-        <a href="#english">English</a>
-        <a href="#chinese" lang="zh-Hans">简体中文</a>
-      </nav>
+    <header class="hero">
+      <div class="hero-inner">
+        <div class="eyebrow">Hashmark</div>
+        <h1>
+          <span class="localized-copy" data-language-copy="en">Privacy Policy</span>
+          <span class="localized-copy" data-language-copy="zh-Hans" lang="zh-Hans" hidden>隐私政策</span>
+        </h1>
+        <p class="meta">
+          <span class="localized-copy" data-language-copy="en">Effective date: August 30, 2026</span>
+          <span class="localized-copy" data-language-copy="zh-Hans" lang="zh-Hans" hidden>生效日期：2026 年 8 月 30 日</span>
+        </p>
+        <nav class="languages" id="language-selector" aria-label="Policy language">
+          <button class="language-option" type="button" data-language-option="en" aria-controls="english" aria-pressed="true">English</button>
+          <button class="language-option" type="button" data-language-option="zh-Hans" aria-controls="chinese" aria-pressed="false" lang="zh-Hans">简体中文</button>
+        </nav>
+      </div>
     </header>
 
-    <article id="english" lang="en">
+    <article class="policy-panel" id="english" lang="en">
       <h2>1. Overview</h2>
       <p>Hashmark is a Markdown editor for iPhone and iPad. Your documents are stored on your device by default. Hashmark does not operate an account system, advertising network, analytics service, or developer-controlled server, and it does not track you.</p>
 
@@ -119,10 +223,9 @@
 
       <h2>10. Contact</h2>
       <p>For privacy questions, contact <a href="mailto:hello1024lc@gmail.com">hello1024lc@gmail.com</a>.</p>
+    </article>
 
-      <hr class="divider">
-
-      <section id="chinese" lang="zh-Hans">
+    <article class="policy-panel" id="chinese" lang="zh-Hans" hidden>
         <h2>1. 概述</h2>
         <p>Hashmark 是一款适用于 iPhone 和 iPad 的 Markdown 编辑器。文稿默认存储在你的设备上。Hashmark 不运营账号系统、广告网络、分析服务或开发者控制的服务器，也不会跟踪你。</p>
 
@@ -163,10 +266,78 @@
 
         <h2>10. 联系方式</h2>
         <p>如有隐私问题，请联系 <a href="mailto:hello1024lc@gmail.com">hello1024lc@gmail.com</a>。</p>
-      </section>
     </article>
 
-    <footer>Hashmark for iPhone and iPad</footer>
+    <footer>Hashmark · iPhone &amp; iPad</footer>
   </main>
+  <script>
+    (() => {
+      const languageOptions = Array.from(document.querySelectorAll("[data-language-option]"));
+      const localizedCopies = Array.from(document.querySelectorAll("[data-language-copy]"));
+      const languageSelector = document.getElementById("language-selector");
+      const description = document.querySelector('meta[name="description"]');
+      const panels = {
+        en: document.getElementById("english"),
+        "zh-Hans": document.getElementById("chinese")
+      };
+
+      const languageFromHash = () => {
+        const hash = window.location.hash.toLowerCase();
+        if (hash === "#chinese" || hash === "#zh-hans") return "zh-Hans";
+        if (hash === "#english" || hash === "#en") return "en";
+        return null;
+      };
+
+      const preferredLanguage = () => {
+        const languages = navigator.languages?.length
+          ? navigator.languages
+          : [navigator.language || "en"];
+        return languages.some((language) => language.toLowerCase().startsWith("zh"))
+          ? "zh-Hans"
+          : "en";
+      };
+
+      const showLanguage = (language, updateHash = false) => {
+        const selected = language === "zh-Hans" ? "zh-Hans" : "en";
+        document.documentElement.lang = selected;
+        document.title = selected === "zh-Hans"
+          ? "Hashmark 隐私政策"
+          : "Hashmark Privacy Policy";
+        languageSelector.setAttribute(
+          "aria-label",
+          selected === "zh-Hans" ? "隐私政策语言" : "Policy language"
+        );
+        description.content = selected === "zh-Hans"
+          ? "Hashmark iPhone 与 iPad Markdown 编辑器隐私政策。"
+          : "Privacy Policy for the Hashmark Markdown editor for iPhone and iPad.";
+
+        Object.entries(panels).forEach(([key, panel]) => {
+          panel.hidden = key !== selected;
+        });
+        localizedCopies.forEach((copy) => {
+          copy.hidden = copy.dataset.languageCopy !== selected;
+        });
+        languageOptions.forEach((option) => {
+          option.setAttribute("aria-pressed", String(option.dataset.languageOption === selected));
+        });
+
+        if (updateHash) {
+          const hash = selected === "zh-Hans" ? "#chinese" : "#english";
+          history.replaceState(null, "", hash);
+        }
+      };
+
+      languageOptions.forEach((option) => {
+        option.addEventListener("click", () => {
+          showLanguage(option.dataset.languageOption, true);
+        });
+      });
+      window.addEventListener("hashchange", () => {
+        showLanguage(languageFromHash() || preferredLanguage());
+      });
+
+      showLanguage(languageFromHash() || preferredLanguage());
+    })();
+  </script>
 </body>
 </html>
