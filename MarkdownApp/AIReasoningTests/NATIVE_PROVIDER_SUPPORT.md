@@ -9,7 +9,7 @@ This document records the shipped local contract, not a promise that newly annou
 | Provider | Default model | Native generation route | Search | Reasoning | Image/PDF/file | Account model refresh |
 |---|---|---|---|---|---|---|
 | OpenAI | `gpt-5.6-terra` | `/v1/responses` | Hosted `web_search` | Displayable summary events | Direct input, upload reference, File Search | `/v1/models` |
-| Anthropic | `claude-fable-5` | `/v1/messages` | `web_search_20260318` server tool | Thinking blocks; opaque signature retained | Direct input and Files reference | `/v1/models` |
+| Anthropic | `claude-fable-5` | `/v1/messages` | `web_search_20250305` server tool; MiniMax official compatibility hosts use Coding Plan search followed by `tool_result` | Thinking blocks; opaque signature retained | Direct input and Files reference | `/v1/models` |
 | Gemini | `gemini-3.7-flash` | `/v1beta/interactions` | Google Search grounding | Thought summary; signature retained | Direct input, Files and File Search | `/v1beta/models` |
 | Kimi | `kimi-k2.6` | `/v1/chat/completions` | Formula `moonshot/web-search:latest` | Verified; Formula tool definition and Fiber result are replayed opaquely, and displayable thinking is disabled while search is on | Vision, Files references and extraction | `/v1/models` |
 | GLM | `glm-5.3` | `/api/paas/v4/chat/completions` | Standalone `/api/paas/v4/web_search` evidence on exact text models | GLM-5.3 always-on reasoning with `reasoning_effort=max` | GLM-5.3/5.2 are text-only; only exact GLM-5V models receive image/PDF/file capabilities | Not exposed in settings until a first-party list contract is verified |
@@ -20,7 +20,7 @@ Exact models, families, lifecycle and safe strategy IDs live in `Resources/AIPro
 
 - OpenAI, Anthropic and Gemini use their global first-party endpoints.
 - Kimi and GLM use their China first-party endpoints.
-- A custom Base URL is an advanced override for the already-selected Provider. It does not enable a compatible protocol or change Provider identity.
+- A custom Base URL is an advanced override for the already-selected Provider and does not change Provider identity. The only endpoint-owned extension is MiniMax Coding Plan search on the exact `api.minimaxi.com` and `api.minimax.io` hosts; generation remains Anthropic Messages wire format.
 - Model refresh requires a saved or entered API key. Explicit capability fields returned by Anthropic or Gemini are higher-priority evidence; missing fields remain unknown. OpenAI and Kimi directory rows are not treated as advanced-capability proof, and GLM has no invented list endpoint.
 
 ## Troubleshooting
@@ -30,10 +30,11 @@ Exact models, families, lifecycle and safe strategy IDs live in `Resources/AIPro
 | Authentication failed | Confirm the key belongs to the selected Provider and endpoint region. |
 | Model appears after refresh but a capability is unverified | The Provider did not return an explicit value and no Manifest or usable local evidence covers it. Review the decision source before changing the Manifest. |
 | Kimi Thinking becomes unavailable | Built-in Web Search requires displayable thinking to be off. Turn off search for a thinking turn. |
+| MiniMax on the Anthropic endpoint does not search | Confirm the endpoint is `api.minimaxi.com/anthropic` or `api.minimax.io/anthropic` and the key has Coding Plan search access. Search is a separate `/v1/coding_plan/search` request, not an Anthropic server tool. |
 | Image or file is rejected before sending | Check the exact model capability, MIME type, count, byte limit and whether that Provider requires upload or extraction. |
 | Generation stops after backgrounding or a weak connection | The partial answer is intentionally non-accepting. Retry or regenerate from the explicit interrupted state. |
 | Search has no source link | The Provider returned no valid URL. The result remains visible as activity but no fabricated citation is created. |
-| A gateway returns a foreign schema | The override must preserve the selected Provider's native request and stream contract; compatibility gateways are unsupported. |
+| A gateway returns a foreign generation schema | The override must preserve the selected Provider's request and stream contract. MiniMax's explicit search extension does not permit a cross-Provider generation serializer. |
 
 ## Validation record
 

@@ -22,6 +22,7 @@ enum AnthropicContractTests {
         try testNativeStream()
         try testSeparatorlessStream()
         try testUnknownModelSafety()
+        try testMiniMaxSearchContract()
         try testTypedError()
 
         if failures.isEmpty {
@@ -218,6 +219,57 @@ enum AnthropicContractTests {
         expect(tools?.contains(where: { $0["name"] as? String == "web_search" }) == true,
                "Unknown Anthropic model did not receive the requested trial tool")
         expect(body?["thinking"] == nil, "Unknown Anthropic model received thinking fields")
+    }
+
+    private static func testMiniMaxSearchContract() throws {
+        let config = try AIProviderRegistry.resolve(AIConfig(
+            provider: .anthropic,
+            baseURL: "https://api.minimaxi.com/anthropic",
+            model: "MiniMax-M3",
+            apiKey: "fixture-key",
+            preferences: AICapabilityPreferences(webSearchEnabled: true)
+        ))
+        expect(MiniMaxWebSearchContract.matches(config),
+               "MiniMax Anthropic-compatible endpoint was not recognized")
+        let searchRequest = try MiniMaxWebSearchContract.makeRequest(
+            configuration: config,
+            query: "Swift current version"
+        )
+        expect(searchRequest.url?.absoluteString
+               == "https://api.minimaxi.com/v1/coding_plan/search",
+               "MiniMax Web Search endpoint was derived incorrectly")
+        expect(searchRequest.value(forHTTPHeaderField: "Authorization")
+               == "Bearer fixture-key",
+               "MiniMax Web Search bearer authentication is missing")
+        let searchBody = try JSONSerialization.jsonObject(
+            with: searchRequest.httpBody ?? Data()
+        ) as? [String: String]
+        expect(searchBody?["q"] == "Swift current version",
+               "MiniMax Web Search query changed")
+
+        let response = Data(#"{"organic":[{"title":"Swift","link":"https://swift.org/blog/","snippet":"News","date":"2026-08-01"}],"related_searches":[{"query":"Swift releases"}],"base_resp":{"status_code":0,"status_msg":"success"}}"#.utf8)
+        let result = try MiniMaxWebSearchContract.decode(response)
+        expect(result.citations.count == 1
+               && result.citations.first?.url.absoluteString == "https://swift.org/blog/",
+               "MiniMax Web Search citations were not mapped")
+        let messages = try MiniMaxWebSearchContract.appendingResult(
+            result,
+            query: "Swift current version",
+            to: [AIMessage(role: .user, content: "Swift current version")]
+        )
+        expect(messages.suffix(2).first?.toolCalls.first?.name == "web_search"
+               && messages.last?.toolName == "web_search",
+               "MiniMax search result was not appended as an Anthropic tool result")
+
+        let synthesisRequest = try AnthropicRequestBuilder(configuration: config)
+            .makeStreamRequest(messages: messages, tools: [])
+        let synthesisBody = try JSONSerialization.jsonObject(
+            with: synthesisRequest.httpBody ?? Data()
+        ) as? [String: Any]
+        expect(synthesisBody?["tool_choice"] == nil,
+               "MiniMax synthesis request still forced Anthropic hosted Web Search")
+        expect(synthesisBody?["tools"] == nil,
+               "MiniMax synthesis request still declared Anthropic hosted Web Search")
     }
 
     private static func testTypedError() throws {

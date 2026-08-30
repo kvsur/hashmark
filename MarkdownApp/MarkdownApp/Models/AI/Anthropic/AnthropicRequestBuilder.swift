@@ -48,19 +48,18 @@ nonisolated struct AnthropicRequestBuilder {
                 "input_schema": tool.parameters
             ])
         }
-        if configuration.usesNativeWebSearch {
+        if usesAnthropicHostedWebSearch {
             guard case .anthropicServerTool(let version) = configuration.manifest.webSearch,
-                  version == "web_search_20260318"
+                  version == "web_search_20250305"
             else { throw AnthropicWireError.invalidToolVersion }
             nativeTools.append(.object([
                 "type": .string(version),
                 "name": .string("web_search"),
-                "max_uses": .number(5),
-                "response_inclusion": .string("full")
+                "max_uses": .number(5)
             ]))
         }
         if !nativeTools.isEmpty { body["tools"] = .array(nativeTools) }
-        if configuration.usesNativeWebSearch {
+        if usesAnthropicHostedWebSearch {
             body["tool_choice"] = .object([
                 "type": .string("tool"),
                 "name": .string("web_search"),
@@ -69,7 +68,7 @@ nonisolated struct AnthropicRequestBuilder {
         }
 
         if configuration.allowsKnownSafeRequest(.reasoning),
-           !configuration.usesNativeWebSearch {
+           !usesAnthropicHostedWebSearch {
             body["thinking"] = thinkingConfiguration()
             if configuration.modelStrategyID(key: "reasoningStyle")
                 == "anthropicAdaptiveThinking",
@@ -96,6 +95,11 @@ nonisolated struct AnthropicRequestBuilder {
             return "2023-06-01"
         }
         return version
+    }
+
+    private var usesAnthropicHostedWebSearch: Bool {
+        configuration.usesNativeWebSearch
+            && !MiniMaxWebSearchContract.matches(configuration)
     }
 
     private func thinkingConfiguration() -> JSONValue {

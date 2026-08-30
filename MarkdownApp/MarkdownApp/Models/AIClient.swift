@@ -71,6 +71,19 @@ nonisolated enum AIDiagnostics {
 #endif
     }
 
+    static func anthropicWireEvent(
+        kind: String,
+        blockType: String? = nil,
+        toolName: String? = nil,
+        stopReason: String? = nil
+    ) {
+#if DEBUG
+        logger.debug(
+            "[AI-Debug] anthropic-wire event=\(kind, privacy: .public) blockType=\(blockType ?? "none", privacy: .public) tool=\(toolName ?? "none", privacy: .public) stopReason=\(stopReason ?? "none", privacy: .public)"
+        )
+#endif
+    }
+
     static func streamDecodeFailure(provider: AIProvider, kind: String, path: String) {
 #if DEBUG
         // 仅记录结构位置与错误类别，不记录原始 SSE、正文或工具参数。

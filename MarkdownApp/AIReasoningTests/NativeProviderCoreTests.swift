@@ -64,7 +64,7 @@ enum NativeProviderCoreTests {
                && openAIHighReasoning.effectiveCapabilities.displayableReasoning.isEnabled,
                "Reasoning Effort did not reach the resolved configuration")
         let anthropic = try AIProviderRegistry.resolve(config(.anthropic))
-        expect(anthropic.manifest.webSearch == .anthropicServerTool(version: "web_search_20260318"),
+        expect(anthropic.manifest.webSearch == .anthropicServerTool(version: "web_search_20250305"),
                "Anthropic tool version changed")
         expect(anthropic.effectiveCapabilities.displayableReasoning ==
                .unavailable(.incompatibleCombination),

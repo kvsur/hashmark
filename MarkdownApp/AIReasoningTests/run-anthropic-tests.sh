@@ -36,6 +36,7 @@ xcrun swiftc \
   "$app_dir/Models/AIConfig.swift" \
   "$app_dir/Models/AI/SSEEventFramer.swift" \
   "$app_dir/Models/AI/Anthropic/AnthropicWire.swift" \
+  "$app_dir/Models/AI/Anthropic/MiniMaxWebSearchService.swift" \
   "$app_dir/Models/AI/Anthropic/AnthropicRequestBuilder.swift" \
   "$app_dir/Models/AI/Anthropic/AnthropicStreamParser.swift" \
   "$test_dir/AnthropicContractTests.swift" \

@@ -8,6 +8,8 @@
 import Foundation
 
 nonisolated final class AnthropicStreamParser {
+    typealias WireEventObserver = (AnthropicWireEvent) -> Void
+
     private struct BlockState {
         let type: String
         let id: String?
@@ -25,6 +27,11 @@ nonisolated final class AnthropicStreamParser {
     private var currentPhase: AIGenerationPhase?
     private var pendingStopReason: AIStreamStopReason?
     private var stopEmitted = false
+    private let wireEventObserver: WireEventObserver?
+
+    init(wireEventObserver: WireEventObserver? = nil) {
+        self.wireEventObserver = wireEventObserver
+    }
 
     func receive(line: String) throws -> [AIStreamEvent] {
         try map(framer.receive(line: line))
@@ -37,7 +44,10 @@ nonisolated final class AnthropicStreamParser {
     private func map(_ frames: [SSEFrame]) throws -> [AIStreamEvent] {
         try frames.flatMap { frame in
             switch frame {
-            case .data(let data): return try map(AnthropicWireEvent(data: data))
+            case .data(let data):
+                let event = try AnthropicWireEvent(data: data)
+                wireEventObserver?(event)
+                return map(event)
             case .done: return []
             }
         }

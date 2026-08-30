@@ -31,10 +31,9 @@
       "input_schema": {"type": "object"}
     },
     {
-      "type": "web_search_20260318",
+      "type": "web_search_20250305",
       "name": "web_search",
-      "max_uses": 5,
-      "response_inclusion": "full"
+      "max_uses": 5
     }
   ],
   "tool_choice": {
