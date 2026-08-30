@@ -55,16 +55,34 @@ nonisolated final class GeminiAdapter: AIProviderAdapter, @unchecked Sendable {
                     }
                     AIDiagnostics.response(http, request: request)
                     guard (200..<300).contains(http.statusCode) else {
-                        throw AIError.http(status: http.statusCode, body: try await responseBody(bytes))
+                        let body = try await responseBody(bytes)
+                        let payload = body
+                            .flatMap { $0.data(using: .utf8) }
+                            .flatMap(GeminiWireErrorPayload.decodeResponse)
+                        throw AIError.remote(
+                            provider: .gemini,
+                            code: payload?.code ?? "http_\(http.statusCode)",
+                            message: payload?.message ?? body ?? "gemini_request_failed"
+                        )
                     }
 
                     let parser = GeminiStreamParser()
+                    var persistedInteractionID: String?
                     var searchGate = AIWebSearchExecutionGate(
                         isRequired: webSearch
                     )
                     for try await line in bytes.lines {
                         try Task.checkCancellation()
-                        for event in try parser.receive(line: line) {
+                        let events = try parser.receive(line: line)
+                        if let interactionID = parser.completedInteractionID,
+                           interactionID != persistedInteractionID {
+                            await conversationState.complete(
+                                interactionID: interactionID,
+                                consumedMessageCount: messages.count
+                            )
+                            persistedInteractionID = interactionID
+                        }
+                        for event in events {
                             guard searchGate.accepts(event) else {
                                 throw AIError.webSearchNotExecuted
                             }
@@ -72,14 +90,26 @@ nonisolated final class GeminiAdapter: AIProviderAdapter, @unchecked Sendable {
                             continuation.yield(event)
                         }
                     }
-                    for event in try parser.finish() {
+                    let finalEvents = try parser.finish()
+                    if let interactionID = parser.completedInteractionID,
+                       interactionID != persistedInteractionID {
+                        await conversationState.complete(
+                            interactionID: interactionID,
+                            consumedMessageCount: messages.count
+                        )
+                        persistedInteractionID = interactionID
+                    }
+                    for event in finalEvents {
                         guard searchGate.accepts(event) else {
                             throw AIError.webSearchNotExecuted
                         }
                         continuation.yield(event)
                     }
-                    guard searchGate.isSatisfied else { throw AIError.webSearchNotExecuted }
-                    if webSearch {
+                    let requiresAction = parser.completedInteractionStatus == "requires_action"
+                    guard requiresAction || searchGate.isSatisfied else {
+                        throw AIError.webSearchNotExecuted
+                    }
+                    if webSearch, searchGate.isSatisfied {
                         AICapabilityVerificationRecorder.recordNativeSearchSuccess(
                             configuration: configuration
                         )
@@ -87,10 +117,12 @@ nonisolated final class GeminiAdapter: AIProviderAdapter, @unchecked Sendable {
                     guard let interactionID = parser.completedInteractionID else {
                         throw GeminiWireError.missingTerminalInteraction
                     }
-                    await conversationState.complete(
-                        interactionID: interactionID,
-                        consumedMessageCount: messages.count
-                    )
+                    if interactionID != persistedInteractionID {
+                        await conversationState.complete(
+                            interactionID: interactionID,
+                            consumedMessageCount: messages.count
+                        )
+                    }
                     await fileService.didCompleteResponse()
                     continuation.finish()
                 } catch is CancellationError {
@@ -104,7 +136,16 @@ nonisolated final class GeminiAdapter: AIProviderAdapter, @unchecked Sendable {
                     )
                     continuation.finish(throwing: error)
                 } catch let error as GeminiWireError {
-                    let wrapped = AIError.stream(String(describing: error))
+                    let wrapped: AIError
+                    if case .remote(let code, let message) = error {
+                        wrapped = .remote(provider: .gemini, code: code, message: message)
+                    } else {
+                        wrapped = .remote(
+                            provider: .gemini,
+                            code: "invalid_response",
+                            message: String(describing: error)
+                        )
+                    }
                     AICapabilityVerificationRecorder.recordNativeSearchFailure(
                         wrapped, configuration: configuration
                     )

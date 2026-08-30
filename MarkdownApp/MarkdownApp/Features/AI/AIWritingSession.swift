@@ -100,7 +100,7 @@ final class AIWritingSession: ObservableObject {
 
     func answer(_ answer: String) {
         guard let call = pendingToolCall else { return }
-        messages.append(.toolResult(callId: call.id, content: answer))
+        messages.append(.toolResult(callId: call.id, name: call.name, content: answer))
         pendingToolCall = nil
         runTurn()
     }

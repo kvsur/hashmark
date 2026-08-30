@@ -76,16 +76,9 @@ nonisolated struct GeminiRequestBuilder {
             ]))
         }
         if !nativeTools.isEmpty { body["tools"] = .array(nativeTools) }
-        if configuration.usesNativeWebSearch {
-            // Interactions scopes tool choice under generation_config. A top-level
-            // tool_choice is rejected by the Gemini endpoint as an unknown parameter.
-            generationConfig["tool_choice"] = .object([
-                "allowed_tools": .object([
-                    "mode": .string("any"),
-                    "tools": .array([.string("google_search")])
-                ])
-            ])
-        }
+        // Gemini does not provide a name-scoped tool choice for built-in Search.
+        // Leave tool selection at its default auto mode: "any" would also force app
+        // functions such as ask_clarifying_question, often before arguments are ready.
         if !generationConfig.isEmpty {
             body["generation_config"] = .object(generationConfig)
         }

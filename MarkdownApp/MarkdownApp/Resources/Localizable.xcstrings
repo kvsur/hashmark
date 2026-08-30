@@ -9138,6 +9138,166 @@
         }
       }
     },
+    "The AI provider couldn't complete the request. Try again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der KI-Anbieter konnte die Anfrage nicht abschließen. Versuche es erneut."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AIプロバイダはリクエストを完了できませんでした。もう一度お試しください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 제공자가 요청을 완료하지 못했습니다. 다시 시도하세요."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поставщик ИИ не смог выполнить запрос. Повторите попытку."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 服务商未能完成请求，请重试。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 服務商未能完成請求，請重試。"
+          }
+        }
+      }
+    },
+    "Google Gemini blocked this request because of its content. Revise the prompt and try again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Gemini hat diese Anfrage aufgrund ihres Inhalts blockiert. Überarbeite die Eingabe und versuche es erneut."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Gemini が内容を理由にこのリクエストをブロックしました。入力を修正して、もう一度お試しください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Gemini가 콘텐츠로 인해 이 요청을 차단했습니다. 입력을 수정한 후 다시 시도하세요."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Gemini заблокировал запрос из-за его содержимого. Измените запрос и повторите попытку."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Gemini 因内容原因阻止了此请求。请修改提示词后重试。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Gemini 因內容原因阻止了此請求。請修改提示詞後重試。"
+          }
+        }
+      }
+    },
+    "Google Gemini couldn't process this request. Try again. If it keeps failing, change the model settings or update the app." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Gemini konnte diese Anfrage nicht verarbeiten. Versuche es erneut. Wenn der Fehler weiterhin auftritt, ändere die Modelleinstellungen oder aktualisiere die App."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Gemini はこのリクエストを処理できませんでした。もう一度お試しください。失敗が続く場合は、モデル設定を変更するかアプリを更新してください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Gemini가 이 요청을 처리하지 못했습니다. 다시 시도하세요. 문제가 계속되면 모델 설정을 변경하거나 앱을 업데이트하세요."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Gemini не смог обработать запрос. Повторите попытку. Если ошибка сохраняется, измените настройки модели или обновите приложение."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Gemini 无法处理此请求，请重试。如果仍然失败，请更改模型设置或更新 App。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Gemini 無法處理此請求，請重試。如果仍然失敗，請更改模型設定或更新 App。"
+          }
+        }
+      }
+    },
+    "Google Gemini is temporarily unavailable. Try again shortly." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Gemini ist vorübergehend nicht verfügbar. Versuche es in Kürze erneut."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Gemini は一時的に利用できません。しばらくしてからもう一度お試しください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Gemini를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도하세요."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Gemini временно недоступен. Повторите попытку позже."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Gemini 暂时不可用，请稍后重试。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Gemini 暫時無法使用，請稍後重試。"
+          }
+        }
+      }
+    },
     "The AI stopped unexpectedly. Try again." : {
       "localizations" : {
         "de" : {

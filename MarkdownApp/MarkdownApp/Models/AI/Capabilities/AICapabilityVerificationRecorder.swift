@@ -21,6 +21,11 @@ nonisolated enum AICapabilityFailureClassifier {
         switch error {
         case .http(let status, let body):
             return AICapabilityFailurePolicy.classifyHTTP(status: status, body: body)
+        case .remote(_, let code, let message):
+            guard let status = AIError.equivalentHTTPStatus(code: code, message: message) else {
+                return .invalidRequest
+            }
+            return AICapabilityFailurePolicy.classifyHTTP(status: status, body: message)
         case .network(let underlying):
             if let urlError = underlying as? URLError, urlError.code == .cancelled {
                 return .cancelled

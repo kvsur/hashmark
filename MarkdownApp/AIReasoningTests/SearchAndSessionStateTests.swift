@@ -474,6 +474,8 @@ enum SearchAndSessionStateTests {
         let second = client.snapshots().last
         expect(second?.last?.role == .tool && second?.last?.content == "Formal",
                "Clarify answer did not continue the same logical history")
+        expect(second?.last?.toolName == ClarifyTool.name,
+               "Clarify answer lost the Provider-required function name")
         expect(session.reasoningText == "Plan" && session.finalText == "Polished answer",
                "Reasoning and text were not isolated in multi-turn state")
         expect(!session.finalText.contains("private"), "Opaque thinking data leaked into正文")

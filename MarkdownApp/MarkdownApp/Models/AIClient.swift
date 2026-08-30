@@ -149,6 +149,7 @@ enum AIError: LocalizedError {
     case webSearchUnavailable
     case webSearchNotExecuted
     case http(status: Int, body: String?)
+    case remote(provider: AIProvider, code: String?, message: String)
     case network(Error)
     case stream(String)
 
@@ -183,6 +184,8 @@ enum AIError: LocalizedError {
                     LocalizationController.string("The service returned an error (\(status)).")
                 }
             }
+        case .remote(let provider, let code, let message):
+            Self.remoteErrorDescription(provider: provider, code: code, message: message)
         case .network(let error):
             LocalizationController.string("Network error: \(error.localizedDescription)")
         case .stream(let message):
@@ -194,4 +197,91 @@ enum AIError: LocalizedError {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.count <= limit ? trimmed : String(trimmed.prefix(limit)) + "..."
     }
+
+    private static func remoteErrorDescription(
+        provider: AIProvider,
+        code: String?,
+        message: String
+    ) -> String {
+        guard provider == .gemini else {
+            return LocalizationController.string(
+                "The AI provider couldn't complete the request. Try again."
+            )
+        }
+
+        let signal = [code, message]
+            .compactMap { $0 }
+            .joined(separator: " ")
+            .lowercased()
+        let httpStatus = equivalentHTTPStatus(code: code, message: message)
+        if httpStatus == 401 {
+            return LocalizationController.string("Authentication failed (\(401)). Check your API key.")
+        }
+        if httpStatus == 403 {
+            return LocalizationController.string("Authentication failed (\(403)). Check your API key.")
+        }
+        if httpStatus == 429 {
+            return LocalizationController.string("Too many requests (429). Try again shortly.")
+        }
+        if Self.geminiBlockedCodes.contains(where: signal.contains) {
+            return LocalizationController.string(
+                "Google Gemini blocked this request because of its content. Revise the prompt and try again."
+            )
+        }
+        if httpStatus == 503 || Self.geminiTemporaryCodes.contains(where: signal.contains) {
+            return LocalizationController.string(
+                "Google Gemini is temporarily unavailable. Try again shortly."
+            )
+        }
+        if httpStatus == 400 || Self.geminiRequestCodes.contains(where: signal.contains) {
+            return LocalizationController.string(
+                "Google Gemini couldn't process this request. Try again. If it keeps failing, change the model settings or update the app."
+            )
+        }
+        return LocalizationController.string(
+            "The AI provider couldn't complete the request. Try again."
+        )
+    }
+
+    static func equivalentHTTPStatus(code: String?, message: String) -> Int? {
+        let signal = [code, message]
+            .compactMap { $0 }
+            .joined(separator: " ")
+            .lowercased()
+        if signal.contains("http_401") || signal.contains("authentication")
+            || signal.contains("unauthenticated") || signal.contains("api key not valid") {
+            return 401
+        }
+        if signal.contains("http_403") || signal.contains("permission_denied") {
+            return 403
+        }
+        if signal.contains("http_429") || signal.contains("quota_exceeded")
+            || signal.contains("too_many_requests") || signal.contains("resource_exhausted") {
+            return 429
+        }
+        if signal.contains("http_5") || geminiTemporaryCodes.contains(where: signal.contains) {
+            return 503
+        }
+        if signal.contains("http_400") || signal.contains("http_404")
+            || signal.contains("http_416") || signal.contains("http_422") {
+            return 400
+        }
+        return nil
+    }
+
+    private static let geminiRequestCodes = [
+        "invalid_request", "invalid_argument", "parameter_unknown", "failed_precondition",
+        "out_of_range", "not_found", "unimplemented", "malformed_function_call",
+        "malformed_tool_call", "unexpected_tool_call", "too_many_tool_calls",
+        "missing_thought_signature", "allowed_function_names", "invalid_response"
+    ]
+
+    private static let geminiTemporaryCodes = [
+        "api_error", "internal", "service_unavailable", "unavailable", "deadline_exceeded"
+    ]
+
+    private static let geminiBlockedCodes = [
+        "safety", "recitation", "prohibited_content", "spii", "blocklist",
+        "image_safety", "image_prohibited_content", "image_recitation", "content_blocked"
+    ]
 }

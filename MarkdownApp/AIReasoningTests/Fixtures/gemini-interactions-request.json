@@ -13,13 +13,7 @@
   "stream": true,
   "store": true,
   "generation_config": {
-    "thinking_level": "low",
-    "tool_choice": {
-      "allowed_tools": {
-        "mode": "any",
-        "tools": ["google_search"]
-      }
-    }
+    "thinking_level": "low"
   },
   "tools": [
     {"type": "function", "name": "fixture_tool", "description": "Fixture function", "parameters": {"type": "object"}},

@@ -38,6 +38,17 @@ nonisolated struct GeminiWireErrorPayload: Decodable, Equatable {
     let code: String?
     let message: String?
     let status: String?
+
+    static func decodeResponse(from data: Data) -> Self? {
+        if let envelope = try? JSONDecoder().decode(GeminiWireErrorEnvelope.self, from: data) {
+            return envelope.error
+        }
+        return try? JSONDecoder().decode(Self.self, from: data)
+    }
+}
+
+private nonisolated struct GeminiWireErrorEnvelope: Decodable {
+    let error: GeminiWireErrorPayload
 }
 
 nonisolated struct GeminiWireAnnotation: Decodable, Equatable {
@@ -95,11 +106,13 @@ private nonisolated struct GeminiWireDelta: Decodable {
     let name: String?
     let callID: String?
     let arguments: JSONValue?
+    let partialArguments: String?
     let annotations: [GeminiWireAnnotation]?
 
     enum CodingKeys: String, CodingKey {
         case type, text, signature, name, arguments, annotations
         case callID = "call_id"
+        case partialArguments = "partial_arguments"
     }
 }
 
@@ -132,7 +145,7 @@ nonisolated enum GeminiWireEvent: Equatable {
     )
     case stepStop(index: Int, step: GeminiWireStep?)
     case interactionCompleted(GeminiWireInteraction)
-    case interactionFailed(String)
+    case interactionFailed(code: String?, message: String)
     case unknown(String)
 
     init(data: Data, decoder: JSONDecoder = JSONDecoder()) throws {
@@ -160,7 +173,7 @@ nonisolated enum GeminiWireEvent: Equatable {
                 signature: delta.signature,
                 name: delta.name,
                 callID: delta.callID,
-                arguments: delta.arguments,
+                arguments: delta.arguments ?? delta.partialArguments.map(JSONValue.string),
                 annotations: delta.annotations ?? []
             )
         case "step.stop":
@@ -171,7 +184,10 @@ nonisolated enum GeminiWireEvent: Equatable {
             self = .interactionCompleted(interaction)
         case "interaction.failed", "interaction.cancelled", "error":
             let payload = envelope.interaction?.error ?? envelope.error
-            self = .interactionFailed(payload?.message ?? payload?.status ?? "gemini_interaction_failed")
+            self = .interactionFailed(
+                code: payload?.code,
+                message: payload?.message ?? payload?.status ?? "gemini_interaction_failed"
+            )
         default:
             self = .unknown(envelope.eventType)
         }

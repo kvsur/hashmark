@@ -92,15 +92,12 @@ enum GeminiContractTests {
         ) as? [String: Any]
         let input = body?["input"] as? [[String: Any]]
         let generation = body?["generation_config"] as? [String: Any]
-        let toolChoice = generation?["tool_choice"] as? [String: Any]
-        let allowed = toolChoice?["allowed_tools"] as? [String: Any]
         expect(input?.first?["type"] as? String == "user_input",
                "Gemini collapsed a user_input Step into an invalid input object")
         expect(body?["tool_choice"] == nil,
                "Gemini emitted tool_choice at the unsupported request top level")
-        expect(allowed?["mode"] as? String == "any"
-               && allowed?["tools"] as? [String] == ["google_search"],
-               "Gemini Search tool choice was not nested under generation_config")
+        expect(generation?["tool_choice"] == nil,
+               "Gemini Search unexpectedly forced an app or built-in tool")
     }
 
     private static func testSearchDisabledRequestShape() throws {
@@ -214,6 +211,8 @@ enum GeminiContractTests {
                "Gemini function result did not use native Interactions input")
         expect(input?.first?["call_id"] as? String == "call_fixture",
                "Gemini function result lost call_id")
+        expect(input?.first?["name"] as? String == "fixture_tool",
+               "Gemini function result lost its original function name")
     }
 
     private static func testSearchStream() throws {
@@ -256,6 +255,24 @@ enum GeminiContractTests {
             arguments: "{\"answer_type\":\"text\",\"question\":\"Audience?\"}"
         ))), "Gemini native function_call was not mapped")
         expect(values.contains(.stopReason(.toolUse)), "Gemini tool turn did not stop as toolUse")
+
+        let parser = GeminiStreamParser()
+        let text = String(data: try fixture("gemini-interactions-function.sse"), encoding: .utf8) ?? ""
+        var toolCallWasEmittedBeforeCompletion = false
+        for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
+            let batch = try parser.receive(line: String(line))
+            if batch.contains(where: { if case .toolCall = $0 { true } else { false } }),
+               parser.completedInteractionID == nil {
+                toolCallWasEmittedBeforeCompletion = true
+            }
+        }
+        let finalBatch = try parser.finish()
+        if finalBatch.contains(where: { if case .toolCall = $0 { true } else { false } }),
+           parser.completedInteractionID == nil {
+            toolCallWasEmittedBeforeCompletion = true
+        }
+        expect(!toolCallWasEmittedBeforeCompletion,
+               "Gemini emitted a client tool call before its interaction ID was reusable")
     }
 
     private static func testUnknownModelSafety() throws {
@@ -272,13 +289,20 @@ enum GeminiContractTests {
         let generation = body?["generation_config"] as? [String: Any]
         expect(generation?["thinking_level"] == nil,
                "Unknown Gemini model received thinking config")
-        expect(generation?["tool_choice"] != nil,
-               "Unknown Gemini model lost the Search tool choice trial path")
+        expect(generation?["tool_choice"] == nil,
+               "Unknown Gemini model unexpectedly forced a tool")
     }
 
     private static func testTypedError() throws {
         let data = Data(#"{"event_type":"interaction.failed","error":{"code":"INVALID_ARGUMENT","message":"bad tool"}}"#.utf8)
         let event = try GeminiWireEvent(data: data)
-        expect(event == .interactionFailed("bad tool"), "Gemini typed error changed")
+        expect(event == .interactionFailed(code: "INVALID_ARGUMENT", message: "bad tool"),
+               "Gemini typed error changed")
+
+        let payload = GeminiWireErrorPayload.decodeResponse(from: Data(
+            #"{"error":{"code":"authentication","message":"bad key"}}"#.utf8
+        ))
+        expect(payload?.code == "authentication" && payload?.message == "bad key",
+               "Gemini HTTP error envelope was not decoded")
     }
 }

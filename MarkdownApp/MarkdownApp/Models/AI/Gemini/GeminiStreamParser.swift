@@ -8,21 +8,53 @@
 import Foundation
 
 nonisolated final class GeminiStreamParser {
+    private struct PendingFunctionCall {
+        let id: String
+        let name: String
+        let arguments: JSONValue
+    }
+
     private struct StepState {
         var step: GeminiWireStep
+        var name: String?
+        var arguments: JSONValue?
+        var argumentFragments = ""
         var text = ""
         var signature = ""
-        var emitted = false
+
+        init(step: GeminiWireStep) {
+            self.step = step
+            self.name = step.name
+            self.arguments = step.arguments
+        }
+
+        mutating func receive(arguments value: JSONValue) {
+            if case .string(let fragment) = value {
+                argumentFragments += fragment
+            } else {
+                arguments = value
+            }
+        }
+
+        var resolvedArguments: JSONValue? {
+            guard !argumentFragments.isEmpty else { return arguments }
+            guard let data = argumentFragments.data(using: .utf8),
+                  let value = try? JSONSerialization.jsonObject(with: data)
+            else { return nil }
+            return .foundation(value)
+        }
     }
 
     private var framer = SSEEventFramer()
     private var steps: [Int: StepState] = [:]
     private var emittedToolCallIDs: Set<String> = []
     private var emittedCitationIDs: Set<String> = []
+    private var pendingFunctionCalls: [PendingFunctionCall] = []
     private var currentPhase: AIGenerationPhase?
     private var sawToolCall = false
 
     private(set) var completedInteractionID: String?
+    private(set) var completedInteractionStatus: String?
 
     func receive(line: String) throws -> [AIStreamEvent] {
         try map(framer.receive(line: line))
@@ -46,15 +78,16 @@ nonisolated final class GeminiStreamParser {
         case .interactionCreated:
             return phase(.connecting)
         case .stepStart(let index, let step):
-            steps[index] = StepState(
-                step: step,
-                text: step.summary?.compactMap(\.text).joined() ?? "",
-                signature: step.signature ?? ""
-            )
+            var state = StepState(step: step)
+            state.text = step.summary?.compactMap(\.text).joined() ?? ""
+            state.signature = step.signature ?? ""
+            steps[index] = state
             return phaseForStep(step.type, requestID: step.id)
-        case .stepDelta(let index, let type, let text, let signature, let name, let callID,
+        case .stepDelta(let index, let type, let text, let signature, let name, _,
                         let arguments, let annotations):
             if let signature { steps[index]?.signature += signature }
+            if let name { steps[index]?.name = name }
+            if let arguments { steps[index]?.receive(arguments: arguments) }
             var events = annotations.compactMap(citation)
             if let text, !text.isEmpty {
                 steps[index]?.text += text
@@ -64,22 +97,27 @@ nonisolated final class GeminiStreamParser {
                     events = phase(.generating) + [.text(text)] + events
                 }
             }
-            if let name {
-                events += toolCall(
-                    id: callID ?? steps[index]?.step.id ?? name,
-                    name: name,
-                    arguments: arguments ?? .object([:])
-                )
-                steps[index]?.emitted = true
-            }
+            // Function deltas may announce the name before their arguments. Hold the
+            // assembled call until interaction.completed makes the continuation reusable.
             return events
         case .stepStop(let index, let finalStep):
-            if let finalStep { steps[index]?.step = finalStep }
+            if let finalStep {
+                steps[index]?.step = finalStep
+                steps[index]?.name = finalStep.name ?? steps[index]?.name
+                if let arguments = finalStep.arguments {
+                    steps[index]?.receive(arguments: arguments)
+                }
+            }
             guard let state = steps.removeValue(forKey: index) else { return [] }
             return finalize(state)
         case .interactionCompleted(let interaction):
             completedInteractionID = interaction.id
-            var events = interaction.steps?.flatMap(finalEvents) ?? []
+            completedInteractionStatus = interaction.status
+            var events = pendingFunctionCalls.flatMap {
+                toolCall(id: $0.id, name: $0.name, arguments: $0.arguments)
+            }
+            pendingFunctionCalls.removeAll()
+            events += interaction.steps?.flatMap(finalEvents) ?? []
             if let usage = interaction.usage { events.append(.usage(domainUsage(usage))) }
             events.append(.continuation(AIProviderContinuation(
                 provider: .gemini,
@@ -88,8 +126,8 @@ nonisolated final class GeminiStreamParser {
             )))
             events.append(.stopReason(sawToolCall ? .toolUse : .endTurn))
             return events
-        case .interactionFailed(let message):
-            throw GeminiWireError.remote(code: nil, message: message)
+        case .interactionFailed(let code, let message):
+            throw GeminiWireError.remote(code: code, message: message)
         case .unknown:
             return []
         }
@@ -116,12 +154,18 @@ nonisolated final class GeminiStreamParser {
                 )
             ))]
         case "function_call":
-            guard !state.emitted, let name = state.step.name else { return [] }
-            return toolCall(
+            guard let name = state.name,
+                  let arguments = state.resolvedArguments
+            else { return [] }
+            pendingFunctionCalls.append(PendingFunctionCall(
                 id: state.step.id ?? state.step.callID ?? name,
                 name: name,
-                arguments: state.step.arguments ?? .object([:])
-            )
+                arguments: arguments
+            ))
+            // Gemini emits interaction.completed immediately after a requires_action
+            // step. Hold the client tool call until then so the Adapter can persist the
+            // interaction ID before the UI stops consuming this stream.
+            return []
         case "google_search_call", "google_search_result", "file_search_call", "file_search_result":
             return searchStarted(requestID: state.step.id)
         case "model_output":
