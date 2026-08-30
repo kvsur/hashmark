@@ -15,6 +15,7 @@ xcrun swiftc \
   "$app_dir/Models/AI/AIProviderCapabilityRules.swift" \
   "$app_dir/Models/AI/AIProviderManifest.swift" \
   "$app_dir/Models/AIConfig.swift" \
+  "$app_dir/Models/AI/Privacy/AIDataSharingConsent.swift" \
   "$app_dir/Models/AI/Configuration/AISettingsDocument.swift" \
   "$app_dir/Models/AIConfigStore.swift" \
   "$test_dir/AISettingsProfileTests.swift" \

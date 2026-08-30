@@ -93,6 +93,41 @@ if print -r -- "$diagnostics" | rg -n 'httpBody(?!\?\.count)' --pcre2 >/dev/null
   fail "AI diagnostics may expose a raw request body"
 fi
 
+repo_dir=${test_dir:h:h}
+privacy_page="$repo_dir/docs/privacy/index.html"
+app_links="$app_dir/App/AppLinks.swift"
+about_view="$app_dir/Features/Settings/AboutView.swift"
+consent_store="$app_dir/Models/AI/Privacy/AIDataSharingConsent.swift"
+writing_view="$app_dir/Features/AI/AIWritingView.swift"
+settings_view="$app_dir/Features/Settings/AIConfigEditorView.swift"
+
+[[ -f "$privacy_page" ]] || fail "Public privacy policy source is missing"
+for required_policy_term in \
+  'iCloud' \
+  'OpenAI' \
+  'Anthropic' \
+  'Google Gemini' \
+  'Moonshot Kimi' \
+  'Zhipu GLM' \
+  'API key' \
+  'Retention and deletion'; do
+  rg -q --fixed-strings "$required_policy_term" "$privacy_page" \
+    || fail "Privacy policy is missing: $required_policy_term"
+done
+
+rg -q --fixed-strings 'https://kvsur.github.io/hashmark/privacy/' "$app_links" \
+  || fail "App privacy URL does not match the GitHub Pages target"
+rg -q --fixed-strings 'AppLinks.privacyPolicy' "$about_view" \
+  || fail "About screen does not expose the privacy policy"
+rg -q --fixed-strings 'AIDataSharingConsentStore().hasConsent' "$app_dir/Models/AIClient.swift" \
+  || fail "AI client creation is not protected by the consent gate"
+rg -q --fixed-strings 'AIDataSharingConsentStore' "$consent_store" \
+  || fail "AI consent store is missing"
+rg -q --fixed-strings 'showDataSharingConsent' "$writing_view" \
+  || fail "AI writing start does not present the consent disclosure"
+rg -q --fixed-strings 'Withdraw AI Data Sharing Consent' "$settings_view" \
+  || fail "AI settings do not expose consent withdrawal"
+
 if (( failures > 0 )); then
   exit 1
 fi

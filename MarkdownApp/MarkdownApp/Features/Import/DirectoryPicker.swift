@@ -13,7 +13,8 @@
 import SwiftUI
 
 struct DirectoryPicker: View {
-    let store: FileStore
+    @EnvironmentObject private var documentLibrary: DocumentLibraryController
+    let rootURL: URL
     /// 导航标题。
     let title: LocalizedStringKey
     /// 头部提示短语，如「移动「x」到」「导入「x」到」；当前路径由本组件另起一行显示。
@@ -23,35 +24,33 @@ struct DirectoryPicker: View {
     /// 判断某目录是否禁止进入/选为目标（移动文件夹时排除自身及其子目录）。默认全部可选。
     let isDisabled: (URL) -> Bool
     /// 确认时执行的操作（导入/移动）：抛错则内部弹「操作失败」提示并保持打开；成功后自动关闭。
-    let confirm: (URL) throws -> Void
+    let confirm: (URL) async throws -> Void
 
     @Environment(\.dismiss) private var dismiss
     /// 目录栈：首元素恒为根目录，末元素为当前所在目录。
     @State private var stack: [URL]
     @State private var showNewFolder = false
     @State private var errorMessage: String?
+    @State private var subfolders: [DocumentNode] = []
 
     init(
-        store: FileStore,
+        rootURL: URL,
         title: LocalizedStringKey,
         prompt: LocalizedStringKey,
         confirmLabel: LocalizedStringKey,
         isDisabled: @escaping (URL) -> Bool = { _ in false },
-        confirm: @escaping (URL) throws -> Void
+        confirm: @escaping (URL) async throws -> Void
     ) {
-        self.store = store
+        self.rootURL = rootURL
         self.title = title
         self.prompt = prompt
         self.confirmLabel = confirmLabel
         self.isDisabled = isDisabled
         self.confirm = confirm
-        _stack = State(initialValue: [store.rootURL])
+        _stack = State(initialValue: [rootURL])
     }
 
-    private var currentDir: URL { stack.last ?? store.rootURL }
-    private var subfolders: [DocumentNode] {
-        store.contents(of: currentDir).filter(\.isFolder)
-    }
+    private var currentDir: URL { stack.last ?? rootURL }
 
     var body: some View {
         NavigationStack {
@@ -117,6 +116,9 @@ struct DirectoryPicker: View {
             } message: {
                 Text(errorMessage ?? "")
             }
+        .onAppear(perform: reload)
+        .reloadsOnLibraryRevision(documentLibrary.revision, perform: reload)
+            .onChange(of: stack.last) { _ in reload() }
         }
         .rebuildsOnLanguageChange()
     }
@@ -132,20 +134,32 @@ struct DirectoryPicker: View {
     }
 
     private func createFolder(named name: String) {
-        do {
-            let url = try store.createFolder(named: name, in: currentDir)
-            stack.append(url) // 建完直接进入，方便当场导入/移动到它
-        } catch {
-            errorMessage = error.localizedDescription
+        Task {
+            do {
+                let url = try await documentLibrary.createFolder(named: name, in: currentDir)
+                stack.append(url) // 建完直接进入，方便当场导入/移动到它
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 
     private func performConfirm() {
-        do {
-            try confirm(currentDir)
-            dismiss()
-        } catch {
-            errorMessage = error.localizedDescription
+        Task {
+            do {
+                try await confirm(currentDir)
+                dismiss()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func reload() {
+        let directory = currentDir
+        Task {
+            subfolders = ((try? await documentLibrary.contents(of: directory)) ?? [])
+                .filter(\.isFolder)
         }
     }
 

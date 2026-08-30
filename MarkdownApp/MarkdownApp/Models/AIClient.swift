@@ -17,6 +17,9 @@ nonisolated protocol AIClient {
 
 nonisolated enum AIClientFactory {
     static func make(_ config: AIConfig) throws -> AIClient {
+        guard AIDataSharingConsentStore().hasConsent(for: config) else {
+            throw AIError.dataSharingConsentRequired
+        }
         let resolved: ResolvedAIProviderConfiguration
         do {
             resolved = try AIProviderRegistry.resolve(config)
@@ -140,6 +143,7 @@ nonisolated enum AIDiagnostics {
 
 enum AIError: LocalizedError {
     case notConfigured
+    case dataSharingConsentRequired
     case invalidURL
     case providerUnavailable
     case webSearchUnavailable
@@ -152,6 +156,8 @@ enum AIError: LocalizedError {
         switch self {
         case .notConfigured:
             LocalizationController.string("AI is not configured yet. Fill it in under Settings first.")
+        case .dataSharingConsentRequired:
+            LocalizationController.string("Allow AI data sharing before connecting to this provider.")
         case .invalidURL:
             LocalizationController.string("The base URL is invalid. Check your AI configuration.")
         case .providerUnavailable:

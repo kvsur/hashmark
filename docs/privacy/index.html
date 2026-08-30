@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Hashmark Privacy Policy</title>
+  <meta name="description" content="Privacy Policy for the Hashmark Markdown editor for iPhone and iPad.">
+  <style>
+    :root {
+      color-scheme: light dark;
+      --page: #f5f5f1;
+      --surface: rgba(255, 255, 255, 0.78);
+      --text: #171714;
+      --muted: #686861;
+      --line: rgba(23, 23, 20, 0.12);
+      --accent: #2e5d48;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --page: #111210;
+        --surface: rgba(30, 31, 28, 0.82);
+        --text: #f1f0e9;
+        --muted: #b0afa7;
+        --line: rgba(241, 240, 233, 0.14);
+        --accent: #9bc8ae;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--text);
+      font: 16px/1.7 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+    }
+    main {
+      width: min(760px, calc(100% - 32px));
+      margin: 48px auto 80px;
+    }
+    header, article {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: clamp(24px, 5vw, 48px);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+    article { margin-top: 18px; }
+    h1, h2 { letter-spacing: -0.025em; line-height: 1.2; }
+    h1 { margin: 0 0 12px; font-size: clamp(34px, 8vw, 56px); }
+    h2 { margin: 36px 0 10px; font-size: 22px; }
+    h2:first-child { margin-top: 0; }
+    p, li { max-width: 68ch; }
+    ul { padding-left: 1.25rem; }
+    a { color: var(--accent); text-underline-offset: 3px; }
+    .eyebrow { color: var(--accent); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .meta { color: var(--muted); margin: 0; }
+    .languages { display: flex; gap: 14px; margin-top: 22px; }
+    .languages a { font-weight: 600; }
+    .notice {
+      border-left: 3px solid var(--accent);
+      padding-left: 16px;
+      color: var(--muted);
+    }
+    .divider { border: 0; border-top: 1px solid var(--line); margin: 48px 0; }
+    footer { color: var(--muted); margin-top: 22px; text-align: center; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="eyebrow">Hashmark</div>
+      <h1>Privacy Policy</h1>
+      <p class="meta">Effective date: August 30, 2026</p>
+      <nav class="languages" aria-label="Language">
+        <a href="#english">English</a>
+        <a href="#chinese" lang="zh-Hans">简体中文</a>
+      </nav>
+    </header>
+
+    <article id="english" lang="en">
+      <h2>1. Overview</h2>
+      <p>Hashmark is a Markdown editor for iPhone and iPad. Your documents are stored on your device by default. Hashmark does not operate an account system, advertising network, analytics service, or developer-controlled server, and it does not track you.</p>
+
+      <h2>2. Documents and local data</h2>
+      <p>Documents, drafts, recovery copies, app preferences, AI provider settings, and API keys are stored inside Hashmark’s app container on your device. File modification dates are used locally to sort and display recent activity. Hashmark does not send this information to the developer.</p>
+      <p>You can delete documents in Hashmark or the Files app. Deleting Hashmark removes data stored only in its local app container, subject to device backups managed by you and Apple.</p>
+
+      <h2>3. Optional iCloud Documents</h2>
+      <p>iCloud sync is off by default. If you enable it, your documents are transferred to Hashmark’s iCloud Drive container and processed by Apple under your Apple Account and Apple’s terms and privacy policy. Hashmark has no separate copy on a developer server.</p>
+      <p>Turning off sync first downloads a local copy and does not delete the cloud copy. You can manage or delete the cloud copy in the Files app and your iCloud settings.</p>
+
+      <h2>4. Optional AI features</h2>
+      <p>AI features are optional and use your own API key. Hashmark currently supports OpenAI, Anthropic, Google Gemini, Moonshot Kimi, and Zhipu GLM. You may also configure a custom endpoint for the selected provider’s native API format.</p>
+      <p>Before the first connection to a provider and endpoint, Hashmark shows the recipient and asks for permission. If you allow it, Hashmark may send the following directly to that provider or custom endpoint to perform the action you requested:</p>
+      <ul>
+        <li>Your API key and selected model information.</li>
+        <li>Your prompt, selected text, document context, and follow-up answers.</li>
+        <li>Images, camera photos, PDFs, text files, or Hashmark documents that you explicitly attach.</li>
+        <li>Search queries when you enable provider-native web search.</li>
+      </ul>
+      <p>These requests do not pass through a Hashmark developer server. The selected provider or custom endpoint may associate requests with your account and retain or use data under its own terms and privacy policy. Do not send information you are not authorized to share. For custom endpoints, you are responsible for evaluating the endpoint operator.</p>
+      <p>You can withdraw permission for the current provider and endpoint in Settings → AI Endpoint → Data Sharing. Withdrawal stops future requests but cannot delete information already processed by the provider. Contact that provider or endpoint operator to exercise rights over data it holds.</p>
+
+      <h2>5. Camera, photos, and files</h2>
+      <p>Camera, photo, and file access occurs only after you choose the corresponding action. Selected content stays on the device unless you explicitly attach it to an AI request, share it using the system share sheet, save an exported image, or enable iCloud as described above.</p>
+
+      <h2>6. Tracking, analytics, and advertising</h2>
+      <p>Hashmark does not use advertising identifiers, tracking technologies, third-party analytics SDKs, or developer-operated crash reporting. Apple may provide TestFlight and App Store diagnostics under Apple’s policies.</p>
+
+      <h2>7. Retention and deletion</h2>
+      <p>Local content remains until you delete it or remove the app. iCloud content remains until you delete it from iCloud. Hashmark attempts to release temporary provider file references created for an AI request, but provider-side retention is controlled by the provider or custom endpoint. Hashmark’s developer cannot directly retrieve or delete data held by Apple, an AI provider, or a custom endpoint.</p>
+
+      <h2>8. Children</h2>
+      <p>Hashmark is not directed to children and does not knowingly collect children’s personal information through a developer-operated service. Users should not send a child’s personal information to an AI provider without appropriate authorization.</p>
+
+      <h2>9. Changes</h2>
+      <p>This policy may be updated when Hashmark’s features or data practices change. The effective date at the top identifies the latest version.</p>
+
+      <h2>10. Contact</h2>
+      <p>For privacy questions, contact <a href="mailto:hello1024lc@gmail.com">hello1024lc@gmail.com</a>.</p>
+
+      <hr class="divider">
+
+      <section id="chinese" lang="zh-Hans">
+        <h2>1. 概述</h2>
+        <p>Hashmark 是一款适用于 iPhone 和 iPad 的 Markdown 编辑器。文稿默认存储在你的设备上。Hashmark 不运营账号系统、广告网络、分析服务或开发者控制的服务器，也不会跟踪你。</p>
+
+        <h2>2. 文稿与本地数据</h2>
+        <p>文稿、草稿、恢复副本、App 偏好、AI 服务商配置和 API Key 存储在设备上的 Hashmark App 容器内。文件修改时间仅用于本地排序和显示最近活动。Hashmark 不会把这些信息发送给开发者。</p>
+        <p>你可以在 Hashmark 或“文件”App 中删除文稿。删除 Hashmark 会移除仅存储于本地 App 容器的数据，但仍可能受你与 Apple 管理的设备备份影响。</p>
+
+        <h2>3. 可选的 iCloud 文稿同步</h2>
+        <p>iCloud 同步默认关闭。启用后，文稿将传输至 Hashmark 的 iCloud Drive 容器，由 Apple 根据你的 Apple 账户、Apple 条款和隐私政策处理。Hashmark 不会在开发者服务器上另存副本。</p>
+        <p>关闭同步时，Hashmark 会先下载本地副本，不会删除云端副本。你可以在“文件”App 或 iCloud 设置中管理或删除云端副本。</p>
+
+        <h2>4. 可选的 AI 功能</h2>
+        <p>AI 功能是可选功能，使用你自己的 API Key。Hashmark 目前支持 OpenAI、Anthropic、Google Gemini、Moonshot Kimi 和 Zhipu GLM；你也可以为所选服务商的原生 API 格式配置自定义端点。</p>
+        <p>首次连接某个服务商和端点前，Hashmark 会显示接收方并请求授权。你允许后，为完成你主动发起的操作，Hashmark 可能把以下数据直接发送给该服务商或自定义端点：</p>
+        <ul>
+          <li>你的 API Key 和所选模型信息。</li>
+          <li>提示词、选中文本、文稿上下文和后续回答。</li>
+          <li>你明确添加的图片、相机照片、PDF、文本文件或 Hashmark 文稿。</li>
+          <li>你启用服务商原生联网搜索时产生的搜索查询。</li>
+        </ul>
+        <p>这些请求不经过 Hashmark 开发者服务器。所选服务商或自定义端点可能把请求与你的账户关联，并根据其自身条款和隐私政策保留或使用数据。请勿发送你无权分享的信息。使用自定义端点时，你需要自行评估该端点的运营者。</p>
+        <p>你可以在“设置 → AI 接口 → 数据共享”中撤回对当前服务商和端点的授权。撤回会阻止未来请求，但无法删除服务商已经处理的信息；如需行使相关数据权利，请联系对应服务商或端点运营者。</p>
+
+        <h2>5. 相机、照片与文件</h2>
+        <p>只有在你主动选择相应操作后，Hashmark 才会访问相机、照片或文件。所选内容会保留在设备上，除非你明确将其添加到 AI 请求、通过系统分享面板分享、保存导出图片，或按上述方式启用 iCloud。</p>
+
+        <h2>6. 跟踪、分析与广告</h2>
+        <p>Hashmark 不使用广告标识符、跟踪技术、第三方分析 SDK 或开发者运营的崩溃上报服务。Apple 可能依据其政策提供 TestFlight 与 App Store 诊断信息。</p>
+
+        <h2>7. 保留与删除</h2>
+        <p>本地内容会保留到你删除内容或移除 App 为止；iCloud 内容会保留到你从 iCloud 删除为止。Hashmark 会尝试释放为 AI 请求创建的临时服务商文件引用，但服务商端的保留期限由服务商或自定义端点决定。Hashmark 开发者无法直接读取或删除由 Apple、AI 服务商或自定义端点持有的数据。</p>
+
+        <h2>8. 儿童</h2>
+        <p>Hashmark 并非面向儿童的产品，也不会通过开发者运营的服务故意收集儿童个人信息。未经适当授权，请勿向 AI 服务商发送儿童个人信息。</p>
+
+        <h2>9. 政策变更</h2>
+        <p>当 Hashmark 的功能或数据处理方式发生变化时，本政策可能更新。页面顶部的生效日期表示最新版本。</p>
+
+        <h2>10. 联系方式</h2>
+        <p>如有隐私问题，请联系 <a href="mailto:hello1024lc@gmail.com">hello1024lc@gmail.com</a>。</p>
+      </section>
+    </article>
+
+    <footer>Hashmark for iPhone and iPad</footer>
+  </main>
+</body>
+</html>

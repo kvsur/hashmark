@@ -21,7 +21,7 @@ private struct AIConfigGateModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .onChange(of: trigger) { _, wants in
+            .onChange(of: trigger) { wants in
                 guard wants else { return }
                 trigger = false
                 let config = store.load()

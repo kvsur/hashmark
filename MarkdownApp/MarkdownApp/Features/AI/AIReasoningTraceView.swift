@@ -23,7 +23,6 @@ struct AIReasoningTraceView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ScaledMetric(relativeTo: .body) private var expandedHeight: CGFloat = 220
     @ScaledMetric(relativeTo: .body) private var estimatedLineHeight: CGFloat = 25
-    private let bottomID = "reasoning-bottom"
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -109,16 +108,14 @@ struct AIReasoningTraceView: View {
     }
 
     private var reasoningBody: some View {
-        ScrollView {
+        BottomFollowingScrollView(updateToken: text) {
             Text(text)
                 .font(.system(.body, design: .serif))
                 .foregroundStyle(.secondary)
                 .lineSpacing(3)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityAddTraits(.updatesFrequently)
-            Color.clear.frame(height: 1).id(bottomID)
         }
-        .defaultScrollAnchor(.bottom)
         .scrollIndicators(.visible)
         .frame(height: reasoningViewportHeight)
     }

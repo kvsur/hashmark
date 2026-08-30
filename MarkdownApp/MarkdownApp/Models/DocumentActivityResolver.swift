@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct DocumentActivityRecord: Hashable {
+nonisolated struct DocumentActivityRecord: Hashable, Sendable {
     enum Kind: Hashable {
         case folder
         case markdown
@@ -29,7 +29,7 @@ struct DocumentActivityRecord: Hashable {
     var childCount: Int? { children?.count }
 }
 
-struct DocumentActivityResolver {
+nonisolated struct DocumentActivityResolver {
     private struct DirectorySnapshot {
         let records: [DocumentActivityRecord]
         /// 只传播 Markdown 文件时间；空子目录自身时间不能提升祖先目录。

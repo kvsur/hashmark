@@ -8,8 +8,8 @@
 
 import Foundation
 
-struct DocumentNode: Identifiable, Hashable {
-    enum Kind {
+nonisolated struct DocumentNode: Identifiable, Hashable, Sendable {
+    enum Kind: Sendable {
         case folder
         case markdown
     }
@@ -50,7 +50,7 @@ struct DocumentNode: Identifiable, Hashable {
     }
 
     /// 列表副标题：修改时间 + （文件夹）子项数 /（文件）大小。对齐系统「文件」App。
-    var metadataText: String {
+    @MainActor var metadataText: String {
         let date = DocumentNode.relativeDateText(modifiedAt)
         if isFolder {
             // 子项数走复数变体（catalog 里按语言配 one/other，俄语还有 few/many），不手拼量词。
@@ -67,7 +67,7 @@ struct DocumentNode: Identifiable, Hashable {
     /// 日期/时间格式一律交给 FormatStyle 按 locale 决定，不写死 "yyyy/M/d" / "HH:mm"——
     /// 各地区的日期顺序与 12/24 小时制并不相同（德语 d.M.yyyy、英语区习惯 12 小时制）。
     /// 也不再用 static let 缓存 Formatter：那样切换语言后会永久停留在启动时的语言。
-    private static func relativeDateText(_ date: Date) -> String {
+    @MainActor private static func relativeDateText(_ date: Date) -> String {
         let locale = LocalizationController.current
         let cal = Calendar.current
         if cal.isDateInToday(date) {

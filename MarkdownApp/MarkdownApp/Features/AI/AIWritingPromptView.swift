@@ -14,7 +14,6 @@ struct AIWritingPromptView: View {
     let contextPreview: String?
     @Binding var prompt: String
     @Binding var attachments: [AIAttachment]
-    let store: FileStore
     let supportsImages: Bool
     let onNeedsConfig: () -> Void
     let onStart: () -> Void
@@ -44,7 +43,7 @@ struct AIWritingPromptView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             composer
         }
-        .onChange(of: promptFocused) { _, focused in
+        .onChange(of: promptFocused) { focused in
             onPromptFocusChange(focused)
         }
     }
@@ -80,7 +79,6 @@ struct AIWritingPromptView: View {
             if action.allowsAttachments {
                 AIAttachmentBar(
                     attachments: $attachments,
-                    store: store,
                     supportsImages: supportsImages,
                     onNeedsConfig: onNeedsConfig
                 )

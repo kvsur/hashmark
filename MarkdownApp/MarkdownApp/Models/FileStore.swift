@@ -9,27 +9,27 @@
 
 import Foundation
 
-struct FileStore {
+nonisolated struct FileStore: @unchecked Sendable {
     private let fileManager: FileManager
-    private let rootDirectoryOverride: URL?
+    private let accessCoordinator: any FileAccessCoordinating
+    private let defaultDocumentName: String
 
     let markdownExtension = "md"
+    let rootURL: URL
+    let inboxURL: URL
 
-    init(fileManager: FileManager = .default, rootURL: URL? = nil) {
+    init(
+        fileManager: FileManager = .default,
+        rootURL: URL,
+        localInboxURL: URL,
+        accessCoordinator: any FileAccessCoordinating,
+        defaultDocumentName: String = "Untitled"
+    ) {
         self.fileManager = fileManager
-        rootDirectoryOverride = rootURL
-    }
-
-    /// 所有文档的根目录：沙盒 Documents（可经 Info.plist 暴露给系统「文件」App）。
-    var rootURL: URL {
-        rootDirectoryOverride ?? fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-    }
-
-    /// 系统在「拷贝到本 App」时自动创建的收件目录 Documents/Inbox。
-    /// 由系统管理（只可读/删、不可写），属暂存区而非用户目录：不展示、不可选为目标，
-    /// 导入后其中的源件应被清理。
-    var inboxURL: URL {
-        rootURL.appendingPathComponent("Inbox", isDirectory: true)
+        self.rootURL = rootURL
+        inboxURL = localInboxURL
+        self.accessCoordinator = accessCoordinator
+        self.defaultDocumentName = defaultDocumentName
     }
 
     /// 判断某 URL 是否落在系统 Inbox 内（含 Inbox 目录自身）。
@@ -43,14 +43,18 @@ struct FileStore {
 
     /// 列出某目录的直接子项：文件夹在前，两组分别按有效更新时间降序排列。
     /// 文件夹时间来自其后代 Markdown 的最新修改时间；同时间以自然名称稳定兜底。
-    func contents(of directory: URL) -> [DocumentNode] {
-        activityRecords(in: directory).map(documentNode(from:))
+    func contents(of directory: URL) throws -> [DocumentNode] {
+        try accessCoordinator.read(at: directory) { coordinatedURL in
+            activityRecords(in: coordinatedURL).map(documentNode(from:))
+        }
     }
 
     /// 递归读出某目录下的整棵树（文件夹在前）。文件为叶子（children=nil），
     /// 文件夹的 children 为其内容（可能为空数组）。供 S10 快速切换器的折叠树使用。
-    func tree(of directory: URL) -> [DocumentTreeNode] {
-        activityRecords(in: directory).map(documentTreeNode(from:))
+    func tree(of directory: URL) throws -> [DocumentTreeNode] {
+        try accessCoordinator.read(at: directory) { coordinatedURL in
+            activityRecords(in: coordinatedURL).map(documentTreeNode(from:))
+        }
     }
 
     // MARK: - 新建
@@ -58,17 +62,21 @@ struct FileStore {
     /// 在指定目录新建文件夹，返回新建 URL。名称冲突时自动追加序号。
     @discardableResult
     func createFolder(named name: String, in directory: URL) throws -> URL {
-        let url = uniqueURL(for: sanitized(name), extension: nil, in: directory)
-        try fileManager.createDirectory(at: url, withIntermediateDirectories: false)
-        return url
+        try accessCoordinator.write(at: directory, options: .forMerging) { coordinatedDirectory in
+            let url = uniqueURL(for: sanitized(name), extension: nil, in: coordinatedDirectory)
+            try fileManager.createDirectory(at: url, withIntermediateDirectories: false)
+            return url
+        }
     }
 
     /// 在指定目录新建空 Markdown 文档，返回新建 URL。
     @discardableResult
     func createMarkdown(named name: String, in directory: URL) throws -> URL {
-        let url = uniqueURL(for: sanitized(name), extension: markdownExtension, in: directory)
-        try Data().write(to: url)
-        return url
+        try accessCoordinator.write(at: directory, options: .forMerging) { coordinatedDirectory in
+            let url = uniqueURL(for: sanitized(name), extension: markdownExtension, in: coordinatedDirectory)
+            try Data().write(to: url, options: .atomic)
+            return url
+        }
     }
 
     // MARK: - 修改
@@ -79,13 +87,17 @@ struct FileStore {
         let directory = node.url.deletingLastPathComponent()
         let ext = node.isFolder ? nil : node.url.pathExtension
         let destination = uniqueURL(for: sanitized(newName), extension: ext, in: directory)
-        try fileManager.moveItem(at: node.url, to: destination)
-        return destination
+        return try accessCoordinator.move(from: node.url, to: destination) { source, destination in
+            try fileManager.moveItem(at: source, to: destination)
+            return destination
+        }
     }
 
     /// 删除节点（文件夹递归删除）。
     func delete(_ node: DocumentNode) throws {
-        try fileManager.removeItem(at: node.url)
+        try accessCoordinator.write(at: node.url, options: .forDeleting) { coordinatedURL in
+            try fileManager.removeItem(at: coordinatedURL)
+        }
     }
 
     /// 清空系统 Inbox 里的残留源件（如取消导入留下的），best-effort，不抛错。
@@ -106,11 +118,13 @@ struct FileStore {
         let scoped = source.startAccessingSecurityScopedResource()
         defer { if scoped { source.stopAccessingSecurityScopedResource() } }
 
-        let data = try Data(contentsOf: source)
         let base = source.deletingPathExtension().lastPathComponent
         let ext = source.pathExtension.isEmpty ? markdownExtension : source.pathExtension
         let destination = uniqueURL(for: sanitized(base), extension: ext, in: directory)
-        try data.write(to: destination)
+        try accessCoordinator.readWrite(reading: source, writing: destination) { coordinatedSource, coordinatedDestination in
+            let data = try Data(contentsOf: coordinatedSource)
+            try data.write(to: coordinatedDestination, options: .atomic)
+        }
 
         // 只清理落在本 App Inbox 内的源件；外部安全作用域文件（如经文件 App 选取）绝不删。
         if isInInbox(source) {
@@ -125,14 +139,22 @@ struct FileStore {
         let ext = node.isFolder ? nil : node.url.pathExtension
         let base = node.isFolder ? node.name : node.url.deletingPathExtension().lastPathComponent
         let destination = uniqueURL(for: base, extension: ext, in: directory)
-        try fileManager.moveItem(at: node.url, to: destination)
-        return destination
+        return try accessCoordinator.move(from: node.url, to: destination) { source, destination in
+            try fileManager.moveItem(at: source, to: destination)
+            return destination
+        }
     }
 
     // MARK: - 文本读写（供 S3 预览 / S4 编辑复用）
 
-    func readText(at url: URL) -> String {
-        (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+    func readText(at url: URL) throws -> String {
+        try accessCoordinator.read(at: url) { coordinatedURL in
+            do {
+                return try String(contentsOf: coordinatedURL, encoding: .utf8)
+            } catch let error as CocoaError where error.code == .fileReadInapplicableStringEncoding {
+                throw DocumentLibraryError.unreadableText(url)
+            }
+        }
     }
 
     /// 判断某文件是否已是本 App 目录内的「真实文档」（S11：据此决定是否显示「导入」）。
@@ -150,14 +172,25 @@ struct FileStore {
     /// 读取来自「文件」App 等外部来源的文本（S5 导入预览）。
     /// 外部 URL 受安全作用域保护，须先 start/stop AccessingSecurityScopedResource；
     /// 读不到返回 nil，供调用方区分「空文件」与「打不开」。
-    func readExternalText(at url: URL) -> String? {
+    func readExternalText(at url: URL) throws -> String {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-        return try? String(contentsOf: url, encoding: .utf8)
+        return try accessCoordinator.read(at: url) { coordinatedURL in
+            do {
+                return try String(contentsOf: coordinatedURL, encoding: .utf8)
+            } catch let error as CocoaError where error.code == .fileReadInapplicableStringEncoding {
+                throw DocumentLibraryError.unreadableText(url)
+            }
+        }
     }
 
     func writeText(_ text: String, to url: URL) throws {
-        try text.data(using: .utf8)?.write(to: url)
+        guard let data = text.data(using: .utf8) else {
+            throw DocumentLibraryError.unreadableText(url)
+        }
+        try accessCoordinator.write(at: url, options: .forReplacing) { coordinatedURL in
+            try data.write(to: coordinatedURL, options: .atomic)
+        }
     }
 
     // MARK: - 工具
@@ -204,7 +237,6 @@ struct FileStore {
         let trimmed = name
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "/", with: "-")
-        // 兜底文件名会落进用户的文档库，按当前界面语言取词。
-        return trimmed.isEmpty ? LocalizationController.string("Untitled") : trimmed
+        return trimmed.isEmpty ? defaultDocumentName : trimmed
     }
 }

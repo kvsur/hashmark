@@ -16,7 +16,7 @@
 import SwiftUI
 
 private struct LanguageRebuildModifier: ViewModifier {
-    @Environment(SettingsStore.self) private var settings
+    @EnvironmentObject private var settings: SettingsStore
 
     func body(content: Content) -> some View {
         content.id(settings.language)

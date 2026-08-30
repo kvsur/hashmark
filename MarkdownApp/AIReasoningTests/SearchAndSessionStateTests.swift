@@ -210,6 +210,7 @@ enum SearchAndSessionStateTests {
         testCurrentDateContext()
         testTimeline()
         testWebSearchExecutionGate()
+        testIdleOnlyReconfiguration()
         await testTypedKimiContinuation()
         await testServerContinuationCannotLoop()
         await testUnknownGenericToolCannotLoop()
@@ -313,6 +314,32 @@ enum SearchAndSessionStateTests {
         var optional = AIWebSearchExecutionGate(isRequired: false)
         expect(optional.accepts(.text("Offline answer")) && optional.isSatisfied,
                "Search-off turn was incorrectly gated")
+    }
+
+    private static func testIdleOnlyReconfiguration() {
+        let session = AIWritingSession(
+            config: configuration(.openAI),
+            tools: [],
+            clientFactory: { _ in ScriptedClient([]) }
+        )
+        expect(
+            session.reconfigure(config: configuration(.anthropic), tools: []),
+            "Idle session rejected a configuration refresh"
+        )
+        expect(
+            session.config.resolvedProvider?.provider == .anthropic,
+            "Idle configuration refresh did not update the stable session"
+        )
+
+        session.phase = .loading
+        expect(
+            !session.reconfigure(config: configuration(.gemini), tools: []),
+            "Active session accepted a mid-generation configuration replacement"
+        )
+        expect(
+            session.config.resolvedProvider?.provider == .anthropic,
+            "Rejected reconfiguration still mutated the active session"
+        )
     }
 
     private static func testTypedKimiContinuation() async {

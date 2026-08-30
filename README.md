@@ -10,7 +10,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-iOS%20%7C%20iPadOS-black" alt="Platform: iOS and iPadOS">
-  <img src="https://img.shields.io/badge/minimum-iOS%2018-black" alt="Minimum iOS version: 18">
+  <img src="https://img.shields.io/badge/minimum-iOS%2016-black" alt="Minimum iOS version: 16">
   <img src="https://img.shields.io/badge/Swift-5-F05138?logo=swift&logoColor=white" alt="Swift 5">
   <img src="https://img.shields.io/badge/UI-SwiftUI-0D96F6?logo=swift&logoColor=white" alt="SwiftUI">
 </p>
@@ -29,6 +29,7 @@ Hashmark 希望把 Markdown 写作留在一个轻量、安静且真正适合触�
 - 从系统“文件”App 选择文档，或通过其他 App 的“打开方式”进入只读预览。
 - 导入前先确认目标目录，也可以在目录选择器中直接新建文件夹。
 - 文档保存在 App 的 `Documents` 目录，并可通过系统“文件”App 访问。
+- 可在设置中选择启用 iCloud 文稿同步；启用与停用都会先建立并验证恢复副本，遇到同名不同内容时保留冲突副本，不覆盖唯一数据。
 
 ### Markdown 预览
 
@@ -74,19 +75,22 @@ Hashmark 采用 BYOK（Bring Your Own Key）方式连接用户选择的 AI 服�
 
 ## 界面与适配
 
-- 支持 iPhone 与 iPad，最低系统版本为 iOS / iPadOS 18。
+- 支持 iPhone 与 iPad，最低系统版本为 iOS / iPadOS 16。
 - 支持跟随系统、浅色和深色三种外观偏好。
-- iOS 26 及以上使用系统 Liquid Glass；iOS 18–25 自动降级为系统材质效果。
+- iOS 26 及以上使用系统 Liquid Glass；iOS 16–25 自动降级为系统材质效果。
 - 支持动态字体、VoiceOver 语义标签和系统 SF Symbols。
 - 支持跟随系统语言，或在 App 内切换简体中文、繁体中文、English、日本語、한국어、Deutsch、Русский。
 
 ## 隐私与数据
 
-- Markdown 文档默认保存在 App 沙盒的 `Documents` 目录。
+- Markdown 文档默认保存在 App 沙盒的 `Documents` 目录；用户主动启用后才会迁移至公开的 Hashmark iCloud Drive 文稿容器。
+- 关闭 iCloud 同步前，App 会下载并验证本地副本；关闭开关不会删除 iCloud 中的文档。
 - 主题和语言偏好保存在本机；AI 接口地址、模型与 API Key 保存在本机的 `Application Support` 目录。
 - Markdown 预览在本机完成，不会为了渲染正文而上传文档。
 - AI 功能默认不需要配置。只有在用户主动发起 AI 请求时，相关提示词、文档上下文及用户选择的附件才会发送至所配置的 Provider；数据处理同时受对应 Provider 的隐私条款约束。
+- 首次连接每个 Provider 与接口地址前，App 会明确说明将发送的数据并请求授权；授权可在对应 AI 配置中撤回。
 - Hashmark 当前不通过自有中转服务代理 AI 请求，App 会直接连接用户配置的接口地址。
+- 完整说明见 [Hashmark Privacy Policy](https://kvsur.github.io/hashmark/privacy/)（GitHub Pages 启用后生效）。
 
 ## 技术栈
 
@@ -133,7 +137,7 @@ MarkdownApp/
 
 - macOS
 - Xcode 26.6 或更高版本
-- iOS / iPadOS 18 或更高版本的模拟器或设备
+- iOS / iPadOS 16 或更高版本的模拟器或设备
 - 真机运行时需要可用的 Apple Developer 签名团队
 
 ### 启动步骤

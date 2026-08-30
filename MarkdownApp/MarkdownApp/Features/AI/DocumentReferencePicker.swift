@@ -11,7 +11,7 @@
 import SwiftUI
 
 struct DocumentReferencePicker: View {
-    let store: FileStore
+    @EnvironmentObject private var documentLibrary: DocumentLibraryController
     /// 已在附件条里的引用文档 URL，进来预勾选（去重）。
     let alreadySelected: Set<URL>
     /// 确认回调：交出选中文档对应的 documentReference 附件（已读文本、跳过空/不可读）。
@@ -25,11 +25,9 @@ struct DocumentReferencePicker: View {
         NavigationStack {
             Group {
                 if roots.isEmpty {
-                    ContentUnavailableView(
-                        "No Documents",
-                        systemImage: "folder",
-                        description: Text("Create a document on the home screen first")
-                    )
+                    AppEmptyStateView("No Documents", systemImage: "folder") {
+                        Text("Create a document on the home screen first")
+                    }
                 } else {
                     List {
                         OutlineGroup(roots, children: \.children) { item in
@@ -51,12 +49,17 @@ struct DocumentReferencePicker: View {
                 }
             }
             .onAppear {
-                roots = store.tree(of: store.rootURL)
                 selected = alreadySelected
+                reload()
             }
+            .reloadsOnLibraryRevision(documentLibrary.revision, perform: reload)
         }
         .presentationDetents([.medium, .large])
         .rebuildsOnLanguageChange()
+    }
+
+    private func reload() {
+        Task { roots = (try? await documentLibrary.tree()) ?? [] }
     }
 
     @ViewBuilder
@@ -94,24 +97,14 @@ struct DocumentReferencePicker: View {
 
     /// 把选中的文档读成文本、跳过空/不可读的，回传为附件。
     private func confirm() {
-        let picked = fileNodes(in: roots).filter { selected.contains($0.url) }
-        let attachments: [AIAttachment] = picked.compactMap { node in
-            let text = store.readText(at: node.url).trimmingCharacters(in: .whitespacesAndNewlines)
-            // 空文档 / 读不出（readText 读失败也返回空串）：跳过，不产生无意义的空引用。
-            guard !text.isEmpty else { return nil }
-            return .documentReference(url: node.url, name: node.displayName, text: text)
-        }
-        onConfirm(attachments)
-        dismiss()
-    }
-
-    /// 展平树取出全部文件叶子（供按 URL 反查选中的节点）。
-    private func fileNodes(in nodes: [DocumentTreeNode]) -> [DocumentNode] {
-        nodes.flatMap { node -> [DocumentNode] in
-            if let children = node.children {
-                return fileNodes(in: children)
-            }
-            return [node.node]
+        Task {
+            let attachments = await DocumentReferenceResolver.attachments(
+                in: roots,
+                selectedURLs: selected,
+                readText: { try await documentLibrary.readText(at: $0) }
+            )
+            onConfirm(attachments)
+            dismiss()
         }
     }
 }

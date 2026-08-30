@@ -13,7 +13,7 @@
 import SwiftUI
 
 struct ReadOnlyPreviewView: View {
-    let store: FileStore
+    @EnvironmentObject private var documentLibrary: DocumentLibraryController
     /// 被预览文件的原始 URL，用来判断是否可导入。
     let sourceURL: URL
     let title: String
@@ -23,11 +23,9 @@ struct ReadOnlyPreviewView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var showImportPicker = false
+    @State private var canImport = false
     /// 桥接预览 WebView，供「分享 - 长截图」取用。
     @State private var previewHandle = PreviewHandle()
-
-    /// 仅当文件不在本 App 目录内时才允许导入。
-    private var canImport: Bool { !store.isInsideStore(sourceURL) }
 
     var body: some View {
         NavigationStack {
@@ -59,7 +57,7 @@ struct ReadOnlyPreviewView: View {
                     }
                 }
                 .sheet(isPresented: $showImportPicker) {
-                    ImportTargetPicker(store: store, sourceURL: sourceURL) { _ in
+                    ImportTargetPicker(sourceURL: sourceURL) { _ in
                         // 导入成功：通知上层刷新列表，再关闭整个只读预览。
                         onImported()
                         dismiss()
@@ -67,5 +65,8 @@ struct ReadOnlyPreviewView: View {
                 }
         }
         .rebuildsOnLanguageChange()
+        .task {
+            canImport = !(await documentLibrary.isInsideLibrary(sourceURL))
+        }
     }
 }

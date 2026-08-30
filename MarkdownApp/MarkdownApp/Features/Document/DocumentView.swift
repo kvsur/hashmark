@@ -13,15 +13,19 @@
 import SwiftUI
 
 struct DocumentView: View {
-    let store: FileStore
+    @EnvironmentObject private var documentLibrary: DocumentLibraryController
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    /// 当前文档节点。设为可变状态，配合快速切换器实现原地换文档（不改导航栈）。
-    @State private var node: DocumentNode
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
+    /// 当前文档与脏草稿。值类型状态配合快速切换器原地换文档（不改导航栈）。
+    @State private var draft: DocumentDraft
 
-    init(store: FileStore, node: DocumentNode) {
-        self.store = store
-        _node = State(initialValue: node)
+    init(node: DocumentNode) {
+        _draft = State(initialValue: DocumentDraft(node: node))
     }
+
+    private var node: DocumentNode { draft.node }
+    private var text: String { draft.text }
 
     /// 两种模式：预览（渲染）/ 编辑（源码）。
     enum Mode: String, CaseIterable, Identifiable {
@@ -30,16 +34,26 @@ struct DocumentView: View {
         var label: LocalizedStringKey { self == .preview ? "Preview" : "Edit" }
     }
 
-    @State private var text: String = ""
-    /// 上次已写入磁盘的内容，用来判断是否有未保存改动（脏检查）。
-    @State private var savedText: String = ""
     @State private var mode: Mode = .preview
-    @State private var loaded = false
     @State private var showSwitcher = false
     /// 桥接预览 WebView，供预览态「分享 - 长截图」取用。
     @State private var previewHandle = PreviewHandle()
     @State private var editorHandle = EditorHandle()
     @State private var showOutline = false
+    @State private var loadError: String?
+    @State private var loadTask: Task<Void, Never>?
+    @State private var openDocumentPresenter: OpenDocumentPresenter?
+    @State private var documentEventTask: Task<Void, Never>?
+    @State private var syncNotice: String?
+    @State private var syncNoticeTask: Task<Void, Never>?
+    @State private var deletionAlert: DocumentDeletionAlert?
+    @State private var isBackingFileDeleted = false
+
+    private struct DocumentDeletionAlert: Identifiable {
+        let id = UUID()
+        let message: String
+        let retryURL: URL?
+    }
 
     // AI 写作：点按钮先选动作，过配置门槛后弹会话，接受则应用回文档。
     private let aiConfigStore = AIConfigStore()
@@ -95,22 +109,12 @@ struct DocumentView: View {
                             : [.sourceFile, .sourceContent]
                     )
                 }
-                // 文档间/文档内导航组成左侧一组，AI 内容操作独立在右侧；
-                // 让顶部只承担返回、模式切换与分享，减少视觉拥挤。
-                if #available(iOS 26, *) {
-                    ToolbarItemGroup(placement: .bottomBar) {
+                // 文档间/文档内导航组成左侧一组，AI 内容操作独立在右侧；版本布局差异由组件收敛。
+                DocumentBottomToolbar {
                         switchDocButton
                         outlineButton
-                    }
-                    ToolbarSpacer(.flexible, placement: .bottomBar)
-                    ToolbarItem(placement: .bottomBar) { aiActionButton }
-                } else {
-                    ToolbarItemGroup(placement: .bottomBar) {
-                        switchDocButton
-                        outlineButton
-                        Spacer()
+                } primaryAction: {
                         aiActionButton
-                    }
                 }
             }
             .aiConfigGate(trigger: $aiTrigger, store: aiConfigStore) { config in
@@ -135,16 +139,59 @@ struct DocumentView: View {
                 }
             }
             .onAppear(perform: loadIfNeeded)
+            .onAppear(perform: configureOpenDocumentPresentation)
             .onAppear(perform: configureScrollSync)
             // 切回预览时先落盘，保证预览读到的是最新且已持久化的内容。
-            .onChange(of: mode) { _, newMode in
+            .onChange(of: mode) { newMode in
                 if newMode == .preview { save() }
                 configureScrollSync()
             }
-            .onChange(of: horizontalSizeClass) { _, _ in configureScrollSync() }
-            .onDisappear(perform: save)
+            .onChange(of: horizontalSizeClass) { _ in configureScrollSync() }
+            .onChange(of: documentLibrary.storageMode) { _ in configureOpenDocumentPresentation() }
+            .onChange(of: scenePhase) { phase in
+                if phase == .active { configureOpenDocumentPresentation() }
+                else { stopOpenDocumentPresentation() }
+            }
+            .onDisappear {
+                loadTask?.cancel()
+                documentEventTask?.cancel()
+                syncNoticeTask?.cancel()
+                stopOpenDocumentPresentation()
+                if !isBackingFileDeleted { save() }
+            }
+            .overlay(alignment: .top) {
+                if let syncNotice {
+                    Text(syncNotice)
+                        .font(.footnote)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 9)
+                        .background(.regularMaterial, in: Capsule())
+                        .padding(.top, 8)
+                        .padding(.horizontal)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .accessibilityAddTraits(.isStaticText)
+                }
+            }
+            .alert(item: $deletionAlert) { payload in
+                if let retryURL = payload.retryURL {
+                    return Alert(
+                        title: Text("Recovery Needed"),
+                        message: Text(payload.message),
+                        primaryButton: .default(Text("Retry")) {
+                            enqueueDocumentEvent(.deleted(retryURL))
+                        },
+                        secondaryButton: .cancel(Text("Keep Editing"))
+                    )
+                }
+                return Alert(
+                    title: Text("Document No Longer Available"),
+                    message: Text(payload.message),
+                    dismissButton: .default(Text("Close")) { dismiss() }
+                )
+            }
             .sheet(isPresented: $showSwitcher) {
-                DocumentSwitcherSheet(store: store, currentURL: node.url) { selected in
+                DocumentSwitcherSheet(currentURL: node.url) { selected in
                     switchTo(selected)
                 }
                 .presentationDetents([.medium, .large])
@@ -198,32 +245,48 @@ struct DocumentView: View {
                         aiTrigger = true
                     }
                 }
-                .presentationCompactAdaptation(.popover)
+                .compatibleCompactPopover()
             }
     }
 
     @ViewBuilder
     private var content: some View {
-        switch mode {
-        case .preview:
-            MarkdownPreviewView(markdown: text, handle: previewHandle)
-                .ignoresSafeArea(edges: .bottom)
-                // 预览在「编辑的左边」：切走时向左滑出、回来时从左侧滑入。
-                .transition(.move(edge: .leading))
-        case .edit:
-            if horizontalSizeClass == .regular {
-                HStack(spacing: 0) {
-                    EditorView(text: $text, handle: editorHandle, onRequestAIRefine: requestSelectionRefine)
-                        .frame(maxWidth: .infinity)
-                    Divider()
-                    MarkdownPreviewView(markdown: text, handle: previewHandle)
-                        .frame(maxWidth: .infinity)
+        if !draft.isLoaded {
+            if let loadError {
+                AppEmptyStateView("Cannot Open File", systemImage: "icloud.slash") {
+                    Text(loadError)
+                } actions: {
+                    HStack {
+                        Button("Close") { dismiss() }
+                        Button("Retry") { loadIfNeeded() }
+                            .buttonStyle(.borderedProminent)
+                    }
                 }
-                .transition(.move(edge: .trailing))
             } else {
-                EditorView(text: $text, handle: editorHandle, onRequestAIRefine: requestSelectionRefine)
-                    // 编辑在「预览的右边」：切走时向右滑出、进入时从右侧滑入。
+                ProgressView()
+            }
+        } else {
+            switch mode {
+            case .preview:
+                MarkdownPreviewView(markdown: text, handle: previewHandle)
+                    .ignoresSafeArea(edges: .bottom)
+                    // 预览在「编辑的左边」：切走时向左滑出、回来时从左侧滑入。
+                    .transition(.move(edge: .leading))
+            case .edit:
+                if horizontalSizeClass == .regular {
+                    HStack(spacing: 0) {
+                        EditorView(text: $draft.text, handle: editorHandle, onRequestAIRefine: requestSelectionRefine)
+                            .frame(maxWidth: .infinity)
+                        Divider()
+                        MarkdownPreviewView(markdown: text, handle: previewHandle)
+                            .frame(maxWidth: .infinity)
+                    }
                     .transition(.move(edge: .trailing))
+                } else {
+                    EditorView(text: $draft.text, handle: editorHandle, onRequestAIRefine: requestSelectionRefine)
+                        // 编辑在「预览的右边」：切走时向右滑出、进入时从右侧滑入。
+                        .transition(.move(edge: .trailing))
+                }
             }
         }
     }
@@ -286,9 +349,9 @@ struct DocumentView: View {
         }
         switch launch.action.editorApplyMode {
         case .append:
-            text = text.isEmpty ? result : text + "\n\n" + result
+            draft.text = text.isEmpty ? result : text + "\n\n" + result
         case .replace:
-            text = result
+            draft.text = result
         }
         save()
     }
@@ -298,9 +361,9 @@ struct DocumentView: View {
     private func applyToSelection(_ range: NSRange, _ result: String) {
         let ns = text as NSString
         if range.location != NSNotFound, range.location >= 0, range.location + range.length <= ns.length {
-            text = ns.replacingCharacters(in: range, with: result)
+            draft.text = ns.replacingCharacters(in: range, with: result)
         } else {
-            text = text.isEmpty ? result : text + "\n\n" + result
+            draft.text = text.isEmpty ? result : text + "\n\n" + result
         }
         save()
     }
@@ -309,17 +372,143 @@ struct DocumentView: View {
 
     /// 首次出现时从磁盘读入一次；之后 text 即本屏数据源，不再重复读盘。
     private func loadIfNeeded() {
-        guard !loaded else { return }
-        text = store.readText(at: node.url)
-        savedText = text
-        loaded = true
+        guard !draft.isLoaded else { return }
+        let url = node.url
+        loadError = nil
+        loadTask?.cancel()
+        loadTask = Task {
+            do {
+                let loaded = try await documentLibrary.readText(at: url)
+                guard !Task.isCancelled, node.url == url else { return }
+                draft.loadIfNeeded(text: loaded)
+            } catch is CancellationError {
+                return
+            } catch {
+                loadError = error.localizedDescription
+            }
+        }
     }
 
     /// 有改动才写盘，避免无谓 IO 与修改时间抖动。
     private func save() {
-        guard loaded, text != savedText else { return }
-        try? store.writeText(text, to: node.url)
-        savedText = text
+        guard draft.isDirty, !isBackingFileDeleted else { return }
+        let text = draft.text
+        let url = node.url
+        Task {
+            guard (try? await documentLibrary.writeText(text, to: url)) != nil else { return }
+            draft.markSaved(text, at: url)
+        }
+    }
+
+    private func configureOpenDocumentPresentation() {
+        stopOpenDocumentPresentation()
+        guard documentLibrary.storageMode == .iCloud,
+              scenePhase == .active,
+              !isBackingFileDeleted else { return }
+        let presenter = OpenDocumentPresenter(url: node.url) { event in
+            Task { @MainActor in enqueueDocumentEvent(event) }
+        }
+        openDocumentPresenter = presenter
+        presenter.register()
+    }
+
+    private func stopOpenDocumentPresentation() {
+        openDocumentPresenter?.unregister()
+        openDocumentPresenter = nil
+    }
+
+    /// Chains events in presenter order. Async reads and conflict copies therefore
+    /// cannot overtake a preceding move or deletion notification.
+    private func enqueueDocumentEvent(_ event: OpenDocumentEvent) {
+        let precedingTask = documentEventTask
+        documentEventTask = Task { @MainActor in
+            await precedingTask?.value
+            guard !Task.isCancelled else { return }
+            await handleDocumentEvent(event)
+        }
+    }
+
+    private func handleDocumentEvent(_ event: OpenDocumentEvent) async {
+        switch event {
+        case .moved(let oldURL, let newURL):
+            guard node.url == oldURL else { return }
+            draft.move(to: newURL)
+            documentLibrary.publishExternalRevision()
+            showSyncNotice(LocalizationController.string("This document was moved on another device."))
+
+        case .changed(let url):
+            guard node.url == url, draft.isLoaded else { return }
+            do {
+                let remoteText = try await documentLibrary.readText(at: url)
+                switch draft.decision(forRemoteText: remoteText) {
+                case .ignore:
+                    break
+                case .markSaved:
+                    draft.markSaved(remoteText, at: url)
+                case .reload:
+                    draft.reloadCleanText(remoteText, at: url)
+                    showSyncNotice(LocalizationController.string("This document was updated from iCloud."))
+                case .preserveRemoteAndSaveDraft:
+                    let draftText = draft.text
+                    let preserved = try await documentLibrary.preserveRemoteTextAndSaveDraft(
+                        remoteText,
+                        draftText: draftText,
+                        at: url
+                    )
+                    draft.markSaved(draftText, at: url)
+                    if preserved != nil {
+                        showSyncNotice(LocalizationController.string("A remote version was preserved as a conflict copy."))
+                    }
+                }
+            } catch {
+                showSyncNotice(LocalizationController.string("An iCloud document change could not be applied."))
+            }
+
+        case .versionConflict(let url):
+            guard node.url == url else { return }
+            do {
+                let report = try await documentLibrary.resolveVersionConflicts(at: url)
+                if !report.materializedURLs.isEmpty {
+                    showSyncNotice(LocalizationController.string("Conflicting versions were preserved as separate documents."))
+                }
+            } catch {
+                showSyncNotice(LocalizationController.string("An iCloud document conflict could not be resolved."))
+            }
+
+        case .deleted(let url):
+            guard node.url == url else { return }
+            isBackingFileDeleted = true
+            stopOpenDocumentPresentation()
+            if draft.isDirty {
+                do {
+                    _ = try await documentLibrary.recoverDeletedDraft(draft.text, formerlyAt: url)
+                    deletionAlert = DocumentDeletionAlert(
+                        message: LocalizationController.string("Your unsaved draft was recovered as a new document. Close this deleted document to continue."),
+                        retryURL: nil
+                    )
+                } catch {
+                    deletionAlert = DocumentDeletionAlert(
+                        message: LocalizationController.string("The deleted document could not be recovered. Keep this screen open and retry after iCloud becomes available."),
+                        retryURL: url
+                    )
+                }
+            } else {
+                deletionAlert = DocumentDeletionAlert(
+                    message: LocalizationController.string("The document was deleted on another device. Close it to return to the library."),
+                    retryURL: nil
+                )
+            }
+        }
+    }
+
+    private func showSyncNotice(_ message: String) {
+        syncNoticeTask?.cancel()
+        withAnimation(.easeInOut(duration: 0.2)) { syncNotice = message }
+        syncNoticeTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 0.2)) { syncNotice = nil }
+        }
     }
 
     /// 原地切换到另一篇文档：先保存当前脏内容（用旧 node.url），再换 node 并载入新文本。
@@ -327,9 +516,18 @@ struct DocumentView: View {
     private func switchTo(_ newNode: DocumentNode) {
         guard newNode.url != node.url else { return }
         Haptics.soft()                            // 切换成功给一下细微反馈
-        save()                                    // 存旧文档
-        node = newNode
-        text = store.readText(at: newNode.url)    // 载入新文档
-        savedText = text
+        let oldURL = node.url
+        let oldText = draft.text
+        let shouldSave = draft.isDirty
+        Task {
+            if shouldSave {
+                try? await documentLibrary.writeText(oldText, to: oldURL)
+            }
+            guard let newText = try? await documentLibrary.readText(at: newNode.url), node.url == oldURL else {
+                return
+            }
+            draft.replaceDocument(with: newNode, text: newText)
+            configureOpenDocumentPresentation()
+        }
     }
 }

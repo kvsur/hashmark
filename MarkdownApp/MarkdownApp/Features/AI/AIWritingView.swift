@@ -27,7 +27,7 @@ struct AIWritingView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @Environment(\.scenePhase) private var scenePhase
-    @State private var session: AIWritingSession
+    @StateObject private var session: AIWritingSession
     @State private var prompt = ""
     @State private var attachments: [AIAttachment] = []
     /// 流式预览：用户是否贴底跟随最新（false = 已上滑离底，显示「跳到最新」浮标）。
@@ -38,13 +38,15 @@ struct AIWritingView: View {
     @State private var reasoningDisclosure = AIReasoningDisclosureState()
     @State private var detent: PresentationDetent
     @State private var showDiscardConfirm = false
+    /// iOS 16 的 onChange 不提供旧值；用上次已处理阶段保留生成开始/结束触觉语义。
+    @State private var previousSessionPhase: AIWritingSession.Phase = .idle
     /// 当前 AI 配置的本地副本：用于读取 Registry 解析出的附件能力。
     @State private var config: AIConfig
     @State private var showConfigEditor = false
+    @State private var showDataSharingConsent = false
 
-    /// 引用库内文档用；FileStore 无状态（直接读 Documents），就地创建即可。
-    private let store = FileStore()
     private let aiConfigStore = AIConfigStore()
+    private let consentStore = AIDataSharingConsentStore()
 
     init(config: AIConfig, action: AIAction, context: String? = nil, contextPreview: String? = nil, title: LocalizedStringKey, onAccept: @escaping (String) -> Void) {
         self.action = action
@@ -56,8 +58,8 @@ struct AIWritingView: View {
         self.idleDetent = initialDetent
         _detent = State(initialValue: initialDetent)
         _config = State(initialValue: config)
-        _session = State(
-            initialValue: AIWritingSession(
+        _session = StateObject(
+            wrappedValue: AIWritingSession(
                 config: config,
                 tools: Self.sessionTools(for: action)
             )
@@ -75,13 +77,15 @@ struct AIWritingView: View {
         }
         .presentationDetents([idleDetent, .large], selection: $detent)
         .presentationDragIndicator(.visible)
-        .presentationContentInteraction(.scrolls)
+        .compatibleScrollablePresentationContent()
         .onAppear { expandForConstrainedHeightIfNeeded() }
-        .onChange(of: dynamicTypeSize) { _, _ in expandForConstrainedHeightIfNeeded() }
-        .onChange(of: verticalSizeClass) { _, _ in expandForConstrainedHeightIfNeeded() }
+        .onChange(of: dynamicTypeSize) { _ in expandForConstrainedHeightIfNeeded() }
+        .onChange(of: verticalSizeClass) { _ in expandForConstrainedHeightIfNeeded() }
         // 一旦离开填 prompt 阶段（流式/反问/完成）就转全屏，给内容与答题足够空间。
         // 同时在「开始产出正文」与「本轮结束」各给一次触觉反馈（精修/重新生成会再次经历这两态）。
-        .onChange(of: session.phase) { oldPhase, phase in
+        .onChange(of: session.phase) { phase in
+            let oldPhase = previousSessionPhase
+            previousSessionPhase = phase
             if phase != .idle { detent = .large }
             if oldPhase == .loading && (phase == .reasoning || phase == .streaming) {
                 Haptics.soft()                 // 开始生成
@@ -89,15 +93,24 @@ struct AIWritingView: View {
             }
             if oldPhase != .done, phase == .done { Haptics.success() }            // 结束生成
         }
-        .onChange(of: session.presentationState.hasStartedAnswer) { _, started in
+        .onChange(of: session.presentationState.hasStartedAnswer) { started in
             if started { reasoningDisclosure.answerStarted() }
         }
-        .onChange(of: scenePhase) { _, newPhase in
+        .onChange(of: scenePhase) { newPhase in
             if newPhase == .background { session.interruptForBackground() }
         }
         .confirmationDialog("Discard this generation?", isPresented: $showDiscardConfirm, titleVisibility: .visible) {
             Button("Discard", role: .destructive) { session.cancel(); dismiss() }
             Button("Keep Going", role: .cancel) {}
+        }
+        .alert("AI Data Sharing", isPresented: $showDataSharingConsent) {
+            Button("Not Now", role: .cancel) {}
+            Button("Allow and Continue") {
+                consentStore.grant(for: config)
+                beginGeneration()
+            }
+        } message: {
+            Text(AIDataSharingConsentCopy.message(for: config))
         }
         // 当前 Provider/模型未确认图片能力时，入口可引导到配置页；关闭后重载能力状态。
         .sheet(isPresented: $showConfigEditor, onDismiss: reloadConfig) {
@@ -118,7 +131,6 @@ struct AIWritingView: View {
                 contextPreview: contextPreview,
                 prompt: $prompt,
                 attachments: $attachments,
-                store: store,
                 supportsImages: config.resolvedProvider?
                     .allowsKnownSafeRequest(.imageInput) == true,
                 onNeedsConfig: { showConfigEditor = true },
@@ -153,9 +165,7 @@ struct AIWritingView: View {
     }
 
     private func errorView(_ message: String) -> some View {
-        ContentUnavailableView {
-            Label("Generation Failed", systemImage: "exclamationmark.triangle")
-        } description: {
+        AppEmptyStateView("Generation Failed", systemImage: "exclamationmark.triangle") {
             Text(message)
         } actions: {
             // 用现有历史重跑，不重置会话（保住反问/精修上下文）。
@@ -216,15 +226,24 @@ struct AIWritingView: View {
     }
 
     private func start() {
-        // 配置页可以覆盖在当前写作页上。提交前必须重新读取持久化配置并创建会话，
+        // 配置页可以覆盖在当前写作页上。提交前必须重新读取持久化配置并更新稳定会话，
         // 否则搜索开关虽然已经显示为开启，请求仍会沿用打开页面时的旧快照。
         let latestConfig = aiConfigStore.load()
         config = latestConfig
-        session = AIWritingSession(
+        session.reconfigure(
             config: latestConfig,
             tools: Self.sessionTools(for: action)
         )
 
+        guard consentStore.hasConsent(for: latestConfig) else {
+            showDataSharingConsent = true
+            return
+        }
+
+        beginGeneration()
+    }
+
+    private func beginGeneration() {
         // 附件（图片+引用文档）随首轮消息带下去：图片走多模态块、文档引用注入 user 文本。
         // 精修/重新生成不重复带图——refine 走 refineMessages（无附件），regenerate 复用已含图的首条消息。
         reasoningDisclosure.beginTurn()
@@ -239,7 +258,7 @@ struct AIWritingView: View {
         let latestConfig = aiConfigStore.load()
         config = latestConfig
         guard session.phase == .idle else { return }
-        session = AIWritingSession(
+        session.reconfigure(
             config: latestConfig,
             tools: Self.sessionTools(for: action)
         )

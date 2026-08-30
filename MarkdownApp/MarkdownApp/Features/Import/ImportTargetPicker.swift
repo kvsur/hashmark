@@ -9,7 +9,7 @@
 import SwiftUI
 
 struct ImportTargetPicker: View {
-    let store: FileStore
+    @EnvironmentObject private var documentLibrary: DocumentLibraryController
     /// 待导入的外部文件 URL。
     let sourceURL: URL
     /// 导入成功后回调新文件 URL。
@@ -17,12 +17,12 @@ struct ImportTargetPicker: View {
 
     var body: some View {
         DirectoryPicker(
-            store: store,
+            rootURL: documentLibrary.activeRootURL,
             title: "Choose Folder",
             prompt: "Import “\(sourceURL.lastPathComponent)” to",
             confirmLabel: "Import Here"
         ) { targetDir in
-            let newURL = try store.importFile(from: sourceURL, to: targetDir)
+            let newURL = try await documentLibrary.importFile(from: sourceURL, to: targetDir)
             onImported(newURL)
         }
     }

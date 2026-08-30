@@ -6,11 +6,11 @@
 //  continuation 分开保存；只有 text 事件可以进入 Markdown 正文。
 //
 
+import Combine
 import Foundation
 
-@Observable
 @MainActor
-final class AIWritingSession {
+final class AIWritingSession: ObservableObject {
     enum Phase: Equatable {
         case idle
         case loading
@@ -25,22 +25,22 @@ final class AIWritingSession {
 
     // Internal setters let the focused extension files evolve one logical turn while
     // callers still interact through the action methods below.
-    var phase: Phase = .idle
-    var text = ""
-    var reasoningText = ""
+    @Published var phase: Phase = .idle
+    @Published var text = ""
+    @Published var reasoningText = ""
     var reasoningBlocks: [AIReasoningBlock] = []
-    var committedText = ""
-    var interruptedReason: String?
+    @Published var committedText = ""
+    @Published var interruptedReason: String?
     var attachmentPreparations: [AIAttachmentPreparation] = []
-    var searchTimeline = AISearchTimeline()
+    @Published var searchTimeline = AISearchTimeline()
     var usage: AIUsage?
     var providerContinuations: [AIProviderContinuation] = []
     var generationPhase: AIGenerationPhase?
     var stopReason: AIStreamStopReason?
-    var presentationState = AIPresentationState()
+    @Published var presentationState = AIPresentationState()
 
-    let config: AIConfig
-    private let tools: [AITool]
+    private(set) var config: AIConfig
+    private var tools: [AITool]
     private let clientFactory: (AIConfig) throws -> AIClient
     let attachmentOrchestrator = AIAttachmentOrchestrator()
     private let maxNativeSearchContinuations = 5
@@ -52,7 +52,7 @@ final class AIWritingSession {
     var pendingToolCall: AIToolCall?
     var didCommit = false
     private var task: Task<Void, Never>?
-    @ObservationIgnored var deltaCoalescer: AIStreamDeltaCoalescer!
+    var deltaCoalescer: AIStreamDeltaCoalescer!
 
     convenience init(config: AIConfig, tools: [AITool]) {
         self.init(config: config, tools: tools, clientFactory: AIClientFactory.make)
@@ -80,6 +80,17 @@ final class AIWritingSession {
     var citations: [AISearchCitation] { searchTimeline.citations }
 
     // MARK: - 对外动作
+
+    /// 配置页只会覆盖尚未开始的输入阶段。稳定复用 StateObject 身份，避免替换会话对象时
+    /// 丢失 SwiftUI 订阅；一旦开始生成，配置更新留给下一次新会话。
+    @discardableResult
+    func reconfigure(config: AIConfig, tools: [AITool]) -> Bool {
+        guard phase == .idle else { return false }
+        self.config = config
+        self.tools = tools
+        client = nil
+        return true
+    }
 
     func start(messages: [AIMessage], attachments: [AIAttachment] = []) {
         self.messages = messages

@@ -18,7 +18,7 @@ struct MarkdownOutlineSheet: View {
             Group {
                 let items = MarkdownOutline.items(in: markdown)
                 if items.isEmpty {
-                    ContentUnavailableView("No Headings", systemImage: "textformat.size")
+                    AppEmptyStateView("No Headings", systemImage: "textformat.size")
                 } else {
                     List(items) { item in
                         Button {
@@ -43,4 +43,3 @@ struct MarkdownOutlineSheet: View {
         }
     }
 }
-

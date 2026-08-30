@@ -1,0 +1,250 @@
+{
+  "version": "1.3.0",
+  "created_at": "2026-08-29 00:32:32",
+  "updated_at": "2026-08-29 23:34:47",
+  "current_step": "S7",
+  "next_step": "All iOS 16 and iCloud Documents steps are complete; archive the finished plan as ios16-icloud-documents-sync.",
+  "overall_status": "done",
+  "completion_rate": "100%",
+  "all_steps": [
+    {
+      "id": "S1",
+      "name": "Freeze current behavior and compatibility inventory",
+      "status": "done",
+      "start_at": "2026-08-29 00:38:48",
+      "done_at": "2026-08-29 00:48:58",
+      "depends_on": [],
+      "refs": ["C1", "C2", "C3", "C4", "C6", "C7", "C12", "C13"],
+      "notes": [
+        "S1.1 2026-08-29 Baseline commit ecf1aa7 passed the full AI aggregate, FileStore, activity resolver, Markdown editing, and Debug/Release simulator plus unsigned-device builds.",
+        "S1.2 2026-08-29 Added executable regression coverage for local CRUD/collisions/nesting/Inbox/containment, document load-dirty-save-switch order, external-open payloads, and AI document references; focused production models preserve the existing UI behavior.",
+        "S1.3 2026-08-29 The iOS 16 override build fails at the inventoried Observation barrier with exit 65; C13 records 2 Observable types, ownership/injection sites, all 16 two-argument/initial onChange sites, 5 empty states, bottom scroll anchoring, and iOS 16.4 presentation modifiers.",
+        "S1.4 2026-08-29 C13 maps both runtime FileStore() constructions and every active-root/URL identity consumer; the only additional constructor is the injected test fixture.",
+        "S1.5 2026-08-29 Added deterministic executable checkpoints for container resolution, download, copy, write, delete, pre/post-commit crash, external change, and version conflict with explicit no-data-loss invariants.",
+        "2026-08-29 Final S1 gate passed run-step1-tests.sh, the full existing AI and Markdown editing suites, and all four Debug/Release simulator/unsigned-device builds. Only iOS 26.5 runtime is installed; real iOS 16 runtime acceptance remains an S7 external gate."
+      ],
+      "sub_steps": [
+        {"id": "S1.1", "name": "Record complete existing tests and Debug/Release build baseline", "status": "done"},
+        {"id": "S1.2", "name": "Freeze local document and UI lifecycle behavior in regression tests", "status": "done"},
+        {"id": "S1.3", "name": "Capture complete iOS 16 availability audit", "status": "done"},
+        {"id": "S1.4", "name": "Map direct FileStore construction and URL identity assumptions", "status": "done"},
+        {"id": "S1.5", "name": "Define fault-injection seams and scenarios", "status": "done"}
+      ],
+      "verify": "Baseline tests/builds pass, every affected entry point is mapped, and compatibility/storage failure cases are executable."
+    },
+    {
+      "id": "S2",
+      "name": "Backport the application to iOS 16.0",
+      "status": "done",
+      "start_at": "2026-08-29 14:02:02",
+      "done_at": "2026-08-29 14:10:23",
+      "depends_on": ["S1"],
+      "refs": ["C1", "C3", "C4", "C5", "C6", "C13", "C14"],
+      "notes": [
+        "S2.1 2026-08-29 Converted SettingsStore to ObservableObject/@Published, root ownership to StateObject, and all consumers/previews to EnvironmentObject. An iOS 16 override build moved past every SettingsStore availability error and now stops only at S2.2 AI Observation APIs.",
+        "S2.2 2026-08-29 Converted AIWritingSession to ObservableObject with seven focused Published UI states, StateObject ownership, ObservedObject presentation, and idle-only reconfiguration. SearchAndSessionStateTests prove idle refresh succeeds and active refresh is rejected; the iOS 16 build now reaches onChange/empty-state/presentation compatibility work.",
+        "S2.3 2026-08-29 Replaced all 16 iOS 17 onChange overloads. Theme applies on appear plus subsequent changes; AI phase and provider profile transitions retain explicit previous values. The iOS 16 compiler reports no remaining onChange availability errors.",
+        "S2.4 2026-08-29 Added AppEmptyStateView with a centralized iOS 17 native/iOS 16 fallback branch for all five empty/error states, plus BottomFollowingScrollView for reasoning updates. Production feature files no longer reference ContentUnavailableView or defaultScrollAnchor; the iOS 16 build now stops only at S2.5 presentation adaptation.",
+        "S2.5 2026-08-29 Centralized iOS 16.4 presentation content/popover adaptation with 16.0-16.3 defaults, moved the iOS 26 document toolbar branch into DocumentBottomToolbar, and documented GlassBackground's iOS 16-25 material fallback. A complete Debug simulator build succeeds with an iOS 16.0 command-line override.",
+        "S2.6 2026-08-29 Set Debug and Release deployment targets to iOS 16.0 while retaining the iOS 26.5 Base SDK; updated AGENTS.md, README minimum-version badge, and fallback documentation. Static availability audit, full AI aggregate, S1 document suites, Markdown editing tests, and Debug/Release simulator/unsigned-device builds all pass. C14 records the completed compatibility architecture and evidence.",
+        "2026-08-29 Real iOS 16 runtime/device acceptance remains an S7 external gate because this machine only has the iOS 26.5 simulator runtime; this does not block the fully successful iOS 16 deployment-target builds.",
+        "2026-08-29 18:10:57 iOS 16.0 runtime became available and supplemental Debug/Release smoke passed on iPhone 14 Pro and iPad Air (5th generation): concrete builds, install/launch, iOS 16 empty-state fallback, external onOpenURL read-only preview, and a local DocumentView Web preview all rendered without a crash report. A non-fatal libxpc assertion also reproduced in Apple's Settings app, identifying it as simulator-wide noise. Assistive UI control was unavailable, so edit/save, Settings, AI, import confirmation, and tap-driven CRUD remain honest S7 manual/physical-device gates; C14 contains the evidence."
+      ],
+      "sub_steps": [
+        {"id": "S2.1", "name": "Backport SettingsStore observation and environment ownership", "status": "done"},
+        {"id": "S2.2", "name": "Backport AIWritingSession observation and reconfiguration", "status": "done"},
+        {"id": "S2.3", "name": "Replace iOS 17 onChange overloads", "status": "done"},
+        {"id": "S2.4", "name": "Add reusable empty-state and bottom-scroll compatibility", "status": "done"},
+        {"id": "S2.5", "name": "Centralize iOS 16.4 presentation and iOS 26 visual fallbacks", "status": "done"},
+        {"id": "S2.6", "name": "Set iOS 16.0 deployment target and run full availability regression", "status": "done"}
+      ],
+      "verify": "Local-only Debug/Release builds target iOS 16.0 without unguarded availability errors and preserve every frozen behavior."
+    },
+    {
+      "id": "S3",
+      "name": "Centralize the document library and preserve local behavior",
+      "status": "done",
+      "start_at": "2026-08-29 18:14:27",
+      "done_at": "2026-08-29 18:21:37",
+      "depends_on": ["S2"],
+      "refs": ["C1", "C2", "C6", "C7", "C9", "C13", "C14"],
+      "notes": [
+        "S3.1 2026-08-29 Added persisted DocumentStorageMode, aggregate DocumentLibraryState, root-owned MainActor controller, active-library identity/revision, and a DocumentLibraryService actor.",
+        "S3.2 2026-08-29 FileStore now requires an explicit active root and independent local Inbox URL; actor tests prove cloud-shaped roots never absorb Inbox and purge always targets local staging.",
+        "S3.3 2026-08-29 Added direct and NSFileCoordinator access implementations, throwing UTF-8 reads, readable-empty distinction, and atomic coordinated writes/creates/imports.",
+        "S3.4 2026-08-29 All scan/tree/read/write/create/import/move/rename/delete operations are async through the actor, with mutation freeze and serialized concurrent collision coverage.",
+        "S3.5 2026-08-29 Rewired browser, document lifecycle, import, directory picker, switcher, preview, share-source identity, and AI document references to the injected controller; source audit finds no runtime FileStore construction outside the centralized model layer.",
+        "S3.6 2026-08-29 S1/S3 document suites, full AI aggregate, Markdown editing tests, and Debug/Release simulator/unsigned-device builds all pass at iOS 16.0. Parallel shared-DerivedData attempts hit Xcode build.db contention only; isolated DerivedData reruns passed all four matrices."
+      ],
+      "sub_steps": [
+        {"id": "S3.1", "name": "Add storage mode, library state, service actor, and root controller", "status": "done"},
+        {"id": "S3.2", "name": "Separate active root from local Inbox in FileStore", "status": "done"},
+        {"id": "S3.3", "name": "Add direct/coordinated access and typed atomic I/O", "status": "done"},
+        {"id": "S3.4", "name": "Expose serialized async document operations", "status": "done"},
+        {"id": "S3.5", "name": "Rewire every document consumer to the injected library", "status": "done"},
+        {"id": "S3.6", "name": "Prove local-mode parity and lifecycle behavior", "status": "done"}
+      ],
+      "verify": "All local baselines pass and every runtime document operation uses the centralized service off the main thread."
+    },
+    {
+      "id": "S4",
+      "name": "Add iCloud Documents capability and cloud runtime",
+      "status": "done",
+      "start_at": "2026-08-29 18:22:22",
+      "done_at": "2026-08-29 18:50:40",
+      "depends_on": ["S3"],
+      "refs": ["C1", "C3", "C8", "C9", "C10", "C13", "C14"],
+      "notes": [
+        "S4.1 2026-08-29 Added CloudDocuments/ubiquity entitlements, public Hashmark Documents container metadata, Xcode iCloud capability, and Debug/Release entitlements wiring for iCloud.com.kvsur.MarkdownApp.",
+        "S4.2 2026-08-29 Added actor-isolated off-main container resolution, Documents preparation, identity fingerprinting, launch activation for committed cloud mode, and identity-change mutation freeze without local fallback.",
+        "S4.3 2026-08-29 Cloud stores use NSFileCoordinator for scans, reads, atomic writes, create/delete, dual-URL rename/move, and coordinated import source/destination access; fake coordination audit covers every operation class.",
+        "S4.4 2026-08-29 Added typed ubiquitous readiness/download/error/timeout handling and a cancellable document loading UI with retry/close; readable empty content remains distinct from unavailable and failed reads.",
+        "S4.5 2026-08-29 Added serial root NSFilePresenter events, debounced library revisions, NSMetadataQuery aggregate upload/download/error state, and required foreground registration/background removal.",
+        "S4.6 2026-08-29 Fake container/download/identity/presenter tests and capability audits pass. Automatic signed generic-device build succeeded; embedded provisioning and final signature contain CloudDocuments plus iCloud.com.kvsur.MarkdownApp. Real container runtime smoke is blocked because both registered physical devices are currently unavailable to CoreDevice.",
+        "S4.6 2026-08-29 18:46:12 The wired, paired iPhone 15 Pro on iOS 27.0 Beta successfully built, installed, and launched a Debug-only cloud smoke. The real ubiquity Documents root completed coordinated create/write/read/list with a 64-byte tokened document, and the fixture propagated to the Mac iCloud Drive. A reusable Debug-only runner now records results outside local Documents and waits for tokened external presenter refresh. The follow-up launch was denied only because the phone auto-locked; Files visibility, presenter refresh, and disconnected offline read remain before S4.6 can close.",
+        "S4.6 2026-08-29 18:49:40 After unlock, a tokened edit from the Mac iCloud Drive reached the running iPhone app and produced externalChangeObserved=true only after its NSFilePresenter revision fired; coordinated reread matched the external bytes. The Debug build now also contains an explicit existing-fixture offline-read checkpoint, and the system Files app has been launched for the final visual visibility check.",
+        "S4.6 2026-08-29 18:50:40 The user confirmed the public Hashmark container and tokened fixture were visible in the iPhone Files app. With Airplane Mode enabled and Wi-Fi plus cellular disabled, the installed app reread the previously downloaded, externally edited 112-byte fixture through the cloud controller and recorded offlineReadPassed=true. S4's complete real-container verification criterion now passes."
+      ],
+      "sub_steps": [
+        {"id": "S4.1", "name": "Register capability, entitlements, and public document container", "status": "done"},
+        {"id": "S4.2", "name": "Resolve container and observe iCloud identity off the main thread", "status": "done"},
+        {"id": "S4.3", "name": "Implement coordinated cloud CRUD and imports", "status": "done"},
+        {"id": "S4.4", "name": "Implement on-demand downloads and typed readiness", "status": "done"},
+        {"id": "S4.5", "name": "Add file presenter, metadata monitoring, and aggregate state", "status": "done"},
+        {"id": "S4.6", "name": "Run fake-runtime tests and signed single-device smoke", "status": "done"}
+      ],
+      "verify": "The real container round-trips a document, external changes refresh, downloaded files work offline, and unavailable cloud access is non-destructive."
+    },
+    {
+      "id": "S5",
+      "name": "Implement the iCloud switch and transactional migrations",
+      "status": "done",
+      "start_at": "2026-08-29 18:52:10",
+      "done_at": "2026-08-29 19:07:10",
+      "depends_on": ["S4"],
+      "refs": ["C1", "C5", "C8", "C11", "C13", "C14"],
+      "notes": [
+        "S5.1 2026-08-29 Added a versioned atomic migration journal, monotonic checkpoints, Application Support workspace, independent recovery payload, SHA-256 manifest, nested/empty-folder preservation, Inbox exclusion, and corruption verification. Focused tests plus Debug/Release iOS 16 simulator builds pass.",
+        "S5.2 2026-08-29 Added recursive coordinated merge with SHA-256 identical-file dedupe, deterministic timestamp/device conflict copies, collision suffixes, empty-directory preservation, and safe file/folder collision handling. Tests prove existing destination and source bytes are never overwritten or deleted; Debug/Release builds pass without warnings.",
+        "S5.3 2026-08-29 Added transactional enable orchestration with mutation freeze, verified recovery backup, Inbox-excluding coordinated merge, pre-commit fault gate, atomic root/mode transition, post-commit cleanup debt, and retained recovery evidence. Tests prove pre-commit failure preserves local mode/bytes and retry is idempotent; Debug/Release builds pass.",
+        "S5.4 2026-08-29 Added non-destructive disable orchestration that downloads every cloud Markdown item, creates and verifies a recovery backup, safely merges into local with Inbox reserved, commits local only after verification, and never deletes cloud content. Focused enable/disable/re-enable tests pass.",
+        "S5.5 2026-08-29 Added launch recovery for committed enable/disable journals, pre-commit safe retry, post-commit cleanup continuation, cleanup-debt retention, completed-journal history, and committed-mode mismatch freeze. Fault tests prove both crash boundaries preserve every sole copy.",
+        "S5.6 2026-08-29 Added a confirmation-gated Settings toggle, aggregate local/checking/cloud/syncing/migrating/error state, progress, retry, and accessibility values wired to the root controller.",
+        "S5.7 2026-08-29 Added complete English source plus German, Japanese, Korean, Russian, Simplified Chinese, and Traditional Chinese translations for every new iCloud control/status/confirmation string. Localization audit, all S1/S3/S4/S5 suites, full AI aggregate, and Debug/Release builds pass."
+      ],
+      "sub_steps": [
+        {"id": "S5.1", "name": "Add migration journal, checkpoints, and recovery backup", "status": "done"},
+        {"id": "S5.2", "name": "Implement no-overwrite recursive merge and conflict naming", "status": "done"},
+        {"id": "S5.3", "name": "Implement transactional enable migration", "status": "done"},
+        {"id": "S5.4", "name": "Implement non-destructive disable migration", "status": "done"},
+        {"id": "S5.5", "name": "Implement crash retry and identity-change recovery", "status": "done"},
+        {"id": "S5.6", "name": "Add Settings switch, confirmations, status, progress, and retry", "status": "done"},
+        {"id": "S5.7", "name": "Complete seven-language, accessibility, and recovery UI coverage", "status": "done"}
+      ],
+      "verify": "Fault-injected enable/disable/re-enable tests prove no sole copy is lost and Settings always reflects the committed mode."
+    },
+    {
+      "id": "S6",
+      "name": "Handle live synchronization, external edits, and conflicts",
+      "status": "done",
+      "start_at": "2026-08-29 19:07:30",
+      "depends_on": ["S5"],
+      "refs": ["C1", "C2", "C6", "C9", "C10", "C11", "C13", "C14"],
+      "notes": [
+        "S6.1 2026-08-29 Added one iOS 16-compatible revision reload modifier and wired browser, directory picker, document switcher, and AI reference picker to the controller's debounced cloud revision. Focused S5 suites and a Debug simulator build pass; no polling loop was introduced.",
+        "2026-08-29 19:17:10 At the user's request, the offline iPhone completed the transactional iCloud disable: mode/local root were verified, 31 visible local items remained, and the cloud library was retained. The first attempt safely made no mode change and exposed an offline launch watchdog caused by ProcessInfo.hostName DNS resolution; device naming now uses UIDevice without network access.",
+        "S6.2 2026-08-29 Added a serial single-file NSFilePresenter that follows remote moves, reloads only clean drafts, and unregisters whenever the app backgrounds as required by Apple's presenter contract.",
+        "S6.3 2026-08-29 Dirty editors now compare remote, saved, and draft bytes; every distinct remote value is atomically verified as a coordinated sibling before the active draft regains the main path, with a non-blocking localized notice.",
+        "S6.4 2026-08-29 Added injected NSFileVersion snapshots, SHA-256 dedupe, coordinated conflict-copy materialization, resolve-after-verification ordering, and obsolete-version cleanup only when no unresolved version remains. Failure injection proves a sole losing version is never resolved after a copy failure.",
+        "S6.5 2026-08-29 Remote deletion closes clean documents and recovers dirty drafts at the active root without recreating the deleted path. Failed recovery keeps the editor open with a localized retry action.",
+        "S6.6 2026-08-29 Offline cloud-mode tests cover create/edit/read/rename/move/delete/import/tree/AI references without download requests. Account changes freeze mutation and keep the committed iCloud mode; retry re-resolves the current account without local fallback.",
+        "S6.7 2026-08-29 The complete S1-S6 document matrix, AI/provider aggregate, Markdown editing engine, six-locale S6 string audit, diff/static audit, and isolated Debug/Release simulator/device builds all pass at the iOS 16.0 deployment target. No polling loop or per-file cloud badge was introduced."
+      ],
+      "sub_steps": [
+        {"id": "S6.1", "name": "Refresh live consumers from debounced cloud revisions", "status": "done"},
+        {"id": "S6.2", "name": "Present open documents and follow remote moves/clean changes", "status": "done"},
+        {"id": "S6.3", "name": "Preserve remote content when dirty drafts receive changes", "status": "done"},
+        {"id": "S6.4", "name": "Materialize, resolve, and clean NSFileVersion conflicts", "status": "done"},
+        {"id": "S6.5", "name": "Recover dirty drafts after remote deletion", "status": "done"},
+        {"id": "S6.6", "name": "Preserve all document features during offline operation", "status": "done"},
+        {"id": "S6.7", "name": "Add presenter/version/offline/account state tests", "status": "done"}
+      ],
+      "verify": "Multi-source operations preserve all distinct content, settle conflicts, refresh UI, and never violate the committed storage mode.",
+      "done_at": "2026-08-29 19:28:57"
+    },
+    {
+      "id": "S7",
+      "name": "Full regression, multi-version QA, and release handoff",
+      "status": "done",
+      "start_at": "2026-08-29 19:28:57",
+      "depends_on": ["S6"],
+      "refs": ["C1", "C3", "C7", "C8", "C9", "C13", "C14"],
+      "notes": [
+        "S7.1 2026-08-29 Reused the immediately preceding S6.7 release gate: every S1-S6 document suite, the complete AI/provider aggregate, Markdown editing engine, six-locale synchronization audit, and static/diff audits passed in this same working-tree state.",
+        "S7.2 2026-08-29 The same-state isolated Debug/Release generic-simulator and unsigned generic-device builds all passed with IPHONEOS_DEPLOYMENT_TARGET=16.0; the availability audit found no unguarded deployment-target violation.",
+        "S7.3 2026-08-29 Added persisted-checkpoint termination seams and a standalone release QA suite. It passes fresh/empty round trips, a 501-document 20-level upgrade, all seven persisted enable and disable termination points, low-storage/quota/cleanup-debt recovery, and account logout/change mutation freeze plus retry without mode fallback. S5 and S6 regressions plus diff checks remain green.",
+        "S7.4 2026-08-29 A current-tree Debug product built once and installed/launched successfully on iOS 16.0 iPhone 14 Pro and iPad Air plus iOS 26.5 iPhone 17 Pro and iPad Pro 13-inch. Every process remained alive under accessibility-extra-extra-large text and increased contrast, and visual QA found no clipping or broken fallback. C14 supplies the prior iOS 16 presentation fallback smoke; the iOS 27 physical iPhone real-container/offline/local-mode runs supply current-device evidence without changing the user's requested local mode.",
+        "S7.6 partial 2026-08-29 Added a valid privacy manifest, required-reason declarations, conservative BYOK AI data declarations, recovery-backup exclusion, export-compliance key, App Store export options, release readiness documentation, README/AGENTS maintenance notes, and a successfully signed Release archive. The archive proves iOS 16, iPhone+iPad, PrivacyInfo, CloudDocuments, and the exact iCloud container in both final signature and embedded profile. Final App Store export remains external: this Mac has only an Apple Development identity, Xcode Keychain credentials are invalid/missing Xcode-Username, and no distribution profile exists.",
+        "S7.7 2026-08-29 Published docs/iCloud-Troubleshooting.md with non-destructive recovery for unavailable containers, stuck transfers, migration checkpoints/backups, conflicts, identity changes, remote deletion, safe disable/re-enable, and privacy-preserving diagnostics.",
+        "2026-08-29 Final current-tree deterministic release gate passed S1/S3/S4/S5/S6/S7 document suites, AI Settings, the complete AI/provider aggregate, JSON/plist validation, stale iOS 18 audit, and git diff checks.",
+        "S7.5 2026-08-29 23:34:47 The user independently completed the remaining real-device iCloud synchronization acceptance and reported no issue; this user-owned acceptance resolves the prior device-availability block.",
+        "S7.6 2026-08-29 23:34:47 The user independently verified the remaining archive/distribution readiness and reported no issue. Combined with the recorded entitlement, privacy, backup-exclusion, Files visibility, documentation, and signed-archive evidence, the release handoff criterion is accepted as complete."
+      ],
+      "sub_steps": [
+        {"id": "S7.1", "name": "Run all existing and new automated suites", "status": "done"},
+        {"id": "S7.2", "name": "Build Debug/Release simulator/device at iOS 16.0", "status": "done"},
+        {"id": "S7.3", "name": "Run upgrade, stress, storage, account, and crash matrix", "status": "done"},
+        {"id": "S7.4", "name": "Validate iOS 16 and current iPhone/iPad runtime behavior", "status": "done"},
+        {"id": "S7.5", "name": "Run two-device iCloud synchronization acceptance", "status": "done"},
+        {"id": "S7.6", "name": "Verify Files, archive entitlements, privacy, and documentation", "status": "done"},
+        {"id": "S7.7", "name": "Publish iCloud troubleshooting and recovery runbook", "status": "done"}
+      ],
+      "verify": "Automated and real-device matrices pass, the signed archive is correctly configured, and recovery operations are documented without destructive advice.",
+      "done_at": "2026-08-29 23:34:47"
+    }
+  ],
+  "failures": [
+    {
+      "step": "S4.6",
+      "reason": "Real iCloud container round-trip requires an available, unlocked, trusted physical iPhone/iPad signed into iCloud. CoreDevice lists the registered iPhone 15 Pro and iPad as unavailable; connect either device to resume.",
+      "at": "2026-08-29 18:29:26"
+    },
+    {
+      "step": "S4.6",
+      "reason": "The connected iPhone completed the real-container round-trip, but auto-locked before the external-presenter follow-up launch. Unlock the iPhone 15 Pro and keep its screen awake to finish Files visibility, external refresh, and offline read.",
+      "at": "2026-08-29 18:46:12"
+    },
+    {
+      "step": "S7.5",
+      "reason": "Two-device acceptance requires two available, unlocked, same-account signed physical devices with network access. CoreDevice currently reports both the iPhone 15 Pro and iPad unavailable, and the user's iPhone must remain offline/local until they authorize the acceptance run.",
+      "at": "2026-08-29 19:42:37"
+    },
+    {
+      "step": "S7.6",
+      "reason": "The signed development archive is correct, but App Store export cannot finish: Keychain has only an Apple Development identity, the saved Xcode account is missing Xcode-Username, and no com.kvsur.MarkdownApp distribution provisioning profile is installed.",
+      "at": "2026-08-29 19:42:37"
+    }
+  ],
+  "decisions": {
+    "plan-scope": "Lower the complete app to iOS 16.0 and add optional iCloud Documents synchronization.",
+    "sync-scope": "Only Markdown documents and folder hierarchy sync; theme, language, AI profiles, API keys, caches, and other settings remain device-local.",
+    "cloud-technology": "Use an iCloud Documents ubiquity container, not CloudKit records.",
+    "container-id": "Use iCloud.com.kvsur.MarkdownApp unless Apple Developer portal evidence proves it unavailable before S4.1.",
+    "enable-policy": "Local is the default. User confirmation triggers transactional local-to-cloud migration; mode commits only after verification.",
+    "disable-policy": "Download and verify a local copy before switching to local; never delete or evict the cloud library on disable.",
+    "reenable-policy": "Merge by relative path, dedupe SHA-256-identical files, and preserve every divergent item as a conflict copy.",
+    "unavailable-policy": "Remain in committed cloud mode, expose status/retry/disable, and never silently fall back to local storage.",
+    "status-ui": "Show aggregate cloud/account/migration status in Settings only; no persistent per-file badges.",
+    "observation-backport": "Use native Combine ObservableObject patterns rather than a third-party Observation backport.",
+    "conflict-policy": "Preserve all distinct bytes before resolving NSFileVersion entries; active dirty drafts remain primary and remote bytes become a sibling copy.",
+    "zero-feature-regression": "All current editor, preview, browser, import, share, AI, settings, i18n, accessibility, and provider behavior is a frozen release gate."
+  },
+  "notes": [
+    "2026-08-29 The completed AI model governance plan was archived intact at .work-planner/archive/ai-model-governance/ before this plan was created.",
+    "2026-08-29 Current code stores user documents directly in local Documents, uses URL identity, has no entitlements file, and targets iOS 18.0 in both project configurations.",
+    "2026-08-29 Current environment has Xcode 26.6 and only an iOS 26.5 simulator runtime; iOS 16 runtime acceptance requires a compatible device, external CI, or supported runtime.",
+    "Portal registration and signed multi-device iCloud verification are legitimate external gates; implementation and fake-runtime tests must proceed until those exact steps require credentials/capability.",
+    "2026-08-29 18:10:57 Supersedes the earlier runtime inventory note: iOS 16.0 (20A360) is now installed locally and passed supplemental iPhone/iPad simulator smoke. Physical-device and complete manual interaction acceptance remain S7 gates.",
+    "2026-08-29 23:34:47 The user independently verified the remaining two-device synchronization and distribution/archive readiness with no issues, resolving the recorded S7.5 and S7.6 external blocks. The completed plan is ready for archival as ios16-icloud-documents-sync."
+  ]
+}

@@ -5,7 +5,7 @@
 
 ## 项目一句话
 
-原生 SwiftUI 的 iOS/iPadOS Markdown 预览与编辑 App（最低 iOS 18，液态玻璃在 iOS 26+ 启用，计划上架 App Store）。
+原生 SwiftUI 的 iOS/iPadOS Markdown 预览与编辑 App（最低 iOS 16，液态玻璃在 iOS 26+ 启用，计划上架 App Store）。
 
 ## 核心原则：独立拆分、可复用封装 🧩
 
@@ -57,6 +57,15 @@
 - **改动任何 UI 文案或 AI prompt，都必须同步考虑 i18n 多语言**：新增或修改的用户可见字符串不要硬编码，走本地化资源（`Localizable.xcstrings` / `InfoPlist.xcstrings`），并补齐已支持的各语言（简中/英/繁中/日/韩/德/俄）。
 - AI prompt 若随语言/区域变化，同样需要按语言维护，不要只留一份中文或英文。
 - 提交前自查：是否有新文案漏了翻译键？各语言是否都已补齐？
+
+## iCloud 文稿工程约束
+
+- 所有文稿操作必须通过根级 `DocumentLibraryController` / `DocumentLibraryService`，云端访问必须使用 `NSFileCoordinator`；不要在功能视图里直接创建 `FileStore`。
+- 本地是默认模式。iCloud 不可用或账号变化时保持已承诺模式并冻结写入，禁止静默回退到本地目录。
+- 开启/关闭同步必须先生成、校验恢复副本再提交模式；关闭同步不得删除或逐出云端文稿。
+- 冲突解决必须先物化并验证所有不同字节，再标记 `NSFileVersion` 已解决；失败时保留原版本。
+- `NSFilePresenter` 只在前台注册、后台注销；UI 依赖聚合 revision 刷新，不增加轮询或逐文件云状态徽标。
+- 修改容器、迁移、隐私或文件时间访问时，同步维护 `docs/iCloud-Release-Readiness.md`、`docs/iCloud-Troubleshooting.md` 和 `PrivacyInfo.xcprivacy`。
 
 ## 落地检查（每次写/改代码前后自问）
 

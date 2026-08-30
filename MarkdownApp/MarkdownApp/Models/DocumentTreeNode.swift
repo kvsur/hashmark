@@ -9,7 +9,7 @@
 
 import Foundation
 
-struct DocumentTreeNode: Identifiable {
+nonisolated struct DocumentTreeNode: Identifiable, Sendable {
     let node: DocumentNode
     /// 子节点：文件夹为其内容（可能为空数组），文件为 nil（OutlineGroup 据此判定叶子）。
     var children: [DocumentTreeNode]?

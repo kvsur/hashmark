@@ -9,7 +9,7 @@
 import SwiftUI
 
 struct LanguagePickerSheet: View {
-    @Environment(SettingsStore.self) private var settings
+    @EnvironmentObject private var settings: SettingsStore
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
