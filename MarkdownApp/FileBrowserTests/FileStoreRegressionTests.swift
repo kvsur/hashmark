@@ -13,6 +13,7 @@ enum FileStoreRegressionTests {
         try testSaveRefreshesRecursiveActivityOrder()
         try testInboxImportPurgeAndStoreBoundaries()
         try testCollisionRenameMoveDeleteAndSanitization()
+        try testFallbackAndSafeRenameSemantics()
         print("FileStoreRegressionTests: PASS")
     }
 
@@ -160,6 +161,48 @@ enum FileStoreRegressionTests {
             let imported = try store.importFile(from: extensionless, to: root)
             expect(imported.pathExtension == "md", "extensionless imports should use the Markdown extension")
             expect(fileManager.fileExists(atPath: extensionless.path), "external imports must retain their source")
+        }
+    }
+
+    private static func testFallbackAndSafeRenameSemantics() throws {
+        try withTemporaryStore { store, root, fileManager in
+            let fallback = try store.createMarkdown(named: "", in: root)
+            let fallbackCollision = try store.createMarkdown(named: " \n ", in: root)
+            expect(fallback.lastPathComponent == "Untitled.md", "empty creation should use the fallback name")
+            expect(
+                fallbackCollision.lastPathComponent == "Untitled 2.md",
+                "colliding empty creation should number the fallback name"
+            )
+
+            let stable = try store.createMarkdown(named: "Stable", in: root)
+            try store.writeText("keep me", to: stable)
+            let stableNode = try node(named: stable.lastPathComponent, in: store.contents(of: root))
+            let unchanged = try store.rename(stableNode, to: "  Stable  ")
+            expect(
+                unchanged.standardizedFileURL.path == stable.standardizedFileURL.path,
+                "a sanitized name equal to the source should be a no-op"
+            )
+            expect(
+                !fileManager.fileExists(atPath: root.appendingPathComponent("Stable 2.md").path),
+                "a no-op rename must not append a collision suffix"
+            )
+            let stableText = try store.readText(at: stable)
+            expect(stableText == "keep me", "a no-op rename must preserve bytes")
+
+            let named = try store.createMarkdown(named: "Named", in: root)
+            let namedNode = try node(named: named.lastPathComponent, in: store.contents(of: root))
+            let blankRenamed = try store.rename(namedNode, to: "")
+            expect(
+                blankRenamed.lastPathComponent == "Untitled 3.md",
+                "blank rename should reuse the numbered fallback rule"
+            )
+
+            let taken = try store.createMarkdown(named: "Taken", in: root)
+            let source = try store.createMarkdown(named: "Source", in: root)
+            let sourceNode = try node(named: source.lastPathComponent, in: store.contents(of: root))
+            let collisionRenamed = try store.rename(sourceNode, to: "Taken")
+            expect(collisionRenamed.lastPathComponent == "Taken 2.md", "rename should number a real collision")
+            expect(fileManager.fileExists(atPath: taken.path), "rename must never overwrite the colliding file")
         }
     }
 

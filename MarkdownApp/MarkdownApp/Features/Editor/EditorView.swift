@@ -14,10 +14,18 @@ import SwiftUI
 struct EditorView: View {
     @Binding var text: String
     var handle: EditorHandle? = nil
+    var autofocus = false
+    var onAutofocusConsumed: () -> Void = {}
     /// 选区气泡菜单点「AI」时回调（选中文本 + range）；默认空，纯预览等场景可不接。
     var onRequestAIRefine: (_ selectedText: String, _ range: NSRange) -> Void = { _, _ in }
 
     var body: some View {
-        MarkdownTextView(text: $text, handle: handle, onRequestAIRefine: onRequestAIRefine)
+        MarkdownTextView(
+            text: $text,
+            handle: handle,
+            autofocus: autofocus,
+            onAutofocusConsumed: onAutofocusConsumed,
+            onRequestAIRefine: onRequestAIRefine
+        )
     }
 }

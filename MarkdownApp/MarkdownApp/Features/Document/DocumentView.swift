@@ -20,10 +20,6 @@ struct DocumentView: View {
     /// 当前文档与脏草稿。值类型状态配合快速切换器原地换文档（不改导航栈）。
     @State private var draft: DocumentDraft
 
-    init(node: DocumentNode) {
-        _draft = State(initialValue: DocumentDraft(node: node))
-    }
-
     private var node: DocumentNode { draft.node }
     private var text: String { draft.text }
 
@@ -34,7 +30,12 @@ struct DocumentView: View {
         var label: LocalizedStringKey { self == .preview ? "Preview" : "Edit" }
     }
 
-    @State private var mode: Mode = .preview
+    @State private var mode: Mode
+    @State private var shouldAutofocusEditor: Bool
+    @State private var naming: DocumentNamingState
+    @State private var isRenaming = false
+    @State private var persistenceTask: Task<Void, Never>?
+    @State private var operationError: String?
     @State private var showSwitcher = false
     /// 桥接预览 WebView，供预览态「分享 - 长截图」取用。
     @State private var previewHandle = PreviewHandle()
@@ -43,11 +44,24 @@ struct DocumentView: View {
     @State private var loadError: String?
     @State private var loadTask: Task<Void, Never>?
     @State private var openDocumentPresenter: OpenDocumentPresenter?
-    @State private var documentEventTask: Task<Void, Never>?
     @State private var syncNotice: String?
     @State private var syncNoticeTask: Task<Void, Never>?
     @State private var deletionAlert: DocumentDeletionAlert?
     @State private var isBackingFileDeleted = false
+    @State private var isVisible = false
+
+    init(node: DocumentNode) {
+        self.init(route: DocumentRoute(node: node))
+    }
+
+    init(route: DocumentRoute) {
+        _draft = State(initialValue: DocumentDraft(node: route.node))
+        _mode = State(initialValue: route.initialMode == .edit ? .edit : .preview)
+        _shouldAutofocusEditor = State(
+            initialValue: route.isNewDocument && route.initialMode == .edit
+        )
+        _naming = State(initialValue: DocumentNamingState(route: route))
+    }
 
     private struct DocumentDeletionAlert: Identifiable {
         let id = UUID()
@@ -138,9 +152,12 @@ struct DocumentView: View {
                     applyAI(launch, result)
                 }
             }
-            .onAppear(perform: loadIfNeeded)
-            .onAppear(perform: configureOpenDocumentPresentation)
-            .onAppear(perform: configureScrollSync)
+            .onAppear {
+                isVisible = true
+                loadIfNeeded()
+                configureOpenDocumentPresentation()
+                configureScrollSync()
+            }
             // 切回预览时先落盘，保证预览读到的是最新且已持久化的内容。
             .onChange(of: mode) { newMode in
                 if newMode == .preview { save() }
@@ -153,8 +170,8 @@ struct DocumentView: View {
                 else { stopOpenDocumentPresentation() }
             }
             .onDisappear {
+                isVisible = false
                 loadTask?.cancel()
-                documentEventTask?.cancel()
                 syncNoticeTask?.cancel()
                 stopOpenDocumentPresentation()
                 if !isBackingFileDeleted { save() }
@@ -189,6 +206,11 @@ struct DocumentView: View {
                     message: Text(payload.message),
                     dismissButton: .default(Text("Close")) { dismiss() }
                 )
+            }
+            .alert("Action Failed", isPresented: operationErrorBinding) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(operationError ?? "")
             }
             .sheet(isPresented: $showSwitcher) {
                 DocumentSwitcherSheet(currentURL: node.url) { selected in
@@ -251,6 +273,21 @@ struct DocumentView: View {
 
     @ViewBuilder
     private var content: some View {
+        VStack(spacing: 0) {
+            DocumentNameField(
+                name: $naming.input,
+                placeholder: naming.actualName,
+                isEnabled: draft.isLoaded && !isBackingFileDeleted,
+                isSubmitting: isRenaming,
+                onCommit: commitDocumentName
+            )
+            Divider()
+            documentContent
+        }
+    }
+
+    @ViewBuilder
+    private var documentContent: some View {
         if !draft.isLoaded {
             if let loadError {
                 AppEmptyStateView("Cannot Open File", systemImage: "icloud.slash") {
@@ -275,7 +312,13 @@ struct DocumentView: View {
             case .edit:
                 if horizontalSizeClass == .regular {
                     HStack(spacing: 0) {
-                        EditorView(text: $draft.text, handle: editorHandle, onRequestAIRefine: requestSelectionRefine)
+                        EditorView(
+                            text: $draft.text,
+                            handle: editorHandle,
+                            autofocus: shouldAutofocusEditor,
+                            onAutofocusConsumed: { shouldAutofocusEditor = false },
+                            onRequestAIRefine: requestSelectionRefine
+                        )
                             .frame(maxWidth: .infinity)
                         Divider()
                         MarkdownPreviewView(markdown: text, handle: previewHandle)
@@ -283,7 +326,13 @@ struct DocumentView: View {
                     }
                     .transition(.move(edge: .trailing))
                 } else {
-                    EditorView(text: $draft.text, handle: editorHandle, onRequestAIRefine: requestSelectionRefine)
+                    EditorView(
+                        text: $draft.text,
+                        handle: editorHandle,
+                        autofocus: shouldAutofocusEditor,
+                        onAutofocusConsumed: { shouldAutofocusEditor = false },
+                        onRequestAIRefine: requestSelectionRefine
+                    )
                         // 编辑在「预览的右边」：切走时向右滑出、进入时从右侧滑入。
                         .transition(.move(edge: .trailing))
                 }
@@ -391,18 +440,123 @@ struct DocumentView: View {
 
     /// 有改动才写盘，避免无谓 IO 与修改时间抖动。
     private func save() {
-        guard draft.isDirty, !isBackingFileDeleted else { return }
-        let text = draft.text
-        let url = node.url
-        Task {
-            guard (try? await documentLibrary.writeText(text, to: url)) != nil else { return }
-            draft.markSaved(text, at: url)
+        guard !isBackingFileDeleted else { return }
+        enqueuePersistence {
+            _ = await persistCurrentDraft(attemptAutomaticTitle: true)
+        }
+    }
+
+    private func commitDocumentName() {
+        guard draft.isLoaded, !isBackingFileDeleted, !isRenaming else { return }
+        let submittedName = naming.input
+        isRenaming = true
+        enqueuePersistence {
+            _ = await renameDocument(
+                to: submittedName,
+                origin: .explicit,
+                saveBeforeRename: true
+            )
+            isRenaming = false
+        }
+    }
+
+    private func enqueuePersistence(_ operation: @escaping @MainActor () async -> Void) {
+        let precedingTask = persistenceTask
+        persistenceTask = Task { @MainActor in
+            await precedingTask?.value
+            guard !Task.isCancelled else { return }
+            await operation()
+        }
+    }
+
+    @discardableResult
+    private func persistCurrentDraft(attemptAutomaticTitle: Bool) async -> Bool {
+        guard !isBackingFileDeleted else { return false }
+
+        let savedSnapshot: String
+        if draft.isDirty {
+            let snapshot = draft.text
+            let url = node.url
+            do {
+                try await documentLibrary.writeText(snapshot, to: url)
+                draft.markSaved(snapshot, at: url)
+                savedSnapshot = snapshot
+            } catch {
+                operationError = error.localizedDescription
+                return false
+            }
+        } else {
+            savedSnapshot = draft.text
+        }
+
+        if attemptAutomaticTitle {
+            await attemptAutomaticRename(from: savedSnapshot)
+        }
+        return true
+    }
+
+    private func attemptAutomaticRename(from savedText: String) async {
+        guard naming.isAutomaticTitleEligible,
+              let inferredName = MarkdownDocumentTitleInference.title(from: savedText) else {
+            return
+        }
+        let wasAlreadyRenaming = isRenaming
+        isRenaming = true
+        _ = await renameDocument(
+            to: inferredName,
+            origin: .automatic,
+            saveBeforeRename: false
+        )
+        if !wasAlreadyRenaming { isRenaming = false }
+    }
+
+    @discardableResult
+    private func renameDocument(
+        to submittedName: String,
+        origin: DocumentNamingState.RenameOrigin,
+        saveBeforeRename: Bool
+    ) async -> Bool {
+        if saveBeforeRename,
+           !(await persistCurrentDraft(attemptAutomaticTitle: false)) {
+            naming.didFailRename(origin: origin)
+            return false
+        }
+
+        let sourceNode = draft.node
+        stopOpenDocumentPresentation()
+        do {
+            let destination = try await documentLibrary.rename(sourceNode, to: submittedName)
+            guard draft.node.url.standardizedFileURL.path == sourceNode.url.standardizedFileURL.path else {
+                configureOpenDocumentPresentation()
+                return false
+            }
+
+            draft.move(to: destination)
+            naming.didRename(to: destination, submittedName: submittedName, origin: origin)
+            configureOpenDocumentPresentation()
+
+            // 用户可在协调移动期间继续输入；这些新增字节必须写到新 URL。
+            if draft.isDirty,
+               !(await persistCurrentDraft(attemptAutomaticTitle: false)) {
+                return false
+            }
+
+            if origin == .explicit, naming.isAutomaticTitleEligible {
+                await attemptAutomaticRename(from: draft.text)
+            }
+            return true
+        } catch {
+            naming.didFailRename(origin: origin)
+            operationError = error.localizedDescription
+            configureOpenDocumentPresentation()
+            return false
         }
     }
 
     private func configureOpenDocumentPresentation() {
         stopOpenDocumentPresentation()
-        guard documentLibrary.storageMode == .iCloud,
+        guard isVisible,
+              documentLibrary.storageMode == .iCloud,
               scenePhase == .active,
               !isBackingFileDeleted else { return }
         let presenter = OpenDocumentPresenter(url: node.url) { event in
@@ -420,10 +574,7 @@ struct DocumentView: View {
     /// Chains events in presenter order. Async reads and conflict copies therefore
     /// cannot overtake a preceding move or deletion notification.
     private func enqueueDocumentEvent(_ event: OpenDocumentEvent) {
-        let precedingTask = documentEventTask
-        documentEventTask = Task { @MainActor in
-            await precedingTask?.value
-            guard !Task.isCancelled else { return }
+        enqueuePersistence {
             await handleDocumentEvent(event)
         }
     }
@@ -433,6 +584,7 @@ struct DocumentView: View {
         case .moved(let oldURL, let newURL):
             guard node.url == oldURL else { return }
             draft.move(to: newURL)
+            naming.synchronizeWithExternalURL(newURL)
             documentLibrary.publishExternalRevision()
             showSyncNotice(LocalizationController.string("This document was moved on another device."))
 
@@ -514,20 +666,31 @@ struct DocumentView: View {
     /// 原地切换到另一篇文档：先保存当前脏内容（用旧 node.url），再换 node 并载入新文本。
     /// 不改导航栈，保持当前预览/编辑模式，标题随 node 自动更新。
     private func switchTo(_ newNode: DocumentNode) {
-        guard newNode.url != node.url else { return }
-        Haptics.soft()                            // 切换成功给一下细微反馈
-        let oldURL = node.url
-        let oldText = draft.text
-        let shouldSave = draft.isDirty
-        Task {
-            if shouldSave {
-                try? await documentLibrary.writeText(oldText, to: oldURL)
+        guard newNode.url != node.url, !isRenaming else { return }
+        Haptics.soft()
+        isRenaming = true
+        enqueuePersistence {
+            defer { isRenaming = false }
+            guard newNode.url != node.url,
+                  await persistCurrentDraft(attemptAutomaticTitle: true) else { return }
+            stopOpenDocumentPresentation()
+            do {
+                let newText = try await documentLibrary.readText(at: newNode.url)
+                draft.replaceDocument(with: newNode, text: newText)
+                naming.switchTo(newNode)
+                isBackingFileDeleted = false
+                configureOpenDocumentPresentation()
+            } catch {
+                operationError = error.localizedDescription
+                configureOpenDocumentPresentation()
             }
-            guard let newText = try? await documentLibrary.readText(at: newNode.url), node.url == oldURL else {
-                return
-            }
-            draft.replaceDocument(with: newNode, text: newText)
-            configureOpenDocumentPresentation()
         }
+    }
+
+    private var operationErrorBinding: Binding<Bool> {
+        Binding(
+            get: { operationError != nil },
+            set: { if !$0 { operationError = nil } }
+        )
     }
 }

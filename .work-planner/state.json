@@ -1,187 +1,128 @@
 {
   "version": "1.3.0",
-  "created_at": "2026-08-30 00:06:44",
-  "updated_at": "2026-08-30 12:41:15",
-  "current_step": "S2",
-  "next_step": "补齐 S2.2 的 Beta Review 联系人姓名与国际格式电话；Apple 权限恢复后继续 S1 会员、协议与后台访问核对。",
-  "overall_status": "in_progress",
-  "completion_rate": "28%",
+  "created_at": "2026-09-05 15:46:39",
+  "updated_at": "2026-09-05 21:33:08",
+  "current_step": "S4",
+  "next_step": "解锁并保持 kvsur的iPhone 屏幕点亮后，重新启动已安装的 Debug App 并运行 tokened iCloud smoke。",
+  "overall_status": "blocked",
+  "completion_rate": "95%",
   "all_steps": [
     {
       "id": "S1",
-      "name": "恢复 Apple 发布后台访问",
-      "status": "blocked",
+      "name": "固化安全命名与重命名语义",
+      "status": "done",
+      "start_at": "2026-09-05 20:56:41",
       "depends_on": [],
-      "refs": ["C1", "C10", "C16"],
+      "refs": ["C1", "C5", "C8", "C9"],
       "notes": [
-        "2026-08-29 用户确认已付费加入 Apple Developer Program，但 App Store Connect iPhone App 显示当前不可用。",
-        "2026-08-30 网页登录要求补充 ID、出生城市和国家等身份信息；用户已提交，正在等待 Apple 审核。",
-        "2026-08-30 用户确认前一晚已提交二次身份审核资料；随后登录 App Store Connect 显示“你的 Apple 账户尚未启用 iTunes Connect”，页面未显示拒绝或补件结论，因此继续等待 Apple 审核与权限激活。"
+        "S1.1 失败先行测试确认旧实现会把清理后同名的 Stable.md 错误重命名为 Stable 2.md；空名创建、空名冲突、同名冲突与首行标题边界已加入回归入口。",
+        "S1.2–S1.4 已通过 run-step1-tests.sh 与 run-step3-tests.sh：同路径重命名无移动/无 revision，共享 ATX 解析保持大纲围栏、标题与范围语义。"
       ],
       "sub_steps": [
-        { "id": "S1.1", "name": "等待 Apple 身份复核通过并保存通知", "status": "pending" },
-        { "id": "S1.2", "name": "确认会员、Account Holder 与双重认证状态", "status": "pending" },
-        { "id": "S1.3", "name": "确认 Business 和开发者协议无待接受项", "status": "pending" },
-        { "id": "S1.4", "name": "确认 Team、App ID 与证书后台可访问", "status": "pending" }
+        { "id": "S1.1", "name": "为空名、冲突/no-op 和首行 H1–H3 推导补充失败先行测试", "status": "done" },
+        { "id": "S1.2", "name": "实现重命名排除源 URL 与同路径 no-op", "status": "done" },
+        { "id": "S1.3", "name": "验证清理、扩展名和 revision 行为", "status": "done" },
+        { "id": "S1.4", "name": "抽取共享 ATX 单行解析并实现首行 H1–H3 标题推导", "status": "done" }
       ],
-      "verify": "三个后台入口均可用，会员有效，无身份、协议或权限警告。"
+      "verify": "回归测试覆盖空名、冲突/no-op 与首行 H1–H3 推导边界并通过，重命名不覆盖文件或错误追加编号，大纲识别保持不变。",
+      "done_at": "2026-09-05 21:03:04"
     },
     {
       "id": "S2",
-      "name": "准备 TestFlight Beta 交接材料",
-      "status": "in_progress",
-      "start_at": "2026-08-30 11:48:00",
-      "depends_on": [],
-      "refs": ["C8", "C9"],
-      "notes": [
-        "2026-08-30 已新增 docs/TestFlight-Beta-Handoff.md，包含中英文 Beta 描述、What to Test、Beta Review Notes、反馈邮箱和不保存真实邮箱的熟人邀请模板。",
-        "S2.2 反馈邮箱已采用 App 内现有联系邮箱 hello1024lc@gmail.com；审核联系人姓名与国际格式电话仍待用户填写，未在公开仓库猜测或保存个人信息。"
-      ],
-      "sub_steps": [
-        { "id": "S2.1", "name": "起草中英文 Beta App Description", "status": "done" },
-        { "id": "S2.2", "name": "确认反馈邮箱和 Beta Review 联系资料", "status": "in_progress" },
-        { "id": "S2.3", "name": "起草中英文 What to Test", "status": "done" },
-        { "id": "S2.4", "name": "起草 Beta Review Notes", "status": "done" },
-        { "id": "S2.5", "name": "建立熟人测试邀请名单模板", "status": "done" }
-      ],
-      "verify": "所有字段可直接粘贴进 App Store Connect，且不包含秘密、API Key 或测试者无权访问的数据。"
-    },
-    {
-      "id": "S2a",
-      "name": "补齐隐私政策与第三方 AI 明确授权",
+      "name": "新建文稿直达编辑态",
       "status": "done",
-      "start_at": "2026-08-30 00:15:38",
-      "done_at": "2026-08-30 12:32:53",
-      "depends_on": [],
-      "refs": ["C2", "C6", "C12", "C13", "C14", "C15", "C17", "C18"],
+      "start_at": "2026-09-05 21:03:04",
+      "depends_on": ["S1"],
+      "refs": ["C1", "C2", "C3", "C4"],
       "notes": [
-        "2026-08-30 发布前审计发现 App 目前只有 PrivacyInfo.xcprivacy，没有公开隐私政策 URL、App 内政策入口，也尚未确认第三方 AI 数据发送前的明确授权门禁。",
-        "Apple App Review Guidelines 5.1.1 要求元数据和 App 内均提供易访问的隐私政策；5.1.2 要求向第三方 AI 分享个人数据前明确披露接收方并取得授权。",
-        "2026-08-30 用户确认使用现有 kvsur/hashmark 仓库的 GitHub Pages 托管公开隐私政策。",
-        "S2a.3 2026-08-30 已从公网验证 https://kvsur.github.io/hashmark/privacy/ 返回 HTTP 200、UTF-8 HTML，并包含中英文政策、五家 AI Provider 与联系邮箱。",
-        "S2a.6 2026-08-30 已在 master c1010e0 通过 RegressionAudit、AISettingsProfileTests 和已连接 iPhone 的 Release 签名构建；隐私清单、iCloud entitlement 与 dSYM 检查通过，App 已安装并成功启动。拒绝、允许、更换 Endpoint 与撤回四项交互仍待人在真机点击确认。",
-        "S2a.6 2026-08-30 用户完成真机验收：拒绝不发送、允许后可生成、更换 Endpoint 重新询问、撤回后再次阻断、App 内隐私链接可打开，五项均 PASS。S2a 验证条件全部满足。",
-        "S2a.7 2026-08-30 用户扩大隐私页语言一致性要求；已完成七语言静态正文、下拉选择、App 显式 lang 参数、系统首选语言匹配和英文最终回退。RegressionAudit、Debug 模拟器构建、七语言浏览器路由及 390 px 移动布局验证均通过。"
+        "S2.1–S2.4 已通过 generic iOS Simulator Debug 构建：空名文稿导航前落盘，新建路由进入编辑态并一次性聚焦正文；普通点击与 AI 生成路由保持预览。"
       ],
       "sub_steps": [
-        { "id": "S2a.1", "name": "审计本地、iCloud、AI、附件和联网数据流", "status": "done" },
-        { "id": "S2a.2", "name": "起草英文与简体中文隐私政策", "status": "done" },
-        { "id": "S2a.3", "name": "发布无需登录的公开 HTTPS 隐私政策 URL", "status": "done" },
-        { "id": "S2a.4", "name": "在关于页增加七语言 Privacy Policy 入口", "status": "done" },
-        { "id": "S2a.5", "name": "实现按 Provider/Endpoint 的明确授权与撤回门禁", "status": "done" },
-        { "id": "S2a.6", "name": "增加回归测试并完成构建与真机验证", "status": "done" },
-        { "id": "S2a.7", "name": "补齐七语言隐私政策、下拉切换与显式语言路由", "status": "done" }
+        { "id": "S2.1", "name": "移除新建文稿名称弹层入口", "status": "done" },
+        { "id": "S2.2", "name": "空名创建成功后构造节点并导航", "status": "done" },
+        { "id": "S2.3", "name": "引入区分预览与编辑初始模式的导航载荷", "status": "done" },
+        { "id": "S2.4", "name": "新建加载后一次性聚焦正文", "status": "done" }
       ],
-      "verify": "政策 URL 公开可用，App 内可打开；七语言路由、下拉切换与回退规则可验证；未授权时任何提示词、文稿或附件均不会发往第三方 AI，授权与撤回路径可验证。"
+      "verify": "根目录和多级子目录可直接创建一个真实文件并进入聚焦正文的编辑态，失败时不推进导航。",
+      "done_at": "2026-09-05 21:08:23"
     },
     {
       "id": "S3",
-      "name": "创建 App 条目并完成正式签名预检",
-      "status": "pending",
-      "depends_on": ["S1", "S2", "S2a"],
-      "refs": ["C2", "C4", "C5", "C7"],
-      "notes": [],
-      "sub_steps": [
-        { "id": "S3.1", "name": "创建 Hashmark iOS App Store Connect 条目", "status": "pending" },
-        { "id": "S3.2", "name": "确认 Explicit App ID 与 iCloud Documents 容器", "status": "pending" },
-        { "id": "S3.3", "name": "刷新 Xcode 账号并获取发布签名资产", "status": "pending" },
-        { "id": "S3.4", "name": "核对版本、构建号、最低系统和设备族", "status": "pending" }
+      "name": "文档页显示并安全编辑文件名",
+      "status": "done",
+      "start_at": "2026-09-05 21:08:23",
+      "depends_on": ["S2"],
+      "refs": ["C1", "C4", "C5", "C6", "C7", "C9"],
+      "notes": [
+        "S3.1–S3.6 已实现并通过 run-step1-tests.sh、run-step3-tests.sh 与 generic iOS Simulator Debug 构建：名称提交、保存、重命名、自动标题、URL 切换与 presenter 事件共用串行持久化队列。",
+        "S3.7 静态布局与可访问性验收通过：名称行位于模式分支外、最小高度 44pt、使用动态 body 字体与本地化 VoiceOver 标签；iPad 双栏结构未被名称行拆分。"
       ],
-      "verify": "App 条目存在，Xcode Release 签名无错误，所有发布标识和 iCloud 容器与仓库基线一致。"
+      "sub_steps": [
+        { "id": "S3.1", "name": "增加两种模式常驻的文件名输入行", "status": "done" },
+        { "id": "S3.2", "name": "实现回车和失焦提交及防重复门禁", "status": "done" },
+        { "id": "S3.3", "name": "串行协调正文保存、重命名、草稿 URL 与 presenter", "status": "done" },
+        { "id": "S3.4", "name": "保存后按资格从首行 H1–H3 自动命名一次", "status": "done" },
+        { "id": "S3.5", "name": "处理非空显式命名优先级、留空资格与失败重试", "status": "done" },
+        { "id": "S3.6", "name": "处理失败、快速切换和外部移动后的名称同步", "status": "done" },
+        { "id": "S3.7", "name": "验证两种模式、iPad 双栏和无障碍布局", "status": "done" }
+      ],
+      "verify": "两种模式均可安全改名；符合资格的新文稿仅在第一行 H1–H3 时自动命名一次；改名后所有读写和导航行为统一使用新 URL。",
+      "done_at": "2026-09-05 21:17:16"
     },
     {
       "id": "S4",
-      "name": "归档、验证并上传首个构建",
-      "status": "pending",
+      "name": "国际化、回归与设备验收",
+      "status": "blocked",
+      "start_at": "2026-09-05 21:17:16",
       "depends_on": ["S3"],
-      "refs": ["C2", "C3", "C4", "C5", "C6", "C7", "C11"],
-      "notes": [],
-      "sub_steps": [
-        { "id": "S4.1", "name": "用 Release 和 generic iOS device 执行 Archive", "status": "pending" },
-        { "id": "S4.2", "name": "检查 archive 签名、entitlement、隐私、图标和 dSYM", "status": "pending" },
-        { "id": "S4.3", "name": "执行 Validate App 并处理报告", "status": "pending" },
-        { "id": "S4.4", "name": "上传到 App Store Connect", "status": "pending" },
-        { "id": "S4.5", "name": "等待处理并完成合规与隐私检查", "status": "pending" }
+      "refs": ["C1", "C7", "C8", "C9", "C10", "C11", "C12"],
+      "notes": [
+        "S4.1 已覆盖既有/新建路由默认值、空白与显式名称优先级、自动命名成功/失败资格、外部移动同步及正文先保存再改名后的新 URL 续写顺序。",
+        "S4.2 全部 DocumentLibraryTests run-step1/3/4/5/6/7 脚本及 generic iOS Simulator Debug 构建通过；仅有无 AppIntents 依赖时跳过元数据提取的既有警告。",
+        "S4.3 本次复用的 Document name、Action Failed、OK、Untitled 均具备英文源文案及简中/繁中/日/韩/德/俄翻译。",
+        "S4.4 iPhone 17 Pro（默认 large 字体）和 iPad Pro 13-inch（accessibility-extra-extra-large）文档编辑截图验收通过；正文首焦点、名称行、键盘、分段控件及 iPad 双栏布局正常，临时 Debug QA 路由已移除。",
+        "S4.5 本地创建—写入—改名—继续编辑—重建控制器—重开闭环通过；真实 iCloud smoke 在创建云端 fixture 前因模拟器账号/设备未启用 iCloud Drive 而阻断，偏好已恢复 local，详见 C10。",
+        "2026-09-05 21:31:32 真机已被 xctrace 与 scheme destinations 识别为 kvsur的iPhone（iOS 27.0）；指定该 destination 的 Debug 签名构建成功，用户截图 C11 的 build-only 目标误选已定位。",
+        "2026-09-05 21:33:08 Debug App 已成功安装到真机；tokened smoke 在进程启动前因手机锁屏被 SpringBoard 拒绝，详见 C12。"
       ],
-      "verify": "TestFlight 可看到 1.0 的可测试构建，无 Invalid Binary、Missing Compliance 或签名/隐私阻断。"
-    },
-    {
-      "id": "S5",
-      "name": "本人内部 TestFlight 冒烟",
-      "status": "pending",
-      "depends_on": ["S4"],
-      "refs": ["C2", "C8"],
-      "notes": [],
       "sub_steps": [
-        { "id": "S5.1", "name": "创建 Owner Smoke 内部测试组", "status": "pending" },
-        { "id": "S5.2", "name": "安装 TestFlight 构建并验证核心文稿闭环", "status": "pending" },
-        { "id": "S5.3", "name": "非破坏性冒烟 iCloud 开关与同步", "status": "pending" },
-        { "id": "S5.4", "name": "验证无 API Key 核心可用及可选 BYOK 冒烟", "status": "pending" },
-        { "id": "S5.5", "name": "记录崩溃、阻断和可接受已知问题", "status": "pending" }
+        { "id": "S4.1", "name": "补充草稿、路由、自动命名资格和持久化顺序回归测试", "status": "done" },
+        { "id": "S4.2", "name": "运行文稿测试脚本与 Debug 构建", "status": "done" },
+        { "id": "S4.3", "name": "核对七语言本地化完整性", "status": "done" },
+        { "id": "S4.4", "name": "完成 iPhone 与 iPad 交互验收", "status": "done" },
+        { "id": "S4.5", "name": "完成本地与 iCloud 文稿闭环验收", "status": "blocked" }
       ],
-      "verify": "TestFlight 安装包在目标 iPhone/iPad 上通过核心冒烟，无数据丢失、启动失败或发布阻断问题。"
-    },
-    {
-      "id": "S6",
-      "name": "外部 Beta Review 与熟人分发",
-      "status": "pending",
-      "depends_on": ["S5"],
-      "refs": ["C8"],
-      "notes": [],
-      "sub_steps": [
-        { "id": "S6.1", "name": "创建 Friends Beta 外部测试组并填写资料", "status": "pending" },
-        { "id": "S6.2", "name": "录入熟人邮件但不启用公开链接", "status": "pending" },
-        { "id": "S6.3", "name": "提交首个外部构建 Beta App Review", "status": "pending" },
-        { "id": "S6.4", "name": "处理 Beta Review 问询、拒绝或新构建", "status": "pending" },
-        { "id": "S6.5", "name": "确认至少一名熟人安装并完成基础操作", "status": "pending" }
-      ],
-      "verify": "首个外部构建获批，至少一名非 App Store Connect 用户通过邮件安装并确认可用。"
-    },
-    {
-      "id": "S7",
-      "name": "建立 Beta 运行与后续收费阶段交接",
-      "status": "pending",
-      "depends_on": ["S6"],
-      "refs": ["C8"],
-      "notes": [],
-      "sub_steps": [
-        { "id": "S7.1", "name": "记录构建上传日、到期日和最晚更新日", "status": "pending" },
-        { "id": "S7.2", "name": "固定版本号与构建号规则", "status": "pending" },
-        { "id": "S7.3", "name": "建立反馈和已知问题分级", "status": "pending" },
-        { "id": "S7.4", "name": "定义收费阶段入口并保留地区决定", "status": "pending" },
-        { "id": "S7.5", "name": "Beta 稳定后另开收费功能计划", "status": "pending" }
-      ],
-      "verify": "到期与更新责任明确，反馈可追踪，收费/公开发布被明确留给后续计划而未混入本次 Beta。"
+      "verify": "自动化测试和构建通过，H1–H3 自动命名正反例与七语言完整，iPhone/iPad 及本地/iCloud 验收无阻断回归。"
     }
   ],
   "failures": [
     {
-      "step": "S1.1",
-      "reason": "Apple 要求补充身份信息；用户已于 2026-08-30 提交，需等待 Apple 审核通过后才能恢复完整后台访问。",
-      "at": "2026-08-30 00:06:44"
+      "step": "S4.5",
+      "reason": "iPhone 17 Pro iOS 26.5 模拟器的真实 iCloud smoke 返回 iCloud Drive is unavailable for this account or device；需在已登录并启用 iCloud Drive 的模拟器或真机上复验。",
+      "at": "2026-09-05 21:23:16"
     },
     {
-      "step": "S1.1",
-      "reason": "二次身份审核资料提交后，App Store Connect 仍提示 Apple 账户尚未启用 iTunes Connect；需等待 Apple 完成审核与权限激活，若会员已显示 Active 且长时间无变化则联系 Apple Developer Support。",
-      "at": "2026-08-30 11:52:59"
+      "step": "S4.5",
+      "reason": "真机 Debug 构建与安装成功，但 SpringBoard 因 kvsur的iPhone 处于锁屏状态拒绝启动 smoke；解锁并保持屏幕点亮后重试。",
+      "at": "2026-09-05 21:33:08"
     }
   ],
   "decisions": {
-    "current_distribution": "TestFlight external beta by email invitation",
-    "unlisted_app": "not used for this beta",
-    "public_release_timing": "after monetization features are ready",
-    "future_regions": "global except China mainland until ICP filing is available",
-    "monetization_model": "deferred to a separate post-beta plan",
-    "privacy_compliance": "public policy URL, in-app link, and explicit third-party AI consent required before external beta",
-    "privacy_policy_hosting": "GitHub Pages for kvsur/hashmark"
+    "document_creation_timing": "create a real fallback-named Markdown file before navigation",
+    "new_document_entry_mode": "edit with one-time body autofocus",
+    "existing_document_entry_mode": "preview unchanged",
+    "title_presentation": "persistent basename text field above document content in preview and edit modes",
+    "title_commit": "submit on Return or focus loss; never rename on each keystroke",
+    "blank_title": "reuse localized FileStore fallback and collision numbering",
+    "rename_authority": "DocumentLibraryController and FileStore remain the only mutation and naming authorities",
+    "automatic_title_source": "for a newly created fallback-named document only, reuse shared ATX parsing and accept the first physical line when it is H1 through H3",
+    "automatic_title_priority": "a successful explicit non-empty name disables automatic naming; a blank name keeps eligibility; successful inferred rename runs once after content save",
+    "automatic_title_failure": "keep saved content and fallback filename, retain eligibility, and retry on a later save"
   },
   "notes": [
-    "2026-08-30 用户确认先发布 TestFlight，熟人使用一段时间后开发收费功能，再正式对外开放。",
-    "S1 当前被 Apple 身份复核阻塞，但 S2 与 S2a 可独立执行，因此整体计划保持 in_progress。",
-    "2026-08-30 新增发布阻断 S2a：外部 TestFlight 前补齐公开隐私政策、App 内入口和第三方 AI 明确授权。",
-    "2026-08-30 用户确认 GitHub Pages 托管方案，S2a 开始执行。",
-    "2026-08-30 已完成数据流审计、双语政策页面、七语言 App 内入口和 Provider/Endpoint 授权门禁；全套 AI 回归、Debug/Release 模拟器编译及 Release iOS arm64 无签名编译通过。公开 URL 与真机交互仍待验证。",
-    "2026-08-30 用户确认由其部署 GitHub Pages，并要求提交及推送当前分支内容。",
-    "2026-08-30 S2a 在原验收完成后追加七语言隐私政策一致性要求，已重新验证并保持 done。"
+    "2026-09-05 用户确认新文稿在进入编辑器前立即创建。",
+    "计划默认新建后正文获得首焦点，文件名输入框常驻但不阻断写作；若作者调整偏好，应在 S2/S3 开始前更新 summary.md、plan.md 与 state.json。",
+    "工作区已有上一项 TestFlight 计划归档及相关未提交改动；执行时必须保留并避免覆盖这些用户改动。",
+    "2026-09-05 用户补充：新建文稿保存时若仍为兜底名，第一物理行为 H1–H3 则取标题作为文件名；并确认现有 ATX 解析合理时可以复用。"
   ]
 }

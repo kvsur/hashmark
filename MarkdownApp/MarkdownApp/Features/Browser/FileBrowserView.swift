@@ -18,7 +18,7 @@ struct FileBrowserView: View {
     /// 放在 onOpenDocument 之前，让闭包参数保持在末位，ContentView 可用尾随闭包传入。
     var reloadToken: Int = 0
     /// 生成新文档后请求打开它（导航栈由上层 ContentView 持有）。
-    var onOpenDocument: ((DocumentNode) -> Void)? = nil
+    var onOpenDocument: ((DocumentRoute) -> Void)? = nil
 
     @State private var nodes: [DocumentNode] = []
     @State private var sheet: BrowserSheet?
@@ -102,8 +102,16 @@ struct FileBrowserView: View {
     @ViewBuilder
     private func row(for node: DocumentNode) -> some View {
         // 文件夹下钻子目录，Markdown 文件下钻预览页；分流在 ContentView 的 navigationDestination。
-        NavigationLink(value: node) {
-            BrowserNodeLabel(node: node)
+        Group {
+            if node.isFolder {
+                NavigationLink(value: node) {
+                    BrowserNodeLabel(node: node)
+                }
+            } else {
+                NavigationLink(value: DocumentRoute(node: node)) {
+                    BrowserNodeLabel(node: node)
+                }
+            }
         }
         // 三个动作只用图标（labelStyle(.iconOnly) 保留 VoiceOver 文案），配色区分：
         // 删除=红 / 重命名=蓝 / 移动=靛。
@@ -149,7 +157,7 @@ struct FileBrowserView: View {
                 Button { sheet = .newFolder } label: {
                     Label("New Folder", systemImage: "folder.badge.plus")
                 }
-                Button { sheet = .newMarkdown } label: {
+                Button { createNewDocument() } label: {
                     Label("New Document", systemImage: "doc.badge.plus")
                 }
             } label: {
@@ -166,10 +174,6 @@ struct FileBrowserView: View {
         case .newFolder:
             NameInputSheet(title: "New Folder", placeholder: "Folder name") { name in
                 perform { _ = try await documentLibrary.createFolder(named: name, in: directory) }
-            }
-        case .newMarkdown:
-            NameInputSheet(title: "New Document", placeholder: "Document name") { name in
-                perform { _ = try await documentLibrary.createMarkdown(named: name, in: directory) }
             }
         case .rename(let node):
             NameInputSheet(title: "Rename", placeholder: "New name", initialName: node.displayName) { name in
@@ -203,6 +207,19 @@ struct FileBrowserView: View {
 
     // MARK: - 逻辑
 
+    private func createNewDocument() {
+        Task {
+            do {
+                let url = try await documentLibrary.createMarkdown(named: "", in: directory)
+                reload()
+                let node = DocumentNode(url: url, kind: .markdown, modifiedAt: .now)
+                onOpenDocument?(DocumentRoute(node: node, initialMode: .edit, isNewDocument: true))
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
     private func reload() {
         Task {
             do {
@@ -223,7 +240,8 @@ struct FileBrowserView: View {
                 )
                 try await documentLibrary.writeText(content, to: url)
                 reload()
-                onOpenDocument?(DocumentNode(url: url, kind: .markdown, modifiedAt: .now))
+                let node = DocumentNode(url: url, kind: .markdown, modifiedAt: .now)
+                onOpenDocument?(DocumentRoute(node: node))
             } catch {
                 errorMessage = error.localizedDescription
             }

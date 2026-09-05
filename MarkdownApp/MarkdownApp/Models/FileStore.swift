@@ -86,7 +86,15 @@ nonisolated struct FileStore: @unchecked Sendable {
     func rename(_ node: DocumentNode, to newName: String) throws -> URL {
         let directory = node.url.deletingLastPathComponent()
         let ext = node.isFolder ? nil : node.url.pathExtension
-        let destination = uniqueURL(for: sanitized(newName), extension: ext, in: directory)
+        let destination = uniqueURL(
+            for: sanitized(newName),
+            extension: ext,
+            in: directory,
+            excluding: node.url
+        )
+        guard destination.standardizedFileURL != node.url.standardizedFileURL else {
+            return node.url
+        }
         return try accessCoordinator.move(from: node.url, to: destination) { source, destination in
             try fileManager.moveItem(at: source, to: destination)
             return destination
@@ -218,14 +226,20 @@ nonisolated struct FileStore: @unchecked Sendable {
     }
 
     /// 生成目录内不冲突的 URL：若已存在则追加 " 2"、" 3"…
-    private func uniqueURL(for base: String, extension ext: String?, in directory: URL) -> URL {
+    private func uniqueURL(
+        for base: String,
+        extension ext: String?,
+        in directory: URL,
+        excluding excludedURL: URL? = nil
+    ) -> URL {
         func make(_ name: String) -> URL {
             let full = ext.map { "\(name).\($0)" } ?? name
             return directory.appendingPathComponent(full)
         }
         var candidate = make(base)
         var index = 2
-        while fileManager.fileExists(atPath: candidate.path) {
+        while fileManager.fileExists(atPath: candidate.path)
+            && candidate.standardizedFileURL != excludedURL?.standardizedFileURL {
             candidate = make("\(base) \(index)")
             index += 1
         }

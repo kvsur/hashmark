@@ -23,6 +23,8 @@ import UIKit
 struct MarkdownTextView: UIViewRepresentable {
     @Binding var text: String
     var handle: EditorHandle? = nil
+    var autofocus = false
+    var onAutofocusConsumed: () -> Void = {}
 
     /// 请求对某段文本做 AI 润色：来自「选区气泡菜单点 AI」或「行内小按钮」，交出选中文本与其 NSRange。
     /// 上层（DocumentView）据此发起润色会话，并在接受后按 range 回填。默认空实现，便于未接线时使用。
@@ -91,6 +93,9 @@ struct MarkdownTextView: UIViewRepresentable {
         context.coordinator.lineButton = button
         handle?.textView = tv
         context.coordinator.scheduleHighlight()
+        DispatchQueue.main.async { [weak coordinator = context.coordinator] in
+            coordinator?.performInitialFocusIfNeeded()
+        }
         return container
     }
 
@@ -99,6 +104,7 @@ struct MarkdownTextView: UIViewRepresentable {
         context.coordinator.parent = self
         guard let tv = context.coordinator.textView else { return }
         handle?.textView = tv
+        context.coordinator.performInitialFocusIfNeeded()
 
         // 只在外部 text 与内部不一致时才赋值：用户键入时二者已相等（textViewDidChange 刚回写过），
         // 直接 return 避免重设 text 导致光标跳动/丢失；仅当外部驱动改动（AI 回填、切换文档）才同步。
@@ -119,9 +125,18 @@ struct MarkdownTextView: UIViewRepresentable {
         weak var textView: UITextView?
         weak var lineButton: EditorLineActionButton?
         private var isApplyingMutation = false
+        private var didPerformInitialFocus = false
         private var highlightWorkItem: DispatchWorkItem?
 
         init(_ parent: MarkdownTextView) { self.parent = parent }
+
+        func performInitialFocusIfNeeded() {
+            guard parent.autofocus, !didPerformInitialFocus, let textView else { return }
+            didPerformInitialFocus = true
+            textView.selectedRange = NSRange(location: 0, length: 0)
+            textView.becomeFirstResponder()
+            parent.onAutofocusConsumed()
+        }
 
         func textViewDidChange(_ textView: UITextView) {
             parent.text = textView.text

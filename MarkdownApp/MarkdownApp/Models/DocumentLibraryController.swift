@@ -287,7 +287,11 @@ final class DocumentLibraryController: ObservableObject {
     }
 
     func rename(_ node: DocumentNode, to name: String) async throws -> URL {
-        try await mutate { try await service.rename(node, to: name) }
+        let destination = try await service.rename(node, to: name)
+        if destination.standardizedFileURL.path != node.url.standardizedFileURL.path {
+            revision &+= 1
+        }
+        return destination
     }
 
     func delete(_ node: DocumentNode) async throws {

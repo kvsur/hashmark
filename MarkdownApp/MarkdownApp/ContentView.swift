@@ -16,7 +16,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     /// 显式导航路径，用于导入完成后以代码方式跳到新文件的预览。
-    @State private var path: [DocumentNode] = []
+    @State private var path = NavigationPath()
     /// 外部传入、正在「只读预览」的文件（onOpenURL 传入）；非 nil 时弹出只读预览。
     /// 用户在预览里自行决定是否导入，未导入则原样放弃。复用应用内导入的同一套件。
     @State private var incoming: ImportedDocument?
@@ -32,16 +32,14 @@ struct ContentView: View {
                 onOpenDocument: openDocument
             )
             .navigationDestination(for: DocumentNode.self) { node in
-                    // 同一目的地按类型分流：文件夹继续下钻，文档进入文档屏（预览/编辑）。
-                    if node.isFolder {
-                        FileBrowserView(
-                            directory: node.url,
-                            onOpenDocument: openDocument
-                        )
-                    } else {
-                        DocumentView(node: node)
-                    }
-                }
+                FileBrowserView(
+                    directory: node.url,
+                    onOpenDocument: openDocument
+                )
+            }
+            .navigationDestination(for: DocumentRoute.self) { route in
+                DocumentView(route: route)
+            }
         }
         .rebuildsOnLanguageChange()
         // 其它 App 分享/「打开方式」传入文件时触发：先只读预览，不直接落盘。
@@ -71,7 +69,7 @@ struct ContentView: View {
             }
         }
         .onChange(of: documentLibrary.identity) { _ in
-            path.removeAll()
+            path = NavigationPath()
             homeReloadToken &+= 1
         }
         .task {
@@ -96,8 +94,8 @@ struct ContentView: View {
     }
 
     /// 所有目录共用同一导航回调；AI 接受结果后直接打开刚创建的文档。
-    private func openDocument(_ node: DocumentNode) {
-        path.append(node)
+    private func openDocument(_ route: DocumentRoute) {
+        path.append(route)
     }
 }
 

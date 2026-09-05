@@ -30,8 +30,13 @@ xcrun swiftc \
   "$app_dir/Models/DocumentNode.swift" \
   "$app_dir/Models/DocumentTreeNode.swift" \
   "$app_dir/Models/DocumentDraft.swift" \
+  "$app_dir/Models/DocumentRoute.swift" \
+  "$app_dir/Models/MarkdownATXHeading.swift" \
+  "$app_dir/Models/MarkdownDocumentTitleInference.swift" \
   "$app_dir/Models/ImportedDocument.swift" \
   "$app_dir/Models/DocumentReferenceResolver.swift" \
+  "$app_dir/Features/Document/DocumentNamingState.swift" \
+  "$app_dir/Features/Editor/Outline/MarkdownOutline.swift" \
   "$app_root/FileBrowserTests/DocumentBehaviorRegressionTests.swift" \
   -o "$output_dir/DocumentBehaviorRegressionTests"
 "$output_dir/DocumentBehaviorRegressionTests"

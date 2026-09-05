@@ -1,6 +1,6 @@
 # Hashmark TestFlight Beta 交接材料
 
-本文档对应 Hashmark `1.0 (1)` 的首轮熟人 TestFlight 测试。提交前请替换所有 `待填写` 项；不要把 API Key、测试者邮箱、电话号码或其他个人信息提交到公开仓库。
+本文档对应 Hashmark `1.0 (1)` 的首轮熟人 TestFlight 测试。审核联系人姓名与国际格式电话从 App Store Connect 的 Account Holder 档案直接填写，不保存到本公开仓库；API Key、测试者邮箱和其他个人信息同样不得提交。
 
 ## Test Information
 
@@ -58,9 +58,9 @@ Please report the device model, OS version, Hashmark build, exact steps, expecte
 
 ### Contact
 
-- First name: `待填写`
-- Last name: `待填写`
-- Phone, including country code: `待填写，例如 +86 ...`
+- First name: `Use the verified Account Holder profile; do not commit personal data`
+- Last name: `Use the verified Account Holder profile; do not commit personal data`
+- Phone, including country code: `Use the verified Account Holder profile in international format; do not commit personal data`
 - Email: `hello1024lc@gmail.com`
 
 ### Sign-in Information
@@ -92,7 +92,7 @@ Export compliance: the app uses only operating-system TLS and one-way SHA-256 in
 
 ## 提交前检查
 
-- [ ] 补齐审核联系人姓名和国际格式电话。
+- [x] 已确认从 Account Holder 档案直接填写审核联系人姓名和国际格式电话，不写入仓库。
 - [ ] 在 App Store Connect 的 Test Information 中添加 English (U.S.) 和简体中文本地化。
 - [ ] Feedback Email 使用 `hello1024lc@gmail.com`，并确认可以正常收信。
 - [ ] 隐私政策 URL 使用 `https://kvsur.github.io/hashmark/privacy/`。

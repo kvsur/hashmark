@@ -41,23 +41,15 @@ enum MarkdownOutline {
                 return
             }
             guard fence == nil else { return }
-            let hashes = trimmed.prefix { $0 == "#" }.count
-            guard (1...6).contains(hashes) else { return }
-            let afterHashes = trimmed.dropFirst(hashes)
-            guard afterHashes.first == " " || afterHashes.first == "\t" else { return }
-            let title = afterHashes
-                .trimmingCharacters(in: .whitespaces)
-                .trimmingCharacters(in: CharacterSet(charactersIn: "#"))
-                .trimmingCharacters(in: .whitespaces)
-            guard !title.isEmpty else { return }
-            let identity = HeadingIdentity(level: hashes, title: title)
+            guard let heading = MarkdownATXHeadingParser.parse(line: line) else { return }
+            let identity = HeadingIdentity(level: heading.level, title: heading.title)
             let occurrence = occurrences[identity, default: 0]
             occurrences[identity] = occurrence + 1
             result.append(
                 MarkdownOutlineItem(
                     range: range,
-                    level: hashes,
-                    title: title,
+                    level: heading.level,
+                    title: heading.title,
                     occurrence: occurrence
                 )
             )

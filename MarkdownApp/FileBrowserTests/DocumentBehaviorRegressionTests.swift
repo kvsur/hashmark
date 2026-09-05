@@ -12,6 +12,10 @@ enum DocumentBehaviorRegressionTests {
         testExternalDocumentChangePolicy()
         testExternalOpenResolution()
         testDocumentReferenceResolution()
+        testATXHeadingParsingAndTitleInference()
+        testMarkdownOutlineUsesSharedATXSemantics()
+        testDocumentRouteAndNamingState()
+        testSaveRenameAndContinuedEditingOrder()
         print("DocumentBehaviorRegressionTests: PASS")
     }
 
@@ -137,6 +141,105 @@ enum DocumentBehaviorRegressionTests {
         expect(url == firstURL, "AI reference should retain URL identity for deduplication")
         expect(name == "First", "AI reference should use the document display name")
         expect(text == "first body", "AI reference should trim surrounding whitespace")
+    }
+
+    private static func testATXHeadingParsingAndTitleInference() {
+        expect(
+            MarkdownATXHeadingParser.parse(line: "\t##  Release Notes ##  ")
+                == MarkdownATXHeading(level: 2, title: "Release Notes"),
+            "shared ATX parsing should preserve the existing outline semantics"
+        )
+        expect(MarkdownATXHeadingParser.parse(line: "#tag") == nil, "ATX markers require whitespace")
+        expect(MarkdownATXHeadingParser.parse(line: "####### Too deep") == nil, "ATX levels stop at six")
+        expect(MarkdownATXHeadingParser.parse(line: "### ###") == nil, "an empty ATX title is invalid")
+
+        let inferredCases: [(String, String?)] = [
+            ("# One\nbody", "One"),
+            ("## Two\r\nbody", "Two"),
+            ("   ### Three ###\nbody", "Three"),
+            ("#### Four\nbody", nil),
+            ("paragraph\n# Later", nil),
+            ("\n# Later", nil),
+            ("Title\n=====", nil),
+            ("###\nbody", nil)
+        ]
+        for (source, expected) in inferredCases {
+            expect(
+                MarkdownDocumentTitleInference.title(from: source) == expected,
+                "title inference returned the wrong result for \(String(reflecting: source))"
+            )
+        }
+    }
+
+    private static func testMarkdownOutlineUsesSharedATXSemantics() {
+        let source = "# Same\n```\n## Hidden\n```\n## Same ##\n#tag\n"
+        let items = MarkdownOutline.items(in: source)
+        expect(items.map(\.level) == [1, 2], "outline should keep H1-H6 recognition outside fences")
+        expect(items.map(\.title) == ["Same", "Same"], "outline should use the shared title cleanup")
+        expect(items.map(\.occurrence) == [0, 0], "occurrences should remain scoped by level and title")
+        expect(items.first?.range.location == 0, "outline ranges should remain UTF-16 source locations")
+    }
+
+    private static func testDocumentRouteAndNamingState() {
+        let node = self.node(URL(fileURLWithPath: "/Library/Untitled.md"))
+        let existingRoute = DocumentRoute(node: node)
+        expect(existingRoute.initialMode == .preview && !existingRoute.isNewDocument,
+               "existing document routes should default to preview without auto-title eligibility")
+
+        let newRoute = DocumentRoute(node: node, initialMode: .edit, isNewDocument: true)
+        var naming = DocumentNamingState(route: newRoute)
+        expect(naming.input.isEmpty && naming.actualName == "Untitled",
+               "a new route should show the fallback name only as the placeholder")
+        expect(naming.isAutomaticTitleEligible, "a manually created route should start auto-title eligible")
+
+        let numberedFallback = URL(fileURLWithPath: "/Library/Untitled 2.md")
+        naming.didRename(to: numberedFallback, submittedName: "", origin: .explicit)
+        expect(naming.input.isEmpty && naming.actualName == "Untitled 2",
+               "a successful blank commit should retain blank input and update its placeholder")
+        expect(naming.isAutomaticTitleEligible, "a blank commit should retain auto-title eligibility")
+
+        naming.didFailRename(origin: .automatic)
+        expect(naming.isAutomaticTitleEligible, "a failed inferred rename must remain retryable")
+        let inferred = URL(fileURLWithPath: "/Library/Release Notes.md")
+        naming.didRename(to: inferred, submittedName: "Release Notes", origin: .automatic)
+        expect(naming.input == "Release Notes" && !naming.isAutomaticTitleEligible,
+               "a successful inferred rename should run once and expose the actual name")
+
+        var explicitlyNamed = DocumentNamingState(route: newRoute)
+        explicitlyNamed.didRename(to: inferred, submittedName: "Release Notes", origin: .explicit)
+        expect(!explicitlyNamed.isAutomaticTitleEligible,
+               "a successful non-empty explicit name should take priority over inference")
+
+        var moved = DocumentNamingState(route: newRoute)
+        moved.synchronizeWithExternalURL(URL(fileURLWithPath: "/Library/Remote.md"))
+        expect(moved.input == "Remote" && !moved.isAutomaticTitleEligible,
+               "an external move should synchronize the field and retire fallback eligibility")
+    }
+
+    private static func testSaveRenameAndContinuedEditingOrder() {
+        let oldURL = URL(fileURLWithPath: "/Library/Untitled.md")
+        let newURL = URL(fileURLWithPath: "/Library/Notes.md")
+        var draft = DocumentDraft(node: node(oldURL))
+        draft.loadIfNeeded(text: "")
+        draft.text = "# Notes"
+        var writes: [String] = []
+
+        let beforeRename = draft.text
+        writes.append("write:\(draft.node.url.path):\(beforeRename)")
+        draft.markSaved(beforeRename, at: oldURL)
+        draft.text += "\ncontinued while renaming"
+        draft.move(to: newURL)
+        draft.save { text, url in writes.append("write:\(url.path):\(text)") }
+
+        expect(
+            writes == [
+                "write:/Library/Untitled.md:# Notes",
+                "write:/Library/Notes.md:# Notes\ncontinued while renaming"
+            ],
+            "persistence must save the old snapshot before rename and later edits only to the new URL"
+        )
+        expect(draft.node.url == newURL && !draft.isDirty,
+               "a completed rename transaction should finish clean on the new URL")
     }
 
     private static func node(_ url: URL) -> DocumentNode {

@@ -12,6 +12,7 @@ enum DocumentLibraryServiceTests {
         try await testExplicitRootInboxAndSerializedOperations()
         try await testMutationFreeze()
         try await testControllerRevisionAndIdentity()
+        try await testLocalCreateRenameContinueAndReopen()
         print("DocumentLibraryServiceTests: PASS")
     }
 
@@ -92,13 +93,66 @@ enum DocumentLibraryServiceTests {
         )
 
         let initialRevision = controller.revision
-        _ = try await controller.createMarkdown(named: "Controller", in: root)
+        let created = try await controller.createMarkdown(named: "Controller", in: root)
         expect(controller.revision == initialRevision + 1, "successful mutations must publish one revision")
+
+        let createdNode = DocumentNode(url: created, kind: .markdown, modifiedAt: .distantPast)
+        let noOpRevision = controller.revision
+        let unchanged = try await controller.rename(createdNode, to: "Controller")
+        expect(unchanged.standardizedFileURL.path == created.standardizedFileURL.path,
+               "same-name controller rename should keep the source URL")
+        expect(controller.revision == noOpRevision, "same-name rename must not publish a false revision")
+
+        let renamed = try await controller.rename(createdNode, to: "Renamed")
+        expect(renamed.lastPathComponent == "Renamed.md", "controller rename should preserve the extension")
+        expect(controller.revision == noOpRevision + 1, "a real rename must publish exactly one revision")
+
         let cloudRoot = base.appendingPathComponent("Cloud", isDirectory: true)
         controller.commit(mode: .iCloud, rootURL: cloudRoot, state: .cloudReady)
         expect(controller.storageMode == .iCloud, "commit must publish the new mode")
         expect(controller.identity == DocumentLibraryIdentity(mode: .iCloud, rootURL: cloudRoot), "identity must change with root and mode")
         expect(DocumentStoragePreferenceStore(defaults: defaults).loadMode() == .iCloud, "commit must persist only the committed mode")
+    }
+
+    @MainActor
+    private static func testLocalCreateRenameContinueAndReopen() async throws {
+        let fileManager = FileManager.default
+        let base = fileManager.temporaryDirectory
+            .appendingPathComponent("DocumentLibraryRoundTripTests-\(UUID().uuidString)", isDirectory: true)
+        let root = base.appendingPathComponent("Documents", isDirectory: true)
+        let inbox = root.appendingPathComponent("Inbox", isDirectory: true)
+        try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: base) }
+
+        let suite = "DocumentLibraryRoundTripTests-\(UUID().uuidString)"
+        let defaults = try unwrap(UserDefaults(suiteName: suite), "missing round-trip defaults")
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let preferences = DocumentStoragePreferenceStore(defaults: defaults)
+        let controller = DocumentLibraryController(
+            localRootURL: root,
+            localInboxURL: inbox,
+            preferenceStore: preferences,
+            fileManager: fileManager
+        )
+
+        let created = try await controller.createMarkdown(named: "", in: root)
+        try await controller.writeText("# Notes", to: created)
+        let createdNode = DocumentNode(url: created, kind: .markdown, modifiedAt: .distantPast)
+        let renamed = try await controller.rename(createdNode, to: "Notes")
+        try await controller.writeText("# Notes\n\nContinued", to: renamed)
+
+        let reopenedController = DocumentLibraryController(
+            localRootURL: root,
+            localInboxURL: inbox,
+            preferenceStore: preferences,
+            fileManager: fileManager
+        )
+        let reopenedText = try await reopenedController.readText(at: renamed)
+        let reopenedItems = try await reopenedController.contents(of: root)
+        expect(reopenedText == "# Notes\n\nContinued", "reopening must read continued edits from the renamed URL")
+        expect(reopenedItems.contains { $0.url.standardizedFileURL.path == renamed.standardizedFileURL.path },
+               "the reopened library must list the renamed document")
+        expect(!fileManager.fileExists(atPath: created.path), "rename must not leave an orphaned fallback file")
     }
 
     private static func withTemporaryLibrary(
